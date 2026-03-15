@@ -11,10 +11,11 @@
  * - Daemon management
  * - Update checking
  *
- * We DISCARD all of that. Our CLI has three modes:
- * 1. `clawdex run "prompt"` — single-shot: run a task and exit
- * 2. `clawdex chat` — interactive REPL
- * 3. `clawdex continue` — resume the last session
+ * We DISCARD all of that. Our CLI has these modes:
+ * 1. `clawdex` — default: TUI mode (rich terminal UI from pi-coding-agent)
+ * 2. `clawdex run "prompt"` — single-shot: run a task and exit
+ * 3. `clawdex chat` — basic readline REPL (fallback)
+ * 4. `clawdex continue` — resume the last session
  */
 
 import { Command } from "commander";
@@ -31,6 +32,7 @@ import {
 import type { ClawdexSession } from "../types/index.js";
 import { log } from "../utils/logger.js";
 import { startRepl } from "./repl.js";
+import { startTui } from "./tui.js";
 
 const program = new Command();
 
@@ -38,6 +40,48 @@ program
   .name("clawdex")
   .description("Lean coding/execution agent — extracted from OpenClaw core")
   .version("0.1.0");
+
+// Default action: launch TUI when no subcommand given
+// e.g. `clawdex` or `clawdex "build me a flask app"`
+program
+  .argument("[prompt]", "Optional initial message for TUI mode")
+  .option("-m, --model <model>", "Model to use")
+  .option("-p, --provider <provider>", "Provider")
+  .option("-u, --base-url <url>", "Provider base URL")
+  .option("-d, --work-dir <dir>", "Working directory")
+  .option("-v, --verbose", "Verbose logging")
+  .option("--basic", "Use basic readline REPL instead of TUI")
+  .action(async (prompt: string | undefined, opts: Record<string, string | boolean>) => {
+    if (opts.verbose) log.setLogLevel("debug");
+
+    const config = loadConfig({
+      model: opts.model as string | undefined,
+      provider: opts.provider as string | undefined,
+      baseUrl: opts.baseUrl as string | undefined,
+      workDir: opts.workDir as string | undefined,
+    });
+
+    if (opts.basic) {
+      // Basic readline REPL fallback
+      const sessionId = createSessionId();
+      await startRepl(config, sessionId, []);
+      return;
+    }
+
+    // TUI mode (rich terminal UI)
+    try {
+      await startTui(config, {
+        initialMessage: prompt,
+        verbose: opts.verbose as boolean | undefined,
+      });
+    } catch (e) {
+      // If TUI fails (e.g. missing terminal capabilities), fall back to basic REPL
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`TUI failed (${msg}), falling back to basic REPL...`);
+      const sessionId = createSessionId();
+      await startRepl(config, sessionId, []);
+    }
+  });
 
 program
   .command("run")
