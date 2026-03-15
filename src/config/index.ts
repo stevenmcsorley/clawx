@@ -50,8 +50,16 @@ function loadJsonConfig(workDir: string): Partial<ClawdexConfig> {
 }
 
 export function loadConfig(overrides?: Partial<ClawdexConfig>): ClawdexConfig {
-  // Load .env from cwd
+  // Load .env — first try cwd, then the clawdex install directory
   loadDotenv();
+  // If CLAWDEX_PROVIDER wasn't found in cwd's .env, try the package root
+  if (!process.env.CLAWDEX_PROVIDER) {
+    const packageRoot = path.resolve(
+      new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"),
+      "../../..",
+    );
+    loadDotenv({ path: path.join(packageRoot, ".env") });
+  }
 
   const env = process.env;
   const workDir = env.CLAWDEX_WORK_DIR || overrides?.workDir || DEFAULTS.workDir;

@@ -23,6 +23,7 @@
 import {
   createAgentSession,
   InteractiveMode,
+  AuthStorage,
   type ToolDefinition,
 } from "@mariozechner/pi-coding-agent";
 import type { Model, Api } from "@mariozechner/pi-ai";
@@ -87,9 +88,12 @@ export async function startTui(
   log.info(`Starting TUI with ${model.id} @ ${model.provider}`);
   log.info(`Custom tools: ${customTools.map((t) => t.name).join(", ")}`);
 
+  // Create AuthStorage and inject our API key so pi-coding-agent
+  // doesn't reject local endpoints that have no env-var mapping
+  const authStorage = AuthStorage.create();
+  authStorage.setRuntimeApiKey(config.provider, config.apiKey);
+
   // Create session via the SDK
-  // This gives us the full AgentSession with session manager,
-  // settings, resource loading, etc.
   const { session, extensionsResult, modelFallbackMessage } =
     await createAgentSession({
       cwd: config.workDir,
@@ -97,6 +101,7 @@ export async function startTui(
       thinkingLevel:
         config.thinkingLevel === "off" ? undefined : config.thinkingLevel,
       customTools,
+      authStorage,
     });
 
   // Override system prompt with our Clawdex-specific one
