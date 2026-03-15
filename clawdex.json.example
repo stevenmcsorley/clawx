@@ -1,0 +1,23 @@
+{
+  "provider": "openai-completions",
+  "baseUrl": "http://localhost:8080/v1",
+  "model": "qwen2.5-coder-14b-instruct",
+  "apiKey": "not-needed",
+  "maxTokens": 16384,
+  "thinkingLevel": "medium",
+  "execTimeout": 120000,
+  "sshTargets": {
+    "pi": {
+      "host": "192.168.1.100",
+      "username": "pi",
+      "privateKeyPath": "~/.ssh/id_rsa"
+    },
+    "server": {
+      "host": "myserver.com",
+      "port": 2222,
+      "username": "deploy",
+      "privateKeyPath": "~/.ssh/deploy_key"
+    }
+  },
+  "systemPrompt": ""
+}
