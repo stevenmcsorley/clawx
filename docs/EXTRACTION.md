@@ -1,6 +1,6 @@
 # Extraction & Migration Notes
 
-How Clawdex was extracted from the OpenClaw codebase.
+How Clawx was extracted from the OpenClaw codebase.
 
 ## Source analysis
 
@@ -44,7 +44,7 @@ Using them as dependencies is the cleanest extraction path.
 
 ### ADAPTED (rewritten with inspiration from OpenClaw patterns)
 
-| Component | OpenClaw source | Clawdex file | What changed |
+| Component | OpenClaw source | Clawx file | What changed |
 |-----------|----------------|--------------|-------------|
 | Model resolution | `src/agents/pi-embedded-runner/model.ts` (398 lines) | `src/core/provider.ts` (~60 lines) | Stripped auth rotation, config overrides, OpenRouter pre-fetch, forward-compat. Kept the core pattern of constructing a Model with api:"openai-completions" for local endpoints. |
 | Session persistence | `src/config/sessions/store.ts` (400+ lines) | `src/core/session.ts` (~100 lines) | Stripped TTL caching, atomic writes, lock acquisition, delivery context, entry capping, disk budgets. Simple JSON file per session. |
@@ -52,7 +52,7 @@ Using them as dependencies is the cleanest extraction path.
 
 ### WRITTEN FRESH (not present in OpenClaw)
 
-| Component | Clawdex file | Why new |
+| Component | Clawx file | Why new |
 |-----------|-------------|---------|
 | SSH execution | `src/tools/sshRun.ts` | OpenClaw has no SSH support — remote execution uses a gateway/node-host abstraction |
 | Git status | `src/tools/gitStatus.ts` | OpenClaw doesn't expose git as a model tool |
@@ -93,9 +93,9 @@ Total discarded: ~15,000+ lines of platform code, 50+ extensions, 50+ skills, 3 
 
 ### What OpenClaw pulls in that we don't need
 
-OpenClaw's package.json has ~100 dependencies. Clawdex uses 10:
+OpenClaw's package.json has ~100 dependencies. Clawx uses 10:
 
-| Clawdex dep | Purpose |
+| Clawx dep | Purpose |
 |------------|---------|
 | @mariozechner/pi-agent-core | Agent loop |
 | @mariozechner/pi-ai | Provider abstraction |
@@ -146,11 +146,11 @@ User message
   → User
 ```
 
-### Clawdex flow
+### Clawx flow
 
 ```
 User message (CLI)
-  → Config from .env / clawdex.json
+  → Config from .env / clawx.json
     → Model resolution (provider + baseUrl + model ID)
       → pi-agent-core agentLoop()
         → Provider stream (pi-ai)
@@ -183,7 +183,7 @@ User message (CLI)
 - Skill discovery and loading
 - Gateway/daemon architecture
 
-### Added (new in Clawdex)
+### Added (new in Clawx)
 - SSH execution (`ssh_run` tool)
 - Git tools (`git_status`, `git_diff`)
 - File search tool (`search_files`)

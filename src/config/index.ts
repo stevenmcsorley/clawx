@@ -1,16 +1,16 @@
 /**
- * Configuration loading for Clawdex.
+ * Configuration loading for Clawx.
  *
- * Loads from environment variables (with .env support) and optional clawdex.json.
+ * Loads from environment variables (with .env support) and optional clawx.json.
  * No complex config system — just env vars and a JSON file.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { config as loadDotenv } from "dotenv";
-import type { ClawdexConfig, SshTarget } from "../types/index.js";
+import type { ClawxConfig, SshTarget } from "../types/index.js";
 
-const DEFAULTS: ClawdexConfig = {
+const DEFAULTS: ClawxConfig = {
   provider: "openai-completions",
   baseUrl: "http://localhost:8080/v1",
   model: "qwen2.5-coder-14b-instruct",
@@ -22,7 +22,7 @@ const DEFAULTS: ClawdexConfig = {
   maxTokens: 16384,
   sessionDir: path.join(
     process.env.HOME || process.env.USERPROFILE || ".",
-    ".clawdex",
+    ".clawx",
     "sessions",
   ),
   sshTargets: {},
@@ -38,19 +38,19 @@ function parseSshTargets(raw: string): Record<string, SshTarget> {
   }
 }
 
-function loadJsonConfig(workDir: string): Partial<ClawdexConfig> {
-  const configPath = path.join(workDir, "clawdex.json");
+function loadJsonConfig(workDir: string): Partial<ClawxConfig> {
+  const configPath = path.join(workDir, "clawx.json");
   if (!fs.existsSync(configPath)) return {};
   try {
     const raw = fs.readFileSync(configPath, "utf-8");
-    return JSON.parse(raw) as Partial<ClawdexConfig>;
+    return JSON.parse(raw) as Partial<ClawxConfig>;
   } catch {
     return {};
   }
 }
 
-export function loadConfig(overrides?: Partial<ClawdexConfig>): ClawdexConfig {
-  // Load .env — first try cwd, then the clawdex install directory
+export function loadConfig(overrides?: Partial<ClawxConfig>): ClawxConfig {
+  // Load .env — first try cwd, then the clawx install directory
   loadDotenv();
   // If CLAWDEX_PROVIDER wasn't found in cwd's .env, try the package root
   if (!process.env.CLAWDEX_PROVIDER) {
@@ -65,7 +65,7 @@ export function loadConfig(overrides?: Partial<ClawdexConfig>): ClawdexConfig {
   const workDir = env.CLAWDEX_WORK_DIR || overrides?.workDir || DEFAULTS.workDir;
   const jsonConfig = loadJsonConfig(workDir);
 
-  const config: ClawdexConfig = {
+  const config: ClawxConfig = {
     provider:
       overrides?.provider ||
       env.CLAWDEX_PROVIDER ||
@@ -104,7 +104,7 @@ export function loadConfig(overrides?: Partial<ClawdexConfig>): ClawdexConfig {
       (overrides?.thinkingLevel ||
         env.CLAWDEX_THINKING_LEVEL ||
         jsonConfig.thinkingLevel ||
-        DEFAULTS.thinkingLevel) as ClawdexConfig["thinkingLevel"],
+        DEFAULTS.thinkingLevel) as ClawxConfig["thinkingLevel"],
     maxTokens:
       overrides?.maxTokens ||
       (env.CLAWDEX_MAX_TOKENS ? parseInt(env.CLAWDEX_MAX_TOKENS, 10) : 0) ||

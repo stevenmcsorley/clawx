@@ -1,5 +1,5 @@
 /**
- * Git status tool for Clawdex.
+ * Git status tool for Clawx.
  *
  * EXTRACTION NOTE: OpenClaw does not expose git tools to the model.
  * Written fresh as simple wrappers around `git` CLI.

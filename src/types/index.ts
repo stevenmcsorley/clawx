@@ -1,11 +1,11 @@
 /**
- * Clawdex type definitions.
+ * Clawx type definitions.
  *
  * Core message/tool/model types come from @mariozechner/pi-ai and pi-agent-core.
- * This file defines Clawdex-specific configuration and runtime types.
+ * This file defines Clawx-specific configuration and runtime types.
  */
 
-export interface ClawdexConfig {
+export interface ClawxConfig {
   provider: string;
   baseUrl: string;
   model: string;
@@ -28,7 +28,7 @@ export interface SshTarget {
   password?: string;
 }
 
-export interface ClawdexSession {
+export interface ClawxSession {
   id: string;
   startedAt: number;
   workDir: string;

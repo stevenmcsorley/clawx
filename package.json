@@ -1,10 +1,10 @@
 {
-  "name": "clawdex",
+  "name": "clawx",
   "version": "0.1.0",
-  "description": "Lean coding/execution agent extracted from OpenClaw core",
+  "description": "Lean coding/execution agent extracted from OpenClaw core (formerly clawdex)",
   "type": "module",
   "bin": {
-    "clawdex": "./dist/cli/main.js"
+    "clawx": "./dist/cli/main.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

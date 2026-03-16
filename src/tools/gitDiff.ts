@@ -1,5 +1,5 @@
 /**
- * Git diff tool for Clawdex.
+ * Git diff tool for Clawx.
  * Written fresh — not present in OpenClaw as a model tool.
  */
 

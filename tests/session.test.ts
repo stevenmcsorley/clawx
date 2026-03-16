@@ -9,12 +9,12 @@ import {
   listSessions,
   getLatestSession,
 } from "../src/core/session.js";
-import type { ClawdexSession } from "../src/types/index.js";
+import type { ClawxSession } from "../src/types/index.js";
 
 let testDir: string;
 
 beforeEach(() => {
-  testDir = path.join(os.tmpdir(), `clawdex-test-${Date.now()}`);
+  testDir = path.join(os.tmpdir(), `clawx-test-${Date.now()}`);
 });
 
 afterEach(() => {
@@ -32,7 +32,7 @@ describe("session management", () => {
   });
 
   it("should save and load a session", () => {
-    const session: ClawdexSession = {
+    const session: ClawxSession = {
       id: createSessionId(),
       startedAt: Date.now(),
       workDir: "/tmp",
@@ -59,7 +59,7 @@ describe("session management", () => {
 
   it("should list sessions sorted by start time", () => {
     for (let i = 0; i < 3; i++) {
-      const session: ClawdexSession = {
+      const session: ClawxSession = {
         id: createSessionId(),
         startedAt: Date.now() + i * 1000,
         workDir: "/tmp",
@@ -76,14 +76,14 @@ describe("session management", () => {
   });
 
   it("should get latest session", () => {
-    const oldSession: ClawdexSession = {
+    const oldSession: ClawxSession = {
       id: createSessionId(),
       startedAt: 1000,
       workDir: "/tmp",
       model: "old",
       provider: "local",
     };
-    const newSession: ClawdexSession = {
+    const newSession: ClawxSession = {
       id: createSessionId(),
       startedAt: 2000,
       workDir: "/tmp",

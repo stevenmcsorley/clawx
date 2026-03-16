@@ -1,5 +1,5 @@
 /**
- * Structured logger for Clawdex.
+ * Structured logger for Clawx.
  * Simple, no dependencies beyond chalk.
  */
 

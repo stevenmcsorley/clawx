@@ -1,5 +1,5 @@
 /**
- * Model/provider resolution for Clawdex.
+ * Model/provider resolution for Clawx.
  *
  * EXTRACTION NOTE:
  * OpenClaw's model resolution (pi-embedded-runner/model.ts, 398 lines) handles
@@ -19,7 +19,7 @@
  */
 
 import type { Api, Model } from "@mariozechner/pi-ai";
-import type { ClawdexConfig } from "../types/index.js";
+import type { ClawxConfig } from "../types/index.js";
 import { log } from "../utils/logger.js";
 
 /**
@@ -43,13 +43,13 @@ const PROVIDER_API_MAP: Record<string, Api> = {
 };
 
 /**
- * Resolve a Model object from Clawdex configuration.
+ * Resolve a Model object from Clawx configuration.
  *
  * For local endpoints, we construct a Model with api:"openai-completions"
  * pointed at the custom baseUrl. This is exactly how OpenClaw handles
  * Ollama and local models — via the OpenAI-compatible completions API.
  */
-export function resolveModel(config: ClawdexConfig): Model<Api> {
+export function resolveModel(config: ClawxConfig): Model<Api> {
   const api = PROVIDER_API_MAP[config.provider] || "openai-completions";
 
   log.info(`Provider: ${config.provider} (api: ${api})`);

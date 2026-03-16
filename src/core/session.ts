@@ -1,5 +1,5 @@
 /**
- * Session persistence for Clawdex.
+ * Session persistence for Clawx.
  *
  * EXTRACTION NOTE:
  * OpenClaw's session store (config/sessions/store.ts, 400+ lines) handles:
@@ -13,8 +13,8 @@
  * pi-coding-agent provides a SessionManager that handles session persistence
  * with file-based storage, entries, compaction, and branching.
  *
- * For Clawdex, we use a SIMPLER approach:
- * - JSON file per session in ~/.clawdex/sessions/
+ * For Clawx, we use a SIMPLER approach:
+ * - JSON file per session in ~/.clawx/sessions/
  * - Session = id + messages + metadata
  * - Load/save by session ID
  * - List recent sessions
@@ -27,11 +27,11 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
-import type { ClawdexSession } from "../types/index.js";
+import type { ClawxSession } from "../types/index.js";
 import { log } from "../utils/logger.js";
 
 interface SessionData {
-  session: ClawdexSession;
+  session: ClawxSession;
   messages: AgentMessage[];
 }
 
@@ -51,7 +51,7 @@ export function createSessionId(): string {
 
 export function saveSession(
   sessionDir: string,
-  session: ClawdexSession,
+  session: ClawxSession,
   messages: AgentMessage[],
 ): void {
   ensureDir(sessionDir);
@@ -78,11 +78,11 @@ export function loadSession(
 
 export function listSessions(
   sessionDir: string,
-): ClawdexSession[] {
+): ClawxSession[] {
   ensureDir(sessionDir);
   try {
     const files = fs.readdirSync(sessionDir).filter((f) => f.endsWith(".json"));
-    const sessions: ClawdexSession[] = [];
+    const sessions: ClawxSession[] = [];
     for (const file of files) {
       try {
         const raw = fs.readFileSync(path.join(sessionDir, file), "utf-8");

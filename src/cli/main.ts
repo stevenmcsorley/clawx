@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Clawdex CLI — terminal-first coding/execution agent.
+ * Clawx CLI — terminal-first coding/execution agent.
  *
  * EXTRACTION NOTE:
  * OpenClaw's CLI entry (openclaw.mjs → entry.ts → cli/) handles:
@@ -12,10 +12,10 @@
  * - Update checking
  *
  * We DISCARD all of that. Our CLI has these modes:
- * 1. `clawdex` — default: TUI mode (rich terminal UI from pi-coding-agent)
- * 2. `clawdex run "prompt"` — single-shot: run a task and exit
- * 3. `clawdex chat` — basic readline REPL (fallback)
- * 4. `clawdex continue` — resume the last session
+ * 1. `clawx` — default: TUI mode (rich terminal UI from pi-coding-agent)
+ * 2. `clawx run "prompt"` — single-shot: run a task and exit
+ * 3. `clawx chat` — basic readline REPL (fallback)
+ * 4. `clawx continue` — resume the last session
  */
 
 import { Command } from "commander";
@@ -29,7 +29,7 @@ import {
   getLatestSession,
   listSessions,
 } from "../core/session.js";
-import type { ClawdexSession } from "../types/index.js";
+import type { ClawxSession } from "../types/index.js";
 import { log } from "../utils/logger.js";
 import { startRepl } from "./repl.js";
 import { startTui } from "./tui.js";
@@ -37,12 +37,12 @@ import { startTui } from "./tui.js";
 const program = new Command();
 
 program
-  .name("clawdex")
+  .name("clawx")
   .description("Lean coding/execution agent — extracted from OpenClaw core")
   .version("0.1.0");
 
 // Default action: launch TUI when no subcommand given
-// e.g. `clawdex` or `clawdex "build me a flask app"`
+// e.g. `clawx` or `clawx "build me a flask app"`
 program
   .argument("[prompt]", "Optional initial message for TUI mode")
   .option("-m, --model <model>", "Model to use")
@@ -103,7 +103,7 @@ program
     });
 
     const sessionId = createSessionId();
-    const session: ClawdexSession = {
+    const session: ClawxSession = {
       id: sessionId,
       startedAt: Date.now(),
       workDir: config.workDir,

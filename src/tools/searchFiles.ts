@@ -1,5 +1,5 @@
 /**
- * File content search tool for Clawdex.
+ * File content search tool for Clawx.
  *
  * EXTRACTION NOTE:
  * pi-coding-agent provides `grepTool` and `findTool` as separate tools.

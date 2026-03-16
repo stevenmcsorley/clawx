@@ -1,5 +1,5 @@
 /**
- * Clawdex — lean coding/execution agent.
+ * Clawx — lean coding/execution agent.
  *
  * Public API for programmatic usage.
  */
@@ -25,4 +25,4 @@ export { createGitDiffTool } from "./tools/gitDiff.js";
 export { createSearchFilesTool } from "./tools/searchFiles.js";
 
 // Re-export types
-export type { ClawdexConfig, SshTarget, ClawdexSession } from "./types/index.js";
+export type { ClawxConfig, SshTarget, ClawxSession } from "./types/index.js";

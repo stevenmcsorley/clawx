@@ -1,5 +1,5 @@
 /**
- * Clawdex Agent — the core orchestrator.
+ * Clawx Agent — the core orchestrator.
  *
  * EXTRACTION NOTE:
  * OpenClaw's agent orchestration lives in pi-embedded-runner/run.ts (3000+ lines)
@@ -36,7 +36,7 @@ import {
   createLsTool,
   convertToLlm,
 } from "@mariozechner/pi-coding-agent";
-import type { ClawdexConfig } from "../types/index.js";
+import type { ClawxConfig } from "../types/index.js";
 import { resolveModel } from "./provider.js";
 import { buildSystemPrompt } from "../utils/system-prompt.js";
 import { createSshRunTool } from "../tools/sshRun.js";
@@ -64,7 +64,7 @@ export interface AgentRunResult {
 }
 
 /**
- * Create the full tool set for Clawdex.
+ * Create the full tool set for Clawx.
  *
  * EXTRACTION NOTE:
  * OpenClaw's createOpenClawCodingTools() (pi-tools.ts, 619 lines) handles:
@@ -80,7 +80,7 @@ export interface AgentRunResult {
  * We discard ALL of that. Our tools are the pi-coding-agent defaults plus
  * our custom SSH/git/search tools. No policies, no sandboxing, no restrictions.
  */
-function createTools(config: ClawdexConfig): AgentTool<any>[] {
+function createTools(config: ClawxConfig): AgentTool<any>[] {
   const cwd = config.workDir;
 
   // pi-coding-agent's built-in coding tools: read, write, edit, bash (exec)
@@ -108,7 +108,7 @@ function createTools(config: ClawdexConfig): AgentTool<any>[] {
 }
 
 /**
- * Run the Clawdex agent loop.
+ * Run the Clawx agent loop.
  *
  * This is the main entry point. It:
  * 1. Resolves the model
@@ -119,7 +119,7 @@ function createTools(config: ClawdexConfig): AgentTool<any>[] {
  * 6. Returns the full message history
  */
 export async function runAgent(
-  config: ClawdexConfig,
+  config: ClawxConfig,
   options: AgentRunOptions,
 ): Promise<AgentRunResult> {
   const model = resolveModel(config);

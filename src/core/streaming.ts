@@ -1,5 +1,5 @@
 /**
- * Terminal streaming renderer for Clawdex.
+ * Terminal streaming renderer for Clawx.
  *
  * EXTRACTION NOTE:
  * OpenClaw's streaming (pi-embedded-subscribe.ts, 726 lines) handles:

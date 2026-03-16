@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { resolveModel } from "../src/core/provider.js";
-import type { ClawdexConfig } from "../src/types/index.js";
+import type { ClawxConfig } from "../src/types/index.js";
 
-function makeConfig(overrides: Partial<ClawdexConfig> = {}): ClawdexConfig {
+function makeConfig(overrides: Partial<ClawxConfig> = {}): ClawxConfig {
   return {
     provider: "openai-completions",
     baseUrl: "http://localhost:8080/v1",

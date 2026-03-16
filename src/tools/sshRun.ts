@@ -1,5 +1,5 @@
 /**
- * SSH execution tool for Clawdex.
+ * SSH execution tool for Clawx.
  *
  * EXTRACTION NOTE:
  * OpenClaw has NO SSH implementation — remote execution goes through a "gateway"

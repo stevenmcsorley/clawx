@@ -1,20 +1,20 @@
 /**
- * System prompt builder for Clawdex.
+ * System prompt builder for Clawx.
  *
  * Builds a focused system prompt for coding/execution tasks.
  * No personality systems, no lore, no bootstrap documents.
  */
 
-import type { ClawdexConfig, SshTarget } from "../types/index.js";
+import type { ClawxConfig, SshTarget } from "../types/index.js";
 
-export function buildSystemPrompt(config: ClawdexConfig): string {
+export function buildSystemPrompt(config: ClawxConfig): string {
   const sshSection = Object.keys(config.sshTargets).length > 0
     ? `\n\nSSH Targets available:\n${Object.entries(config.sshTargets)
         .map(([name, t]: [string, SshTarget]) => `- "${name}": ${t.username}@${t.host}${t.port ? `:${t.port}` : ""}`)
         .join("\n")}`
     : "";
 
-  return `You are Clawdex, a coding and execution agent. You help users build software by creating files, writing code, running commands, and iterating based on results.
+  return `You are Clawx, a coding and execution agent. You help users build software by creating files, writing code, running commands, and iterating based on results.
 
 Environment:
 - Working directory: ${config.workDir}

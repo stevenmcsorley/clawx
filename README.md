@@ -1,8 +1,8 @@
-# Clawdex
+# Clawx
 
 Lean coding/execution agent extracted from [OpenClaw](https://github.com/openclaw/openclaw) core.
 
-Clawdex is a terminal-first agent that can create files, write code, run commands, execute over SSH, and iterate until the job is done. It uses the model's own judgment to decide what to build and how.
+Clawx is a terminal-first agent that can create files, write code, run commands, execute over SSH, and iterate until the job is done. It uses the model's own judgment to decide what to build and how.
 
 ## What it does
 
@@ -26,8 +26,8 @@ Clawdex is a terminal-first agent that can create files, write code, run command
 
 ```bash
 # Clone and build from source
-git clone https://github.com/stevenmcsorley/clawdex.git
-cd clawdex
+git clone https://github.com/stevenmcsorley/clawx.git
+cd clawx
 npm install
 npm run build
 
@@ -35,36 +35,30 @@ npm run build
 cp .env.example .env
 
 # Link the local build as a global command
-# (required because "clawdex" on npm is a different package — Solana DEX CLI)
 npm link
 
 # Now you can run from anywhere:
-clawdex
+clawx
 
 # Launch TUI with an initial prompt
-clawdex "Create a Flask app with auth and a SQLite database"
+clawx "Create a Flask app with auth and a SQLite database"
 
 # Single-shot run (headless, exits when done)
-clawdex run "Create a hello world Express server"
+clawx run "Create a hello world Express server"
 
 # Basic readline REPL (fallback if TUI has issues)
-clawdex --basic
+clawx --basic
 
 # Continue last session
-clawdex continue
+clawx continue
 ```
 
-> **Note:** We use `npm link` instead of `npx clawdex` because there is an unrelated
-> package called `clawdex` on npm (a Solana DEX CLI). Running `npx clawdex` would
-> fetch that package instead of your local build. After `npm link`, the `clawdex`
-> command points to your local install. If you ever run `npm install` again, re-run
-> `npm link` to restore the global link.
->
-> A package rename is planned for a future release.
+> **Note:** After `npm link`, the `clawx` command points to your local install.
+> If you ever run `npm install` again, re-run `npm link` to restore the global link.
 
 ## Model setup
 
-Clawdex requires a model that supports **structured tool calling** (returning `tool_calls` in the API response, not just text). This is critical — the agent loop depends on it.
+Clawx requires a model that supports **structured tool calling** (returning `tool_calls` in the API response, not just text). This is critical — the agent loop depends on it.
 
 ### Model compatibility and benchmarks
 
@@ -87,7 +81,7 @@ Task: "Create a file /tmp/hello.py that prints hello world and run it with pytho
 - Iterated: investigated with `ls`, `which python`, retried with `cat >` via bash
 - Completed successfully after 12 turns and 13 tool calls
 
-> **Why Qwen doesn't work:** The abliterated GGUF outputs tool calls as `<tool_call>` text in message content instead of structured `tool_calls` objects in the API response. pi-agent-core requires structured tool calls. This is a model-level issue, not a Clawdex bug.
+> **Why Qwen doesn't work:** The abliterated GGUF outputs tool calls as `<tool_call>` text in message content instead of structured `tool_calls` objects in the API response. pi-agent-core requires structured tool calls. This is a model-level issue, not a Clawx bug.
 
 ### Option 1: GLM-4.7-Flash via Ollama (recommended for local)
 
@@ -120,8 +114,8 @@ CLAWDEX_THINKING_LEVEL=off
 CLAWDEX_MAX_TOKENS=8192
 EOF
 
-# 6. Run Clawdex
-npx clawdex run "Create a Python script that prints the first 20 Fibonacci numbers"
+# 6. Run Clawx
+clawx run "Create a Python script that prints the first 20 Fibonacci numbers"
 ```
 
 ### Option 2: Qwen2.5-Coder-14B via Ollama (import GGUF)
@@ -169,7 +163,7 @@ EOF
 
 ### Option 2b: Qwen2.5-Coder-14B via llama-server (llama.cpp)
 
-> **Warning:** Same limitation — text-only tool calls, not compatible with Clawdex agent loop.
+> **Warning:** Same limitation — text-only tool calls, not compatible with Clawx agent loop.
 
 If you have llama.cpp built locally (e.g. `D:/llama-cpp/`):
 
@@ -226,7 +220,7 @@ CLAWDEX_MAX_TOKENS=16384
 EOF
 
 # Run
-npx clawdex run "Create a FastAPI app with SQLite and JWT auth"
+clawx run "Create a FastAPI app with SQLite and JWT auth"
 ```
 
 ### Option 4: OpenAI API
@@ -292,13 +286,13 @@ CLAWDEX_EXEC_TIMEOUT=120000            # Tool execution timeout (ms)
 
 ### SSH targets
 
-Define named SSH targets via environment or `clawdex.json`:
+Define named SSH targets via environment or `clawx.json`:
 
 ```bash
 CLAWDEX_SSH_TARGETS='{"pi":{"host":"192.168.1.100","username":"pi","privateKeyPath":"~/.ssh/id_rsa"}}'
 ```
 
-Or in `clawdex.json`:
+Or in `clawx.json`:
 
 ```json
 {
@@ -320,7 +314,7 @@ Or in `clawdex.json`:
 
 ### Config file
 
-Place a `clawdex.json` in your working directory:
+Place a `clawx.json` in your working directory:
 
 ```json
 {
@@ -336,13 +330,13 @@ Place a `clawdex.json` in your working directory:
 ## CLI commands
 
 ```
-clawdex [prompt]         Launch TUI (default mode, rich terminal UI)
-clawdex --basic          Launch basic readline REPL instead of TUI
-clawdex run <prompt>     Run a task headless and exit
-clawdex chat             Interactive basic REPL
-clawdex chat -c          Resume last session in basic REPL
-clawdex continue         Resume last session
-clawdex sessions         List recent sessions
+clawx [prompt]         Launch TUI (default mode, rich terminal UI)
+clawx --basic          Launch basic readline REPL instead of TUI
+clawx run <prompt>     Run a task headless and exit
+clawx chat             Interactive basic REPL
+clawx chat -c          Resume last session in basic REPL
+clawx continue         Resume last session
+clawx sessions         List recent sessions
 ```
 
 ### Global options
@@ -388,10 +382,10 @@ The TUI mode uses pi-coding-agent's InteractiveMode:
 | `grep` | pi-coding-agent | Search file contents with regex |
 | `find` | pi-coding-agent | Find files by pattern |
 | `ls` | pi-coding-agent | List directory contents |
-| `search_files` | Clawdex | Unified file content search (rg/grep) |
-| `git_status` | Clawdex | Git repository status |
-| `git_diff` | Clawdex | Git file differences |
-| `ssh_run` | Clawdex | Execute commands on SSH targets |
+| `search_files` | Clawx | Unified file content search (rg/grep) |
+| `git_status` | Clawx | Git repository status |
+| `git_diff` | Clawx | Git file differences |
+| `ssh_run` | Clawx | Execute commands on SSH targets |
 
 ## Architecture
 
@@ -430,26 +424,26 @@ src/
 
 ```bash
 # Launch the full TUI — type prompts interactively
-npx clawdex
+clawx
 
 # Launch with an initial task
-npx clawdex "Create a Node.js Express API with JWT auth and SQLite"
+clawx "Create a Node.js Express API with JWT auth and SQLite"
 
 # Use a specific model for this session
-npx clawdex -m glm-4.7-flash:latest "Build a REST API"
+clawx -m glm-4.7-flash:latest "Build a REST API"
 ```
 
 ### Headless single-shot tasks
 
 ```bash
 # Create a project and exit
-npx clawdex run "Create a Python Flask app with login, SQLite, and unit tests"
+clawx run "Create a Python Flask app with login, SQLite, and unit tests"
 
 # Generate a single file
-npx clawdex run "Create a Python script that prints the first 20 Fibonacci numbers"
+clawx run "Create a Python script that prints the first 20 Fibonacci numbers"
 
 # Work in a specific directory
-npx clawdex run -d ./my-project "Add a health check endpoint to the Express server"
+clawx run -d ./my-project "Add a health check endpoint to the Express server"
 ```
 
 The agent will create files, install dependencies, build, and verify — iterating on errors until the task is complete.
@@ -457,24 +451,24 @@ The agent will create files, install dependencies, build, and verify — iterati
 ### Remote scaffolding via SSH
 
 ```bash
-# With SSH targets configured in .env or clawdex.json
-npx clawdex run "SSH into my Pi and set up a Node.js service that monitors CPU temperature and exposes it as a Prometheus metric on port 9100"
+# With SSH targets configured in .env or clawx.json
+clawx run "SSH into my Pi and set up a Node.js service that monitors CPU temperature and exposes it as a Prometheus metric on port 9100"
 ```
 
 ### Interactive basic REPL
 
 ```bash
 # Basic REPL (if TUI doesn't suit your terminal)
-npx clawdex --basic
+clawx --basic
 
 # REPL in a specific project directory
-npx clawdex chat -d ./my-project
+clawx chat -d ./my-project
 ```
 
 ## Programmatic usage
 
 ```typescript
-import { loadConfig, runAgent, createStreamRenderer } from "clawdex";
+import { loadConfig, runAgent, createStreamRenderer } from "clawx";
 
 const config = loadConfig({
   provider: "openai-completions",

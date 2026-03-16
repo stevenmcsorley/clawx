@@ -1,5 +1,5 @@
 /**
- * TUI mode for Clawdex — uses pi-coding-agent's InteractiveMode.
+ * TUI mode for Clawx — uses pi-coding-agent's InteractiveMode.
  *
  * This provides the same rich terminal experience as OpenClaw/pi-coding-agent:
  * - Syntax-highlighted code in tool results
@@ -27,7 +27,7 @@ import {
   type ToolDefinition,
 } from "@mariozechner/pi-coding-agent";
 import type { Model, Api } from "@mariozechner/pi-ai";
-import type { ClawdexConfig } from "../types/index.js";
+import type { ClawxConfig } from "../types/index.js";
 import { resolveModel } from "../core/provider.js";
 import { createSshRunTool } from "../tools/sshRun.js";
 import { createGitStatusTool } from "../tools/gitStatus.js";
@@ -52,7 +52,7 @@ function toolToDefinition(tool: { name: string; label: string; description: stri
   } as unknown as ToolDefinition;
 }
 
-function buildCustomTools(config: ClawdexConfig): ToolDefinition[] {
+function buildCustomTools(config: ClawxConfig): ToolDefinition[] {
   const cwd = config.workDir;
   const tools: ToolDefinition[] = [];
 
@@ -75,7 +75,7 @@ function buildCustomTools(config: ClawdexConfig): ToolDefinition[] {
  * terminal UI experience.
  */
 export async function startTui(
-  config: ClawdexConfig,
+  config: ClawxConfig,
   options: {
     initialMessage?: string;
     continueSession?: boolean;
@@ -104,7 +104,7 @@ export async function startTui(
       authStorage,
     });
 
-  // Override system prompt with our Clawdex-specific one
+  // Override system prompt with our Clawx-specific one
   // AgentSession exposes the underlying Agent which has setSystemPrompt()
   const systemPrompt = buildSystemPrompt(config);
   session.agent.setSystemPrompt(systemPrompt);
