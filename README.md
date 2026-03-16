@@ -25,19 +25,27 @@ Clawx is a terminal-first agent that can create files, write code, run commands,
 ## Quick start
 
 ```bash
-# Clone and build from source
+# Install from npm
+npm install -g @halfagiraf/clawx
+
+# Configure (see Model Setup below)
+clawx   # launches TUI on first run
+```
+
+Or build from source:
+
+```bash
 git clone https://github.com/stevenmcsorley/clawx.git
 cd clawx
 npm install
 npm run build
-
-# Configure (see Model Setup below)
-cp .env.example .env
-
-# Link the local build as a global command
 npm link
+```
 
-# Now you can run from anywhere:
+### Usage
+
+```bash
+# Launch TUI (rich terminal UI — default mode)
 clawx
 
 # Launch TUI with an initial prompt
@@ -52,9 +60,6 @@ clawx --basic
 # Continue last session
 clawx continue
 ```
-
-> **Note:** After `npm link`, the `clawx` command points to your local install.
-> If you ever run `npm install` again, re-run `npm link` to restore the global link.
 
 ## Model setup
 
@@ -468,7 +473,7 @@ clawx chat -d ./my-project
 ## Programmatic usage
 
 ```typescript
-import { loadConfig, runAgent, createStreamRenderer } from "clawx";
+import { loadConfig, runAgent, createStreamRenderer } from "@halfagiraf/clawx";
 
 const config = loadConfig({
   provider: "openai-completions",
