@@ -6,7 +6,7 @@
 
 Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint.
 
-Clawx started because [OpenClaw](https://github.com/openclaw/openclaw) kept getting heavier. Prompts ballooned, context windows filled up, and local models choked. We wanted the good parts — the tool-calling loop, the terminal UI, the coding tools — without the bloat. So we stripped it back to the essentials: a lean agent that runs local models on modest hardware, hits DeepSeek when you need more muscle, and scales up to frontier models when the task calls for it. No token budget wasted on platform overhead. Just the model, the tools, and your prompt.
+Clawx started because tools like OpenClaw kept getting heavier. Prompts ballooned, context windows filled up, and local models choked. We wanted the good parts — the tool-calling loop, the terminal UI, the coding tools — without the bloat. So we built something lean on top of the open-source [pi-coding-agent](https://github.com/badlogic/pi-mono) SDK: an agent that runs local models on modest hardware, hits DeepSeek when you need more muscle, and scales up to frontier models when the task calls for it. No token budget wasted on platform overhead. Just the model, the tools, and your prompt.
 
 > **Fair warning:** Clawx runs with the guardrails off. It will create files, delete files, install packages, and execute shell commands — all without asking you first. That's the point. No confirmation dialogs, no "are you sure?", no waiting around. You give it a task, it gets on with it. This makes it ideal for disposable environments, home labs, Raspberry Pis, VMs, and machines you're happy to let rip. If you're pointing it at a production server with your life's work on it... maybe don't do that. Or do.
 
@@ -82,7 +82,8 @@ Tested on Windows 11, RTX 3060 12GB, 2026-03-15.
 
 | Model | Provider | Tool calling | VRAM | Benchmark | Status |
 |-------|----------|-------------|------|-----------|--------|
-| **glm-4.7-flash:latest** | Ollama | Structured `tool_calls` | ~5 GB | 12 turns, 13 tool calls — write file + run python | **Recommended** |
+| **glm-4.7-flash:latest** | Ollama | Structured `tool_calls` | ~5 GB | 12 turns, 13 tool calls — write file + run python | **Recommended local** |
+| **Qwen3.5-35B-A3B** (MoE) | Ollama | Structured `tool_calls` | ~12 GB | 35B params, only 3B active per token | **Best local if you have the VRAM** |
 | Qwen2.5-Coder-14B-abliterated Q4_K_M | Ollama | Text-only `<tool_call>` tags | ~9 GB | Tool loop never starts — model returns text, not structured calls | Not compatible |
 | Qwen2.5-Coder-14B-abliterated Q4_K_M | llama-server `--jinja` | Text-only `<tool_call>` tags | ~9 GB | Same as above | Not compatible |
 | GPT-4o / GPT-4-turbo | OpenAI API | Structured `tool_calls` | — | N/A (cloud) | Works |
@@ -134,7 +135,82 @@ EOF
 clawx run "Create a Python script that prints the first 20 Fibonacci numbers"
 ```
 
-### Option 2: Qwen2.5-Coder-14B via Ollama (import GGUF)
+### Option 2: Qwen3.5-35B-A3B via Ollama (MoE — best local)
+
+A 35B Mixture-of-Experts model that only activates 3B parameters per token. Fits in 12GB VRAM and punches well above its weight for coding tasks.
+
+```bash
+# 1. Download the GGUF (or use one you already have)
+# Example: Qwen3.5-35B-A3B-UD-Q2_K_XL.gguf (~12GB)
+
+# 2. Create a Modelfile
+cat > Modelfile-qwen35 << 'EOF'
+FROM /path/to/Qwen3.5-35B-A3B-UD-Q2_K_XL.gguf
+
+PARAMETER temperature 0.7
+PARAMETER num_ctx 32768
+PARAMETER stop <|im_end|>
+PARAMETER stop <|endoftext|>
+
+TEMPLATE """{{- if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{- range .Messages }}<|im_start|>{{ .Role }}
+{{ .Content }}<|im_end|>
+{{ end }}<|im_start|>assistant
+"""
+EOF
+
+# 3. Import into Ollama
+ollama create qwen35-35b -f Modelfile-qwen35
+
+# 4. Configure clawx
+clawx init
+# Choose: Ollama → model: qwen35-35b
+
+# Or set it directly:
+# ~/.clawx/config
+# CLAWDEX_PROVIDER=ollama
+# CLAWDEX_BASE_URL=http://localhost:11434/v1
+# CLAWDEX_MODEL=qwen35-35b
+# CLAWDEX_API_KEY=not-needed
+# CLAWDEX_MAX_TOKENS=16384
+```
+
+### Importing any GGUF into Ollama
+
+Got a GGUF from HuggingFace or elsewhere? Here's how to use it with clawx:
+
+```bash
+# 1. Create a Modelfile (adjust the FROM path and template for your model)
+cat > Modelfile << 'EOF'
+FROM /path/to/your-model.gguf
+
+PARAMETER temperature 0.7
+PARAMETER num_ctx 16384
+PARAMETER stop <|im_end|>
+PARAMETER stop <|endoftext|>
+
+TEMPLATE """{{- if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{- range .Messages }}<|im_start|>{{ .Role }}
+{{ .Content }}<|im_end|>
+{{ end }}<|im_start|>assistant
+"""
+EOF
+
+# 2. Import it
+ollama create my-model -f Modelfile
+
+# 3. Verify
+ollama list
+
+# 4. Use with clawx
+clawx run -m my-model -p ollama -u http://localhost:11434/v1 "Your prompt here"
+```
+
+> **Note:** The template above uses the ChatML format (`<|im_start|>`/`<|im_end|>`) which works with most Qwen, GLM, and many other models. Check your model's docs if it uses a different chat template (e.g. Llama, Mistral).
+
+### Option 3: Qwen2.5-Coder-14B via Ollama (reference only)
 
 > **Warning:** This model does NOT produce structured tool calls. It is listed here for reference only. Tool-using agent tasks will fail. You can still use it for plain chat without tools.
 
@@ -177,7 +253,7 @@ CLAWDEX_MAX_TOKENS=8192
 EOF
 ```
 
-### Option 2b: Qwen2.5-Coder-14B via llama-server (llama.cpp)
+### Option 3b: Qwen2.5-Coder-14B via llama-server (llama.cpp)
 
 > **Warning:** Same limitation — text-only tool calls, not compatible with Clawx agent loop.
 
@@ -208,7 +284,7 @@ CLAWDEX_MAX_TOKENS=8192
 EOF
 ```
 
-### Option 3: DeepSeek API
+### Option 4: DeepSeek API
 
 DeepSeek is OpenAI-compatible with full structured tool calling support, including thinking mode.
 Pricing: ~$0.27/1M input, $1.10/1M output (deepseek-chat). Very cost-effective.
@@ -239,7 +315,7 @@ EOF
 clawx run "Create a FastAPI app with SQLite and JWT auth"
 ```
 
-### Option 4: OpenAI API
+### Option 5: OpenAI API
 
 ```bash
 cat > .env << 'EOF'
@@ -252,7 +328,7 @@ CLAWDEX_MAX_TOKENS=16384
 EOF
 ```
 
-### Option 5: Anthropic API
+### Option 6: Anthropic API
 
 ```bash
 cat > .env << 'EOF'
@@ -267,11 +343,36 @@ EOF
 
 ### GPU / VRAM notes
 
-- **RTX 3060 12GB**: Can run glm-4.7-flash (~5GB) or Qwen-14B Q4_K_M (~9GB), but not both simultaneously
-- To free VRAM when switching models: `ollama stop glm-4.7-flash:latest` or `ollama stop qwen-coder-abliterated:latest`
+- **RTX 3060 12GB**: Can run Qwen3.5-35B-A3B (~12GB), glm-4.7-flash (~5GB), or Qwen-14B (~9GB) — but only one at a time
+- **RTX 3070/3080 8GB**: glm-4.7-flash (~5GB) fits comfortably, 14B models are tight
+- **RTX 4090 24GB**: Can run most models including full (non-MoE) 30B+ models
+- To free VRAM when switching models: `ollama stop <model-name>`
 - Ollama auto-loads models on first request and keeps them in VRAM until timeout or manual stop
+- Check VRAM usage: `nvidia-smi` (Linux/Windows) or `ollama ps`
 
 ## Configuration reference
+
+### Where config lives
+
+Clawx looks for config in this order (first match wins):
+
+| Priority | Location | Created by | Notes |
+|----------|----------|------------|-------|
+| 1 | `.env` in current directory | You | Per-project overrides |
+| 2 | `~/.clawx/config` | `clawx init` | Global config (recommended) |
+| 3 | `.env` in package install dir | Dev only | Fallback for development |
+| 4 | `clawx.json` in current directory | You | JSON format, supports systemPrompt |
+| 5 | Built-in defaults | — | Ollama on localhost |
+
+**Config file paths by OS:**
+
+| OS | Global config | Sessions |
+|----|---------------|----------|
+| **Windows** | `C:\Users\<you>\.clawx\config` | `C:\Users\<you>\.clawx\sessions\` |
+| **Linux** | `~/.clawx/config` | `~/.clawx/sessions/` |
+| **macOS** | `~/.clawx/config` | `~/.clawx/sessions/` |
+
+The fastest way to set up is `clawx init` — it writes `~/.clawx/config` for you. To override per-project, drop a `.env` or `clawx.json` in the project directory.
 
 ### Environment variables
 
@@ -548,4 +649,4 @@ If you set up clawx via `clawx init`, your configured model should appear in `/m
 
 ## License
 
-MIT — extracted and adapted from [OpenClaw](https://github.com/openclaw/openclaw) (MIT).
+MIT. Built on the open-source [pi-coding-agent](https://github.com/badlogic/pi-mono) SDK (MIT).
