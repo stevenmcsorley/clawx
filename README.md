@@ -10,6 +10,8 @@ Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or a
 
 Clawx started because tools like OpenClaw kept getting heavier. Prompts ballooned, context windows filled up, and local models choked. We wanted the good parts — the tool-calling loop, the terminal UI, the coding tools — without the bloat. So we built something lean on top of the open-source [pi-coding-agent](https://github.com/badlogic/pi-mono) SDK: an agent that runs local models on modest hardware, hits DeepSeek when you need more muscle, and scales up to frontier models when the task calls for it. No token budget wasted on platform overhead. Just the model, the tools, and your prompt.
 
+> **Why not just use Claude Code with Ollama?** You can — Anthropic added [Ollama integration](https://docs.ollama.com/integrations/claude-code). But Claude Code "requires a large context window. We recommend at least 64k tokens" (Anthropic & Ollama, 2026). That 64k minimum exists because the system prompt, tool definitions, and protocol overhead consume a significant portion of the context before your first message is even sent. Clawx's orchestration is ~200 lines. The system prompt is lean. Tool definitions are minimal. This means more of your context window goes to actual work, not platform scaffolding — which matters when you're running a 7B model on 12GB VRAM where every token counts.
+
 > **Fair warning:** Clawx runs with the guardrails off. It will create files, delete files, install packages, and execute shell commands — all without asking you first. That's the point. No confirmation dialogs, no "are you sure?", no waiting around. You give it a task, it gets on with it. This makes it ideal for disposable environments, home labs, Raspberry Pis, VMs, and machines you're happy to let rip. If you're pointing it at a production server with your life's work on it... maybe don't do that. Or do.
 
 Clawx can create files, write code, run commands, execute over SSH, and iterate until the job is done. The model decides what to build and how — no file lists, no hand-holding.
@@ -22,6 +24,7 @@ Clawx can create files, write code, run commands, execute over SSH, and iterate 
 - **Executes over SSH** — scaffolds and manages remote services
 - **Iterates** — reads command output, fixes errors, tries again
 - **Streams output** — shows progress as the model works
+- **Falls back to chat** — models without tool support switch to chat mode automatically
 
 ## What it doesn't do
 
@@ -518,8 +521,8 @@ clawx init             Set up provider, model, and API key
 clawx [prompt]         Launch TUI (default mode, rich terminal UI)
 clawx --basic          Launch basic readline REPL instead of TUI
 clawx run <prompt>     Run a task headless and exit
-clawx chat             Interactive basic REPL
-clawx chat -c          Resume last session in basic REPL
+clawx chat             Interactive chat (no tools — works with any model)
+clawx chat -c          Resume last session in chat mode
 clawx continue         Resume last session
 clawx sessions         List recent sessions
 clawx profiles         List saved profiles
@@ -550,6 +553,24 @@ The TUI mode uses pi-coding-agent's InteractiveMode:
 - Session branching and tree navigation
 - Markdown rendering in responses
 - /slash commands for settings, models, sessions
+- `/chat` to toggle between **agent mode** (tools enabled) and **chat mode** (no tools)
+
+### Agent mode vs chat mode
+
+Clawx runs in two modes, shown in the TUI footer:
+
+| Mode | Tools | System prompt | When |
+|------|-------|---------------|------|
+| **Agent mode** | All tools active (read, write, bash, ssh, etc.) | Coding agent — action-oriented, creates files, runs commands | Default for models that support tool calling |
+| **Chat mode** | No tools | Conversational assistant — discusses code, explains concepts | Models without tool support, or toggled with `/chat` |
+
+**Auto-detection:** If your model doesn't support tool calling (e.g. `glm47-uncensored`), Clawx detects this and switches to chat mode automatically — no crash, no error. You can still have a conversation.
+
+**Manual toggle:** Type `/chat` in the TUI to switch modes at any time. Useful when you want to discuss an approach before the agent starts executing, or when using a model that works better without tools.
+
+**On model switch:** When you change model (Ctrl+P), Clawx restores agent mode so the new model gets a fresh start with tools.
+
+`clawx chat` (the CLI command) always starts in chat mode — it never sends tools, so it works with every model regardless of tool support.
 
 ### Basic REPL commands
 
@@ -587,6 +608,8 @@ src/
     provider.ts  Model/provider resolution for local endpoints
     session.ts   JSON-file session persistence
     streaming.ts Terminal output renderer
+  extensions/
+    chat-mode.ts TUI extension: /chat toggle, auto-detection, prompt swap
   tools/
     sshRun.ts    SSH execution (ssh2)
     gitStatus.ts Git status wrapper
@@ -761,9 +784,15 @@ Next time you run `clawx`, the correct `fd` binary will be downloaded automatica
 
 If you set up clawx via `clawx init`, your configured model should appear in `/models`. If it doesn't, check that your `~/.clawx/config` file has the correct `CLAWDEX_PROVIDER`, `CLAWDEX_MODEL`, and `CLAWDEX_API_KEY` values.
 
-### Model doesn't produce tool calls
+### Model doesn't support tool calling
 
-If the agent responds with text but never creates files or runs commands, your model likely doesn't support **structured tool calling**. It needs to return `tool_calls` objects in the API response, not text like `<tool_call>`. Check the [model compatibility table](#model-compatibility-and-benchmarks) — models marked "Not compatible" won't work with the agent loop.
+If the TUI shows "does not support tool calling" or you see a 400 error about tools, your model doesn't support structured tool calls. Clawx handles this gracefully:
+
+- **TUI mode** (`clawx`): automatically switches to **chat mode** — you can still have a conversation, just without file/command tools. Type `/chat` to toggle back if you switch to a different model.
+- **Chat mode** (`clawx chat`): always works — never sends tools, compatible with every model.
+- **Run mode** (`clawx run`): will show an error and suggest alternatives.
+
+To use the full agent loop (file creation, command execution, SSH), switch to a model that supports structured tool calls — see the [model compatibility table](#model-compatibility-and-benchmarks).
 
 ### Connection errors
 
