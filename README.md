@@ -87,8 +87,8 @@ Tested on Windows 11, RTX 3060 12GB, 2026-03-15.
 |-------|----------|-------------|------|-----------|--------|
 | **glm-4.7-flash:latest** | Ollama | Structured `tool_calls` | ~5 GB | 12 turns, 13 tool calls — write file + run python | **Recommended local** |
 | **Qwen3.5-35B-A3B** (MoE) | Ollama | Structured `tool_calls` | ~12 GB | 35B params, only 3B active per token | **Best local if you have the VRAM** |
-| Qwen2.5-Coder-14B-abliterated Q4_K_M | Ollama | Text-only `<tool_call>` tags | ~9 GB | Tool loop never starts — model returns text, not structured calls | Not compatible |
-| Qwen2.5-Coder-14B-abliterated Q4_K_M | llama-server `--jinja` | Text-only `<tool_call>` tags | ~9 GB | Same as above | Not compatible |
+| **Qwen2.5-Coder-14B-abliterated Q4_K_M** | Ollama | Text-based (auto-parsed) | ~9 GB | Text tool parser converts JSON output to structured calls | **Works (with parser)** |
+| Qwen2.5-Coder-14B-abliterated Q4_K_M | llama-server `--jinja` | Text-based (auto-parsed) | ~9 GB | Same parser support | Works (with parser) |
 | GPT-4o / GPT-4-turbo | OpenAI API | Structured `tool_calls` | — | N/A (cloud) | Works |
 | **DeepSeek-V3 (deepseek-chat)** | DeepSeek API | Structured `tool_calls` | — | N/A (cloud) | **Works, very cheap** |
 | DeepSeek-R1 (deepseek-reasoner) | DeepSeek API | Structured `tool_calls` (via chat) | — | N/A (cloud) | Works |
@@ -101,7 +101,7 @@ Task: "Create a file /tmp/hello.py that prints hello world and run it with pytho
 - Iterated: investigated with `ls`, `which python`, retried with `cat >` via bash
 - Completed successfully after 12 turns and 13 tool calls
 
-> **Why Qwen doesn't work:** The abliterated GGUF outputs tool calls as `<tool_call>` text in message content instead of structured `tool_calls` objects in the API response. pi-agent-core requires structured tool calls. This is a model-level issue, not a Clawx bug.
+> **Qwen text tool parser:** The abliterated GGUF outputs tool calls as JSON text instead of structured `tool_calls` objects. Clawx automatically detects and parses these text-based tool calls, converting them to proper structured calls. It also fuzzy-matches tool names (e.g. `write_file` → `write`, `run_shell` → `bash`). This is enabled by default in `clawx run` and the REPL.
 
 ### Option 1: GLM-4.7-Flash via Ollama (recommended for local)
 
