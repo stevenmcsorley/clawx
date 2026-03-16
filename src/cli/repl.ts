@@ -14,6 +14,7 @@ import { runAgent } from "../core/agent.js";
 import { createStreamRenderer } from "../core/streaming.js";
 import { saveSession } from "../core/session.js";
 import { log } from "../utils/logger.js";
+import { printBanner } from "./banner.js";
 
 export async function startRepl(
   config: ClawxConfig,
@@ -37,7 +38,7 @@ export async function startRepl(
     provider: config.provider,
   };
 
-  console.error(chalk.bold("Clawx") + chalk.gray(` — ${config.model} @ ${config.provider}`));
+  printBanner(config.model, config.provider);
   console.error(chalk.gray(`Working directory: ${config.workDir}`));
   console.error(chalk.gray(`Type your request. Ctrl+C to cancel, Ctrl+D or "exit" to quit.\n`));
 

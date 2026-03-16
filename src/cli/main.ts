@@ -36,17 +36,14 @@ import type { ClawxSession } from "../types/index.js";
 import { log } from "../utils/logger.js";
 import { startRepl } from "./repl.js";
 import { startTui } from "./tui.js";
-
-// Read version from package.json
-const __dirname = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));
-const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../package.json"), "utf-8"));
+import { VERSION, printBannerCompact } from "./banner.js";
 
 const program = new Command();
 
 program
   .name("clawx")
   .description("Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint")
-  .version(pkg.version);
+  .version(VERSION);
 
 // Default action: launch TUI when no subcommand given
 // e.g. `clawx` or `clawx "build me a flask app"`
@@ -118,6 +115,7 @@ program
       provider: config.provider,
     };
 
+    printBannerCompact(config.model, config.provider);
     const renderer = createStreamRenderer();
 
     try {
