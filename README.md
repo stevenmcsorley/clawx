@@ -408,21 +408,19 @@ CLAWDEX_EXEC_TIMEOUT=120000            # Tool execution timeout (ms)
 
 ### SSH targets
 
-Define named SSH targets via environment or `clawx.json`:
+Clawx has a dedicated `ssh_run` tool — the model calls it by target name, no raw SSH needed. Define targets in `clawx.json`:
 
-```bash
-CLAWDEX_SSH_TARGETS='{"pi":{"host":"192.168.1.100","username":"pi","privateKeyPath":"~/.ssh/id_rsa"}}'
-```
+**Global (works from any directory):** `~/.clawx/clawx.json`
 
-Or in `clawx.json`:
+**Per-project (overrides global):** `./clawx.json` in your working directory
 
 ```json
 {
   "sshTargets": {
     "pi": {
-      "host": "192.168.1.100",
-      "username": "pi",
-      "privateKeyPath": "~/.ssh/id_rsa"
+      "host": "192.168.1.198",
+      "username": "dev",
+      "privateKeyPath": "~/.ssh/id_ed25519"
     },
     "server": {
       "host": "myserver.com",
@@ -432,6 +430,35 @@ Or in `clawx.json`:
     }
   }
 }
+```
+
+Or via environment variable:
+
+```bash
+CLAWDEX_SSH_TARGETS='{"pi":{"host":"192.168.1.198","username":"dev","privateKeyPath":"~/.ssh/id_ed25519"}}'
+```
+
+**Quick setup:**
+
+```bash
+# Create global config dir (if it doesn't exist)
+mkdir -p ~/.clawx
+
+# Create global SSH targets
+cat > ~/.clawx/clawx.json << 'EOF'
+{
+  "sshTargets": {
+    "pi": {
+      "host": "192.168.1.198",
+      "username": "dev",
+      "privateKeyPath": "~/.ssh/id_ed25519"
+    }
+  }
+}
+EOF
+
+# Now SSH works from any directory
+clawx run "SSH into the pi and check what's running"
 ```
 
 ### Config file
@@ -575,7 +602,7 @@ The agent will create files, install dependencies, build, and verify — iterati
 
 Clawx can SSH into other machines on your network and run commands — from installing packages to deploying services. You describe what you want on your desktop; it happens on the remote machine.
 
-**1. Configure an SSH target** in `clawx.json` (in your working directory):
+**1. Configure an SSH target** in `~/.clawx/clawx.json` (global) or `./clawx.json` (per-project):
 
 ```json
 {
