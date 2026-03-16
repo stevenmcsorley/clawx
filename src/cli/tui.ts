@@ -88,6 +88,42 @@ export async function startTui(
   const customTools = buildCustomTools(config);
 
   printBanner(config.model, config.provider);
+
+  // Pre-flight: check if Ollama model supports tools before launching TUI
+  if (config.provider === "ollama" || config.provider === "local") {
+    try {
+      const ollamaBase = config.baseUrl.replace(/\/v1\/?$/, "");
+      const res = await fetch(`${ollamaBase}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: config.model,
+          messages: [{ role: "user", content: "test" }],
+          tools: [{ type: "function", function: { name: "test", description: "test", parameters: { type: "object", properties: {} } } }],
+          stream: false,
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        if (text.includes("does not support tools") || text.includes("does not support tool")) {
+          console.error(`\n  Model '${config.model}' does not support tool calling.`);
+          console.error(`  The agent loop requires structured tool calls to work.\n`);
+          console.error(`  Options:`);
+          console.error(`    1. Switch to a model that supports tools:`);
+          console.error(`       clawx use deepseek`);
+          console.error(`       clawx use glm-flash`);
+          console.error(`       clawx use qwen35-35b\n`);
+          console.error(`    2. Use chat mode (no tools, just conversation):`);
+          console.error(`       clawx chat\n`);
+          console.error(`  Run 'clawx profiles' to see all available profiles.`);
+          process.exit(1);
+        }
+      }
+    } catch {
+      // Can't reach Ollama — let TUI handle the connection error
+    }
+  }
+
   log.info(`Starting TUI with ${model.id} @ ${model.provider}`);
   log.info(`Custom tools: ${customTools.map((t) => t.name).join(", ")}`);
 
