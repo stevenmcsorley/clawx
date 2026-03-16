@@ -36,6 +36,7 @@ import { createGitDiffTool } from "../tools/gitDiff.js";
 import { createSearchFilesTool } from "../tools/searchFiles.js";
 import { buildSystemPrompt } from "../utils/system-prompt.js";
 import { log } from "../utils/logger.js";
+import { printBanner } from "./banner.js";
 
 /**
  * Build custom tool definitions for registration with AgentSession.
@@ -86,6 +87,7 @@ export async function startTui(
   const model = resolveModel(config);
   const customTools = buildCustomTools(config);
 
+  printBanner(config.model, config.provider);
   log.info(`Starting TUI with ${model.id} @ ${model.provider}`);
   log.info(`Custom tools: ${customTools.map((t) => t.name).join(", ")}`);
 
