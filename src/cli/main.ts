@@ -23,7 +23,7 @@ import path from "node:path";
 import readline from "node:readline";
 import { Command } from "commander";
 import { loadConfig, getGlobalConfigDir, getGlobalConfigPath } from "../config/index.js";
-import { runAgent, type AgentMessage } from "../core/agent.js";
+import { runAgent, type AgentMessage, ToolsNotSupportedError } from "../core/agent.js";
 import { createStreamRenderer } from "../core/streaming.js";
 import {
   createSessionId,
@@ -79,6 +79,13 @@ program
         verbose: opts.verbose as boolean | undefined,
       });
     } catch (e) {
+      if (e instanceof ToolsNotSupportedError) {
+        console.error(`\n  Model '${config.model}' does not support tool calling.`);
+        console.error(`  Switch to a compatible model: clawx use deepseek`);
+        console.error(`  Or use chat mode: clawx chat\n`);
+        console.error(`  Run 'clawx profiles' to see all available profiles.`);
+        process.exit(1);
+      }
       // If TUI fails (e.g. missing terminal capabilities), fall back to basic REPL
       const msg = e instanceof Error ? e.message : String(e);
       console.error(`TUI failed (${msg}), falling back to basic REPL...`);
@@ -128,6 +135,20 @@ program
       saveSession(config.sessionDir, session, result.messages);
       process.exit(result.aborted ? 1 : 0);
     } catch (e) {
+      if (e instanceof ToolsNotSupportedError) {
+        renderer.finish();
+        console.error(`\n  Model '${config.model}' does not support tool calling.`);
+        console.error(`  The agent loop requires structured tool calls to work.\n`);
+        console.error(`  Options:`);
+        console.error(`    1. Switch to a model that supports tools:`);
+        console.error(`       clawx use deepseek`);
+        console.error(`       clawx use glm-flash`);
+        console.error(`       clawx use qwen35-35b\n`);
+        console.error(`    2. Use chat mode (no tools, just conversation):`);
+        console.error(`       clawx chat\n`);
+        console.error(`  Run 'clawx profiles' to see all available profiles.`);
+        process.exit(1);
+      }
       console.error(`Fatal: ${e instanceof Error ? e.message : e}`);
       process.exit(1);
     }

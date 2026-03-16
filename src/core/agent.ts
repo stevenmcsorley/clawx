@@ -63,6 +63,13 @@ export interface AgentRunResult {
   aborted: boolean;
 }
 
+export class ToolsNotSupportedError extends Error {
+  constructor(model: string) {
+    super(`Model '${model}' does not support tools`);
+    this.name = "ToolsNotSupportedError";
+  }
+}
+
 /**
  * Create the full tool set for Clawx.
  *
@@ -182,8 +189,19 @@ export async function runAgent(
 
   let aborted = false;
 
+  try {
   // Process events
   for await (const event of eventStream) {
+    // Detect "does not support tools" error from provider
+    if (event.type === "turn_end" && event.message.role === "assistant" && "stopReason" in event.message) {
+      const content = typeof event.message.content === "string" ? event.message.content : "";
+      if (content.includes("does not support tools") || (event.message.stopReason === "error" && content.includes("400"))) {
+        const errMsg = content || `Model does not support tools`;
+        if (errMsg.includes("does not support tools")) {
+          throw new ToolsNotSupportedError(config.model);
+        }
+      }
+    }
     if (options.onEvent) {
       options.onEvent(event);
     }
@@ -204,6 +222,14 @@ export async function runAgent(
         aborted = true;
       }
     }
+  }
+
+  } catch (loopError) {
+    const msg = loopError instanceof Error ? loopError.message : String(loopError);
+    if (msg.includes("does not support tools") || msg.includes("does not support tool")) {
+      throw new ToolsNotSupportedError(config.model);
+    }
+    throw loopError;
   }
 
   // Get the final messages from the event stream result

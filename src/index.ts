@@ -5,7 +5,7 @@
  */
 
 export { loadConfig } from "./config/index.js";
-export { runAgent, type AgentRunOptions, type AgentRunResult } from "./core/agent.js";
+export { runAgent, ToolsNotSupportedError, type AgentRunOptions, type AgentRunResult } from "./core/agent.js";
 export { resolveModel } from "./core/provider.js";
 export {
   createSessionId,
