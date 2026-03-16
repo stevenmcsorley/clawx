@@ -6,6 +6,10 @@
 
 Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint.
 
+Clawx started because [OpenClaw](https://github.com/openclaw/openclaw) kept getting heavier. Prompts ballooned, context windows filled up, and local models choked. We wanted the good parts — the tool-calling loop, the terminal UI, the coding tools — without the bloat. So we stripped it back to the essentials: a lean agent that runs local models on modest hardware, hits DeepSeek when you need more muscle, and scales up to frontier models when the task calls for it. No token budget wasted on platform overhead. Just the model, the tools, and your prompt.
+
+> **Fair warning:** Clawx runs with the guardrails off. It will create files, delete files, install packages, and execute shell commands — all without asking you first. That's the point. No confirmation dialogs, no "are you sure?", no waiting around. You give it a task, it gets on with it. This makes it ideal for disposable environments, home labs, Raspberry Pis, VMs, and machines you're happy to let rip. If you're pointing it at a production server with your life's work on it... maybe don't do that. Or do.
+
 Clawx can create files, write code, run commands, execute over SSH, and iterate until the job is done. The model decides what to build and how — no file lists, no hand-holding.
 
 ## What it does
@@ -480,22 +484,67 @@ clawx chat -d ./my-project
 
 ## Programmatic usage
 
-```typescript
+Use clawx as a library in your own scripts and tools.
+
+**Single task:**
+
+```js
 import { loadConfig, runAgent, createStreamRenderer } from "@halfagiraf/clawx";
 
-const config = loadConfig({
-  provider: "openai-completions",
-  baseUrl: "http://localhost:8080/v1",
-  model: "qwen2.5-coder-14b-instruct",
-});
-
+const config = loadConfig(); // reads from ~/.clawx/config or .env
 const renderer = createStreamRenderer();
+
 const result = await runAgent(config, {
   prompt: "Create a hello world Express server",
   onEvent: (event) => renderer.onEvent(event),
 });
 renderer.finish();
 ```
+
+**Multi-turn with shared context:**
+
+```js
+let messages = [];
+
+for (const prompt of ["Create calc.js with add/subtract", "Add tests"]) {
+  const result = await runAgent(config, { prompt, messages,
+    onEvent: (event) => renderer.onEvent(event),
+  });
+  messages = result.messages; // carry context forward
+}
+```
+
+**Headless for CI/automation:**
+
+```js
+const events = [];
+const result = await runAgent(config, {
+  prompt: "Generate a Dockerfile for this project",
+  onEvent: (event) => events.push(event), // collect instead of printing
+});
+const toolCalls = events.filter(e => e.type === "tool_execution_start");
+console.log(`Done: ${toolCalls.length} tool calls, aborted: ${result.aborted}`);
+```
+
+See [examples/](examples/) for runnable scripts.
+
+## Troubleshooting
+
+### TUI launches a file manager instead of the coding agent (Linux)
+
+If running `clawx` opens "FD(File & Directory tool)" — a Japanese file manager — instead of the TUI, you have `fdclone` installed which conflicts with the `fd` (sharkdp/fd-find) tool used for autocomplete.
+
+**Fix:**
+
+```bash
+sudo apt remove fdclone
+```
+
+Next time you run `clawx`, the correct `fd` binary will be downloaded automatically.
+
+### `/models` shows no models
+
+If you set up clawx via `clawx init`, your configured model should appear in `/models`. If it doesn't, check that your `~/.clawx/config` file has the correct `CLAWDEX_PROVIDER`, `CLAWDEX_MODEL`, and `CLAWDEX_API_KEY` values.
 
 ## License
 

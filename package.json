@@ -1,14 +1,15 @@
 {
   "name": "@halfagiraf/clawx",
-  "version": "0.1.7",
+  "version": "0.1.11",
   "description": "Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint",
   "type": "module",
   "bin": {
-    "clawx": "./dist/cli/main.js"
+    "clawx": "bin/clawx.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
+    "bin/",
     "dist/",
     "README.md",
     "LICENSE",

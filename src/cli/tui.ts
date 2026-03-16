@@ -24,6 +24,7 @@ import {
   createAgentSession,
   InteractiveMode,
   AuthStorage,
+  ModelRegistry,
   type ToolDefinition,
 } from "@mariozechner/pi-coding-agent";
 import type { Model, Api } from "@mariozechner/pi-ai";
@@ -93,6 +94,25 @@ export async function startTui(
   const authStorage = AuthStorage.create();
   authStorage.setRuntimeApiKey(config.provider, config.apiKey);
 
+  // Create ModelRegistry and register our configured provider so /models works
+  const modelRegistry = new ModelRegistry(authStorage);
+  modelRegistry.registerProvider(config.provider, {
+    baseUrl: config.baseUrl,
+    apiKey: config.apiKey,
+    api: (model as Model<any>).api,
+    models: [
+      {
+        id: (model as Model<any>).id,
+        name: (model as Model<any>).name ?? (model as Model<any>).id,
+        reasoning: (model as Model<any>).reasoning ?? false,
+        input: (model as Model<any>).input ?? ["text"],
+        cost: (model as Model<any>).cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: (model as Model<any>).contextWindow ?? 32768,
+        maxTokens: (model as Model<any>).maxTokens ?? config.maxTokens,
+      },
+    ],
+  });
+
   // Create session via the SDK
   const { session, extensionsResult, modelFallbackMessage } =
     await createAgentSession({
@@ -102,6 +122,7 @@ export async function startTui(
         config.thinkingLevel === "off" ? undefined : config.thinkingLevel,
       customTools,
       authStorage,
+      modelRegistry,
     });
 
   // Override system prompt with our Clawx-specific one
