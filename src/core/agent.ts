@@ -38,7 +38,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import type { ClawxConfig } from "../types/index.js";
 import { resolveModel } from "./provider.js";
-import { buildSystemPrompt } from "../utils/system-prompt.js";
+import { buildSystemPrompt, buildChatPrompt } from "../utils/system-prompt.js";
 import { createSshRunTool } from "../tools/sshRun.js";
 import { createGitStatusTool } from "../tools/gitStatus.js";
 import { createGitDiffTool } from "../tools/gitDiff.js";
@@ -56,6 +56,8 @@ export interface AgentRunOptions {
   signal?: AbortSignal;
   /** Queued user messages to inject mid-run */
   steeringQueue?: AgentMessage[];
+  /** Run without tools (plain chat mode) */
+  noTools?: boolean;
 }
 
 export interface AgentRunResult {
@@ -130,10 +132,10 @@ export async function runAgent(
   options: AgentRunOptions,
 ): Promise<AgentRunResult> {
   const model = resolveModel(config);
-  const tools = createTools(config);
-  const systemPrompt = buildSystemPrompt(config);
+  const tools = options.noTools ? [] : createTools(config);
+  const systemPrompt = options.noTools ? buildChatPrompt(config) : buildSystemPrompt(config);
 
-  log.info(`Tools: ${tools.map((t) => t.name).join(", ")}`);
+  log.info(`Tools: ${tools.length > 0 ? tools.map((t) => t.name).join(", ") : "(none — chat mode)"}`);
 
   // Build context with existing messages or empty
   const existingMessages: AgentMessage[] = options.messages || [];

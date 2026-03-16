@@ -162,7 +162,7 @@ program
 
 program
   .command("chat")
-  .description("Interactive chat session")
+  .description("Interactive chat session (no tools, just conversation)")
   .option("-m, --model <model>", "Model to use")
   .option("-p, --provider <provider>", "Provider")
   .option("-u, --base-url <url>", "Provider base URL")
@@ -191,7 +191,9 @@ program
       }
     }
 
-    await startRepl(config, sessionId, messages);
+    // `clawx chat` is ALWAYS chat-only — no tools, just conversation.
+    // This is the mode users are directed to when their model doesn't support tools.
+    await startRepl(config, sessionId, messages, { chatOnly: true });
   });
 
 program

@@ -10,6 +10,7 @@
  * - Session branching and tree navigation
  * - Markdown rendering in responses
  * - /slash commands for settings, models, sessions, etc.
+ * - /chat to toggle chat mode (no tools) for models that don't support them
  *
  * EXTRACTION NOTE:
  * This is the pi-coding-agent InteractiveMode used AS-IS.
@@ -25,7 +26,9 @@ import {
   InteractiveMode,
   AuthStorage,
   ModelRegistry,
+  DefaultResourceLoader,
   type ToolDefinition,
+  type ExtensionFactory,
 } from "@mariozechner/pi-coding-agent";
 import type { Model, Api } from "@mariozechner/pi-ai";
 import type { ClawxConfig } from "../types/index.js";
@@ -34,7 +37,8 @@ import { createSshRunTool } from "../tools/sshRun.js";
 import { createGitStatusTool } from "../tools/gitStatus.js";
 import { createGitDiffTool } from "../tools/gitDiff.js";
 import { createSearchFilesTool } from "../tools/searchFiles.js";
-import { buildSystemPrompt } from "../utils/system-prompt.js";
+import { buildSystemPrompt, buildChatPrompt } from "../utils/system-prompt.js";
+import { createChatModeExtension } from "../extensions/chat-mode.js";
 import { log } from "../utils/logger.js";
 import { printBanner } from "./banner.js";
 
@@ -70,11 +74,44 @@ function buildCustomTools(config: ClawxConfig): ToolDefinition[] {
 }
 
 /**
+ * Check if an Ollama model supports tool calling.
+ * Returns true if tools are supported, false if not.
+ */
+async function checkOllamaToolSupport(config: ClawxConfig): Promise<boolean> {
+  if (config.provider !== "ollama" && config.provider !== "local") return true;
+  try {
+    const ollamaBase = config.baseUrl.replace(/\/v1\/?$/, "");
+    const res = await fetch(`${ollamaBase}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: "user", content: "test" }],
+        tools: [{ type: "function", function: { name: "test", description: "test", parameters: { type: "object", properties: {} } } }],
+        stream: false,
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      if (text.includes("does not support tools") || text.includes("does not support tool")) {
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return true; // Can't reach Ollama — let TUI handle the connection error
+  }
+}
+
+/**
  * Start the TUI mode.
  *
  * Creates an AgentSession via the pi-coding-agent SDK with our
  * custom model and tools, then runs InteractiveMode for the full
  * terminal UI experience.
+ *
+ * If the model doesn't support tools, automatically starts in chat mode.
+ * Users can toggle with /chat at any time.
  */
 export async function startTui(
   config: ClawxConfig,
@@ -89,39 +126,10 @@ export async function startTui(
 
   printBanner(config.model, config.provider);
 
-  // Pre-flight: check if Ollama model supports tools before launching TUI
-  if (config.provider === "ollama" || config.provider === "local") {
-    try {
-      const ollamaBase = config.baseUrl.replace(/\/v1\/?$/, "");
-      const res = await fetch(`${ollamaBase}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: config.model,
-          messages: [{ role: "user", content: "test" }],
-          tools: [{ type: "function", function: { name: "test", description: "test", parameters: { type: "object", properties: {} } } }],
-          stream: false,
-        }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        if (text.includes("does not support tools") || text.includes("does not support tool")) {
-          console.error(`\n  Model '${config.model}' does not support tool calling.`);
-          console.error(`  The agent loop requires structured tool calls to work.\n`);
-          console.error(`  Options:`);
-          console.error(`    1. Switch to a model that supports tools:`);
-          console.error(`       clawx use deepseek`);
-          console.error(`       clawx use glm-flash`);
-          console.error(`       clawx use qwen35-35b\n`);
-          console.error(`    2. Use chat mode (no tools, just conversation):`);
-          console.error(`       clawx chat\n`);
-          console.error(`  Run 'clawx profiles' to see all available profiles.`);
-          process.exit(1);
-        }
-      }
-    } catch {
-      // Can't reach Ollama — let TUI handle the connection error
-    }
+  // Pre-flight: check if model supports tools
+  const toolsSupported = await checkOllamaToolSupport(config);
+  if (!toolsSupported) {
+    log.info(`Model '${config.model}' does not support tools — starting in chat mode`);
   }
 
   log.info(`Starting TUI with ${model.id} @ ${model.provider}`);
@@ -151,6 +159,34 @@ export async function startTui(
     ],
   });
 
+  // Build system prompts
+  const agentSystemPrompt = buildSystemPrompt(config);
+  const chatSystemPrompt = buildChatPrompt(config);
+
+  // Create chat mode extension
+  const chatModeFactory: ExtensionFactory = createChatModeExtension({
+    agentSystemPrompt,
+    chatSystemPrompt,
+    startInChatMode: !toolsSupported,
+  });
+
+  // Create resource loader with our chat mode extension
+  const resourceLoader = new DefaultResourceLoader({
+    cwd: config.workDir,
+    extensionFactories: [chatModeFactory],
+    extensionsOverride: (base) => {
+      // Rename inline extensions to show "clawx-chat-mode" instead of "<inline:1>"
+      for (const ext of base.extensions) {
+        if (ext.path.startsWith("<inline:")) {
+          ext.path = "clawx-chat-mode";
+          ext.resolvedPath = "clawx-chat-mode";
+        }
+      }
+      return base;
+    },
+  });
+  await resourceLoader.reload();
+
   // Create session via the SDK
   const { session, extensionsResult, modelFallbackMessage } =
     await createAgentSession({
@@ -161,12 +197,11 @@ export async function startTui(
       customTools,
       authStorage,
       modelRegistry,
+      resourceLoader,
     });
 
-  // Override system prompt with our Clawx-specific one
-  // AgentSession exposes the underlying Agent which has setSystemPrompt()
-  const systemPrompt = buildSystemPrompt(config);
-  session.agent.setSystemPrompt(systemPrompt);
+  // Override system prompt with appropriate one
+  session.agent.setSystemPrompt(toolsSupported ? agentSystemPrompt : chatSystemPrompt);
 
   // Create and run the interactive mode
   const mode = new InteractiveMode(session, {

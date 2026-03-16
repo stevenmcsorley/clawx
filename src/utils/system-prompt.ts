@@ -50,3 +50,21 @@ When building applications:
 
 ${config.systemPrompt || ""}`.trim();
 }
+
+/**
+ * Build a chat-only system prompt (no tools, no action-oriented behavior).
+ * Used when the model doesn't support tool calling or user toggles /chat.
+ */
+export function buildChatPrompt(config: ClawxConfig): string {
+  return `You are Clawx, a helpful assistant. You help users with questions about software, code, and general topics.
+
+Environment:
+- Working directory: ${config.workDir}
+- Platform: ${process.platform}
+
+You are in chat mode — you do not have access to tools (no file reading, writing, or command execution).
+You can discuss code, explain concepts, help with planning, review snippets the user pastes, and answer questions.
+If the user needs file operations or command execution, suggest they switch to a tool-capable model with: /chat (to toggle back) or switch models with Ctrl+P.
+
+${config.systemPrompt || ""}`.trim();
+}

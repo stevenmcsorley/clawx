@@ -15,7 +15,7 @@ export {
   getLatestSession,
 } from "./core/session.js";
 export { createStreamRenderer } from "./core/streaming.js";
-export { buildSystemPrompt } from "./utils/system-prompt.js";
+export { buildSystemPrompt, buildChatPrompt } from "./utils/system-prompt.js";
 export { log } from "./utils/logger.js";
 
 // Tool factories for custom compositions
