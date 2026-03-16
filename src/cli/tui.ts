@@ -175,11 +175,11 @@ export async function startTui(
     cwd: config.workDir,
     extensionFactories: [chatModeFactory],
     extensionsOverride: (base) => {
-      // Rename inline extensions to show "clawx-chat-mode" instead of "<inline:1>"
+      // Rename inline extensions to show "clawx" instead of "<inline:1>"
       for (const ext of base.extensions) {
         if (ext.path.startsWith("<inline:")) {
-          ext.path = "clawx-chat-mode";
-          ext.resolvedPath = "clawx-chat-mode";
+          ext.path = "clawx";
+          ext.resolvedPath = "clawx";
         }
       }
       return base;
