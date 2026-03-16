@@ -379,6 +379,41 @@ The fastest way to set up is `clawx init` — it writes `~/.clawx/config` for yo
 
 **Global SSH targets:** Place a `clawx.json` in `~/.clawx/` to make SSH targets available from any directory. Local `clawx.json` targets override global ones with the same name.
 
+### Profiles — switch models instantly
+
+Set up multiple providers and models once, then switch between them without re-entering API keys or editing config files.
+
+```bash
+# Set up DeepSeek (clawx init auto-saves a profile)
+clawx init
+# → Pick deepseek, enter API key
+# → Profile "deepseek-chat" saved automatically
+
+# Set up a local model
+clawx init
+# → Pick ollama, enter model name
+# → Profile "glm-4.7-flash-latest" saved automatically
+
+# Or save the current config under a custom name
+clawx add deepseek
+clawx add local-qwen
+
+# Switch instantly — no reconfiguration
+clawx use deepseek        # API key already stored
+clawx use local-qwen      # back to local model
+
+# See all your profiles
+clawx profiles
+#   deepseek             deepseek-chat via deepseek ← active
+#   local-qwen           qwen35-35b via ollama
+#   glm-4.7-flash-latest glm-4.7-flash:latest via ollama
+
+# Remove a profile you don't need
+clawx remove local-qwen
+```
+
+Profiles are stored in `~/.clawx/profiles/`. Each is a standalone config file — switch as often as you like, your API keys and settings are always there.
+
 ### Environment variables
 
 ```bash
@@ -487,6 +522,10 @@ clawx chat             Interactive basic REPL
 clawx chat -c          Resume last session in basic REPL
 clawx continue         Resume last session
 clawx sessions         List recent sessions
+clawx profiles         List saved profiles
+clawx add <name>       Save current config as a named profile
+clawx use <name>       Switch to a saved profile
+clawx remove <name>    Delete a saved profile
 ```
 
 ### Global options

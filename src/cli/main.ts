@@ -276,7 +276,176 @@ program
     fs.writeFileSync(configPath, configContent, "utf-8");
 
     console.log(`\n  Config saved to ${configPath}`);
+
+    // Auto-save as a profile
+    const profileName = model.replace(/[:/]/g, "-").replace(/:latest$/, "");
+    const profilesDir = path.join(configDir, "profiles");
+    fs.mkdirSync(profilesDir, { recursive: true });
+    fs.writeFileSync(path.join(profilesDir, profileName), configContent, "utf-8");
+    fs.writeFileSync(path.join(configDir, "active-profile"), profileName, "utf-8");
+    console.log(`  Profile '${profileName}' saved. Switch back anytime with: clawx use ${profileName}`);
+
+    // For Ollama: check if model is available and offer to pull
+    if (selected.provider === "ollama") {
+      try {
+        const ollamaBase = baseUrl.replace(/\/v1\/?$/, "");
+        const res = await fetch(`${ollamaBase}/api/tags`);
+        if (res.ok) {
+          const data = (await res.json()) as { models?: Array<{ name: string }> };
+          const models = data.models || [];
+          const found = models.some(
+            (m) => m.name === model || m.name === `${model}:latest` || `${m.name}:latest` === model,
+          );
+          if (!found) {
+            const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
+            const pullAnswer = await new Promise<string>((resolve) => {
+              rl2.question(`\n  Model '${model}' not found in Ollama. Pull it now? [Y/n] `, (a) => {
+                rl2.close();
+                resolve(a.trim().toLowerCase() || "y");
+              });
+            });
+            if (pullAnswer === "y" || pullAnswer === "yes") {
+              console.log(`\n  Pulling ${model}... (this may take a while)\n`);
+              const { execSync } = await import("node:child_process");
+              try {
+                execSync(`ollama pull ${model}`, { stdio: "inherit" });
+                console.log(`\n  Model pulled successfully.`);
+              } catch {
+                console.error(`\n  Failed to pull model. Run manually: ollama pull ${model}`);
+              }
+            } else {
+              console.log(`\n  Skipped. Run 'ollama pull ${model}' before using clawx.`);
+            }
+          } else {
+            console.log(`  Model '${model}' is available in Ollama.`);
+          }
+        }
+      } catch {
+        console.log(`  Could not reach Ollama at ${baseUrl} — make sure 'ollama serve' is running.`);
+      }
+    }
+
     console.log(`\n  Run 'clawx' to start!\n`);
+  });
+
+// --- Profile management ---
+
+function getProfilesDir(): string {
+  return path.join(getGlobalConfigDir(), "profiles");
+}
+
+function getActiveProfileName(): string | null {
+  const activeFile = path.join(getGlobalConfigDir(), "active-profile");
+  if (fs.existsSync(activeFile)) return fs.readFileSync(activeFile, "utf-8").trim();
+  return null;
+}
+
+function setActiveProfileName(name: string): void {
+  fs.writeFileSync(path.join(getGlobalConfigDir(), "active-profile"), name, "utf-8");
+}
+
+function parseProfileConfig(content: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq > 0) result[trimmed.slice(0, eq)] = trimmed.slice(eq + 1);
+  }
+  return result;
+}
+
+program
+  .command("add")
+  .description("Save current config as a named profile")
+  .argument("<name>", "Profile name (e.g. deepseek, qwen35, gpt4)")
+  .action((name: string) => {
+    const profilesDir = getProfilesDir();
+    fs.mkdirSync(profilesDir, { recursive: true });
+
+    const configPath = getGlobalConfigPath();
+    if (!fs.existsSync(configPath)) {
+      console.error("  No active config found. Run 'clawx init' first.");
+      process.exit(1);
+    }
+
+    const content = fs.readFileSync(configPath, "utf-8");
+    const profilePath = path.join(profilesDir, name);
+    fs.writeFileSync(profilePath, content, "utf-8");
+    setActiveProfileName(name);
+
+    const parsed = parseProfileConfig(content);
+    console.log(`\n  Profile '${name}' saved.`);
+    console.log(`  → ${parsed.CLAWDEX_MODEL || "unknown"} via ${parsed.CLAWDEX_PROVIDER || "unknown"}\n`);
+  });
+
+program
+  .command("use")
+  .description("Switch to a saved profile")
+  .argument("<name>", "Profile name")
+  .action((name: string) => {
+    const profilePath = path.join(getProfilesDir(), name);
+    if (!fs.existsSync(profilePath)) {
+      console.error(`\n  Profile '${name}' not found.`);
+      console.error(`  Run 'clawx profiles' to see available profiles.\n`);
+      process.exit(1);
+    }
+
+    const content = fs.readFileSync(profilePath, "utf-8");
+    const configPath = getGlobalConfigPath();
+    fs.writeFileSync(configPath, content, "utf-8");
+    setActiveProfileName(name);
+
+    const parsed = parseProfileConfig(content);
+    console.log(`\n  Switched to '${name}'`);
+    console.log(`  → ${parsed.CLAWDEX_MODEL || "unknown"} via ${parsed.CLAWDEX_PROVIDER || "unknown"}\n`);
+  });
+
+program
+  .command("profiles")
+  .description("List saved profiles")
+  .action(() => {
+    const profilesDir = getProfilesDir();
+    if (!fs.existsSync(profilesDir)) {
+      console.log("\n  No profiles saved yet. Run 'clawx init' or 'clawx add <name>'.\n");
+      return;
+    }
+
+    const files = fs.readdirSync(profilesDir).filter((f) => !f.startsWith("."));
+    if (files.length === 0) {
+      console.log("\n  No profiles saved yet. Run 'clawx init' or 'clawx add <name>'.\n");
+      return;
+    }
+
+    const active = getActiveProfileName();
+    console.log("\n  Saved profiles:\n");
+    for (const name of files) {
+      const content = fs.readFileSync(path.join(profilesDir, name), "utf-8");
+      const parsed = parseProfileConfig(content);
+      const model = parsed.CLAWDEX_MODEL || "unknown";
+      const provider = parsed.CLAWDEX_PROVIDER || "unknown";
+      const marker = name === active ? " ← active" : "";
+      console.log(`    ${name.padEnd(20)} ${model} via ${provider}${marker}`);
+    }
+    console.log(`\n  Switch with: clawx use <name>\n`);
+  });
+
+program
+  .command("remove")
+  .description("Delete a saved profile")
+  .argument("<name>", "Profile name to remove")
+  .action((name: string) => {
+    const profilePath = path.join(getProfilesDir(), name);
+    if (!fs.existsSync(profilePath)) {
+      console.error(`\n  Profile '${name}' not found.\n`);
+      process.exit(1);
+    }
+    fs.unlinkSync(profilePath);
+    const active = getActiveProfileName();
+    if (active === name) {
+      fs.unlinkSync(path.join(getGlobalConfigDir(), "active-profile"));
+    }
+    console.log(`\n  Profile '${name}' removed.\n`);
   });
 
 program.parse();
