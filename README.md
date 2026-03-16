@@ -64,6 +64,8 @@ Tested on Windows 11, RTX 3060 12GB, 2026-03-15.
 | Qwen2.5-Coder-14B-abliterated Q4_K_M | Ollama | Text-only `<tool_call>` tags | ~9 GB | Tool loop never starts — model returns text, not structured calls | Not compatible |
 | Qwen2.5-Coder-14B-abliterated Q4_K_M | llama-server `--jinja` | Text-only `<tool_call>` tags | ~9 GB | Same as above | Not compatible |
 | GPT-4o / GPT-4-turbo | OpenAI API | Structured `tool_calls` | — | N/A (cloud) | Works |
+| **DeepSeek-V3 (deepseek-chat)** | DeepSeek API | Structured `tool_calls` | — | N/A (cloud) | **Works, very cheap** |
+| DeepSeek-R1 (deepseek-reasoner) | DeepSeek API | Structured `tool_calls` (via chat) | — | N/A (cloud) | Works |
 | Claude 3.5+ | Anthropic API | Structured `tool_calls` | — | N/A (cloud) | Works |
 
 **glm-4.7-flash benchmark detail:**
@@ -184,7 +186,38 @@ CLAWDEX_MAX_TOKENS=8192
 EOF
 ```
 
-### Option 3: OpenAI API
+### Option 3: DeepSeek API
+
+DeepSeek is OpenAI-compatible with full structured tool calling support, including thinking mode.
+Pricing: ~$0.27/1M input, $1.10/1M output (deepseek-chat). Very cost-effective.
+
+```bash
+# 1. Get an API key at https://platform.deepseek.com/
+# 2. Configure .env
+cat > .env << 'EOF'
+CLAWDEX_PROVIDER=deepseek
+CLAWDEX_BASE_URL=https://api.deepseek.com/v1
+CLAWDEX_MODEL=deepseek-chat
+CLAWDEX_API_KEY=sk-your-deepseek-key-here
+CLAWDEX_THINKING_LEVEL=off
+CLAWDEX_MAX_TOKENS=16384
+EOF
+
+# For DeepSeek R1 reasoning model (tool calls route through deepseek-chat):
+cat > .env << 'EOF'
+CLAWDEX_PROVIDER=deepseek
+CLAWDEX_BASE_URL=https://api.deepseek.com/v1
+CLAWDEX_MODEL=deepseek-reasoner
+CLAWDEX_API_KEY=sk-your-deepseek-key-here
+CLAWDEX_THINKING_LEVEL=medium
+CLAWDEX_MAX_TOKENS=16384
+EOF
+
+# Run
+npx clawdex run "Create a FastAPI app with SQLite and JWT auth"
+```
+
+### Option 4: OpenAI API
 
 ```bash
 cat > .env << 'EOF'
@@ -197,7 +230,7 @@ CLAWDEX_MAX_TOKENS=16384
 EOF
 ```
 
-### Option 4: Anthropic API
+### Option 5: Anthropic API
 
 ```bash
 cat > .env << 'EOF'
@@ -239,6 +272,7 @@ CLAWDEX_EXEC_TIMEOUT=120000            # Tool execution timeout (ms)
 | llama.cpp | `openai-completions` or `local` | OpenAI-compatible endpoint |
 | vLLM | `vllm` | Maps to OpenAI-compatible |
 | LM Studio | `lmstudio` | Maps to OpenAI-compatible |
+| DeepSeek | `deepseek` | OpenAI-compatible, cheap, tool calling + thinking |
 | OpenAI | `openai` | GPT-4o, etc. |
 | Anthropic | `anthropic` | Claude models |
 | Google | `google` | Gemini models |

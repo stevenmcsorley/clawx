@@ -1,4 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Mock dotenv so tests don't pick up the real .env file
+vi.mock("dotenv", () => ({
+  config: vi.fn(),
+}));
+
 import { loadConfig } from "../src/config/index.js";
 
 describe("loadConfig", () => {

@@ -34,6 +34,7 @@ const PROVIDER_API_MAP: Record<string, Api> = {
   google: "google-generative-ai",
   "google-generative-ai": "google-generative-ai",
   mistral: "mistral-conversations",
+  deepseek: "openai-completions",
   local: "openai-completions",
   "llama.cpp": "openai-completions",
   ollama: "openai-completions",
@@ -55,7 +56,17 @@ export function resolveModel(config: ClawdexConfig): Model<Api> {
   log.info(`Model: ${config.model}`);
   log.info(`Base URL: ${config.baseUrl}`);
 
-  // Construct model descriptor for local/custom endpoints
+  // Context window defaults per provider
+  const contextWindows: Record<string, number> = {
+    deepseek: 65536,
+    anthropic: 200000,
+    "anthropic-messages": 200000,
+    google: 1048576,
+    openai: 128000,
+  };
+  const contextWindow = contextWindows[config.provider] || 32768;
+
+  // Construct model descriptor
   const model: Model<Api> = {
     id: config.model,
     name: config.model,
@@ -65,7 +76,7 @@ export function resolveModel(config: ClawdexConfig): Model<Api> {
     reasoning: config.thinkingLevel !== "off",
     input: ["text"],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 32768,
+    contextWindow,
     maxTokens: config.maxTokens,
   };
 
