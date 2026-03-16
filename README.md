@@ -10,8 +10,6 @@ Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or a
 
 Clawx started because tools like OpenClaw kept getting heavier. Prompts ballooned, context windows filled up, and local models choked. We wanted the good parts — the tool-calling loop, the terminal UI, the coding tools — without the bloat. So we built something lean on top of the open-source [pi-coding-agent](https://github.com/badlogic/pi-mono) SDK: an agent that runs local models on modest hardware, hits DeepSeek when you need more muscle, and scales up to frontier models when the task calls for it. No token budget wasted on platform overhead. Just the model, the tools, and your prompt.
 
-> **Why not just use Claude Code with Ollama?** You can — Anthropic added [Ollama integration](https://docs.ollama.com/integrations/claude-code). But Claude Code "requires a large context window. We recommend at least 64k tokens" (Anthropic & Ollama, 2026). That 64k minimum exists because the system prompt, tool definitions, and protocol overhead consume a significant portion of the context before your first message is even sent. Clawx's orchestration is ~200 lines. The system prompt is lean. Tool definitions are minimal. This means more of your context window goes to actual work, not platform scaffolding — which matters when you're running a 7B model on 12GB VRAM where every token counts.
-
 > **Fair warning:** Clawx runs with the guardrails off. It will create files, delete files, install packages, and execute shell commands — all without asking you first. That's the point. No confirmation dialogs, no "are you sure?", no waiting around. You give it a task, it gets on with it. This makes it ideal for disposable environments, home labs, Raspberry Pis, VMs, and machines you're happy to let rip. If you're pointing it at a production server with your life's work on it... maybe don't do that. Or do.
 
 Clawx can create files, write code, run commands, execute over SSH, and iterate until the job is done. The model decides what to build and how — no file lists, no hand-holding.
@@ -829,6 +827,24 @@ Clawx is in beta — if something breaks, we want to know. [Open an issue](https
 | Google / Mistral | Untested |
 
 If you test a provider that isn't listed, let us know how it went.
+
+## FAQ
+
+### Why not just use Claude Code with Ollama?
+
+You can — Anthropic added [Ollama integration](https://docs.ollama.com/integrations/claude-code). But Claude Code "requires a large context window. We recommend at least 64k tokens" (Anthropic & Ollama, 2026). That 64k minimum exists because the system prompt, tool definitions, and protocol overhead consume a significant portion of the context before your first message is even sent. Clawx's orchestration is ~200 lines. The system prompt is lean. Tool definitions are minimal. This means more of your context window goes to actual work, not platform scaffolding — which matters when you're running a 7B model on 12GB VRAM where every token counts.
+
+### How is this different from OpenCode?
+
+OpenCode is a polished coding assistant with LSP integration, GitHub PR reviews, and a large community. It's great at what it does — code in your current project directory.
+
+Clawx is designed for a different workflow: **code → deploy**. SSH is a first-class tool with named targets and dedicated config, not a shell hack. The agent can scaffold code on your machine then deploy it to a Raspberry Pi, a VPS, or a Docker host — all from one prompt. It also runs on modest hardware (12GB VRAM) with local models, and doesn't eat your context window with platform overhead.
+
+Different tools for different workflows.
+
+### Does it work with models that don't support tool calling?
+
+Yes. Clawx auto-detects when a model doesn't support structured tool calls and switches to **chat mode** — no crash, no error. You can also toggle manually with `/chat` in the TUI, or use `clawx chat` which always runs without tools. See [Agent mode vs chat mode](#agent-mode-vs-chat-mode) for details.
 
 ## License
 
