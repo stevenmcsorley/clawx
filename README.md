@@ -1,20 +1,12 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/stevenmcsorley/clawx/main/logo.png" alt="Clawx" width="200" />
-</p>
+![Clawx](https://raw.githubusercontent.com/stevenmcsorley/clawx/main/logo.png)
 
-<h1 align="center">Clawx</h1>
+# Clawx
 
-<p align="center">
-  <a href="https://www.npmjs.com/package/@halfagiraf/clawx"><img src="https://img.shields.io/npm/v/@halfagiraf/clawx" alt="npm version" /></a>
-  <a href="https://github.com/stevenmcsorley/clawx/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@halfagiraf/clawx" alt="license" /></a>
-  <a href="https://www.npmjs.com/package/@halfagiraf/clawx"><img src="https://img.shields.io/npm/dm/@halfagiraf/clawx" alt="downloads" /></a>
-</p>
+[![npm version](https://img.shields.io/npm/v/@halfagiraf/clawx)](https://www.npmjs.com/package/@halfagiraf/clawx) [![license](https://img.shields.io/npm/l/@halfagiraf/clawx)](https://github.com/stevenmcsorley/clawx/blob/main/LICENSE) [![downloads](https://img.shields.io/npm/dm/@halfagiraf/clawx)](https://www.npmjs.com/package/@halfagiraf/clawx)
 
-<p align="center">
-  Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint.
-</p>
+Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint.
 
-Clawx is a lean coding/execution agent that can create files, write code, run commands, execute over SSH, and iterate until the job is done. The model decides what to build and how — no file lists, no hand-holding.
+Clawx can create files, write code, run commands, execute over SSH, and iterate until the job is done. The model decides what to build and how — no file lists, no hand-holding.
 
 ## What it does
 
