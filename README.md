@@ -570,10 +570,53 @@ The agent will create files, install dependencies, build, and verify — iterati
 
 ### Remote scaffolding via SSH
 
-```bash
-# With SSH targets configured in .env or clawx.json
-clawx run "SSH into my Pi and set up a Node.js service that monitors CPU temperature and exposes it as a Prometheus metric on port 9100"
+Clawx can SSH into other machines on your network and run commands — from installing packages to deploying services. You describe what you want on your desktop; it happens on the remote machine.
+
+**1. Configure an SSH target** in `clawx.json` (in your working directory):
+
+```json
+{
+  "sshTargets": {
+    "pi": {
+      "host": "192.168.1.198",
+      "username": "dev",
+      "privateKeyPath": "~/.ssh/id_ed25519"
+    }
+  }
+}
 ```
+
+**2. Run a prompt that references the target:**
+
+```bash
+clawx run "SSH into the pi and run: hostname && uname -a"
+```
+
+**3. Clawx connects and executes:**
+
+```
+[tool] ssh_run target="pi" command="hostname && uname -a"
+  [pi] exit=0 (943ms)
+ubuntu
+Linux ubuntu 6.14.0-1019-raspi aarch64 GNU/Linux
+```
+
+Tested and verified with DeepSeek API → Raspberry Pi 4 (Ubuntu aarch64) over local network.
+
+**More SSH examples:**
+
+```bash
+# Install and start a service on a remote Pi
+clawx run "SSH into the pi, install Node.js, create an Express API with a /hello endpoint, start it on port 3000, and verify it's running with curl"
+
+# Set up monitoring
+clawx run "SSH into the pi and set up a Node.js service that monitors CPU temperature and exposes it as a Prometheus metric on port 9100"
+
+# Deploy to a server
+clawx run "SSH into server, pull the latest code from git, run npm install, and restart the PM2 process"
+```
+
+You can define multiple targets (pi, server, vm, etc.) and reference them by name in your prompts.
 
 ### Interactive basic REPL
 
