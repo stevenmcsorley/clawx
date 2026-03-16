@@ -364,7 +364,8 @@ Clawx looks for config in this order (first match wins):
 | 2 | `~/.clawx/config` | `clawx init` | Global config (recommended) |
 | 3 | `.env` in package install dir | Dev only | Fallback for development |
 | 4 | `clawx.json` in current directory | You | JSON format, supports systemPrompt |
-| 5 | Built-in defaults | — | Ollama on localhost |
+| 5 | `~/.clawx/clawx.json` | You | Global JSON config (SSH targets, etc.) |
+| 6 | Built-in defaults | — | Ollama on localhost |
 
 **Config file paths by OS:**
 
@@ -375,6 +376,8 @@ Clawx looks for config in this order (first match wins):
 | **macOS** | `~/.clawx/config` | `~/.clawx/sessions/` |
 
 The fastest way to set up is `clawx init` — it writes `~/.clawx/config` for you. To override per-project, drop a `.env` or `clawx.json` in the project directory.
+
+**Global SSH targets:** Place a `clawx.json` in `~/.clawx/` to make SSH targets available from any directory. Local `clawx.json` targets override global ones with the same name.
 
 ### Environment variables
 

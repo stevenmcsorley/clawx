@@ -38,15 +38,31 @@ function parseSshTargets(raw: string): Record<string, SshTarget> {
   }
 }
 
-function loadJsonConfig(workDir: string): Partial<ClawxConfig> {
-  const configPath = path.join(workDir, "clawx.json");
-  if (!fs.existsSync(configPath)) return {};
+function loadJsonFile(filePath: string): Partial<ClawxConfig> {
+  if (!fs.existsSync(filePath)) return {};
   try {
-    const raw = fs.readFileSync(configPath, "utf-8");
+    const raw = fs.readFileSync(filePath, "utf-8");
     return JSON.parse(raw) as Partial<ClawxConfig>;
   } catch {
     return {};
   }
+}
+
+function loadJsonConfig(workDir: string): Partial<ClawxConfig> {
+  // 1. Check current working directory first
+  const local = loadJsonFile(path.join(workDir, "clawx.json"));
+  // 2. Check global config directory (~/.clawx/clawx.json)
+  const global = loadJsonFile(path.join(getGlobalConfigDir(), "clawx.json"));
+  // Local overrides global, but merge sshTargets from both
+  const mergedSshTargets = {
+    ...(global.sshTargets || {}),
+    ...(local.sshTargets || {}),
+  };
+  const merged = { ...global, ...local };
+  if (Object.keys(mergedSshTargets).length > 0) {
+    merged.sshTargets = mergedSshTargets;
+  }
+  return merged;
 }
 
 /** Global config directory: ~/.clawx/ */
