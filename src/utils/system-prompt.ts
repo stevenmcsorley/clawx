@@ -9,9 +9,9 @@ import type { ClawxConfig, SshTarget } from "../types/index.js";
 
 export function buildSystemPrompt(config: ClawxConfig): string {
   const sshSection = Object.keys(config.sshTargets).length > 0
-    ? `\n\nSSH Targets available:\n${Object.entries(config.sshTargets)
-        .map(([name, t]: [string, SshTarget]) => `- "${name}": ${t.username}@${t.host}${t.port ? `:${t.port}` : ""}`)
-        .join("\n")}`
+    ? `\n\nSSH Targets (use the ssh_run tool with these target names — do NOT use bash to run ssh manually):\n${Object.entries(config.sshTargets)
+        .map(([name, t]: [string, SshTarget]) => `- target="${name}": ${t.username}@${t.host}${t.port ? `:${t.port}` : ""}`)
+        .join("\n")}\nWhen the user asks to SSH into a machine or mentions a target name, ALWAYS use the ssh_run tool, never raw ssh commands.`
     : "";
 
   return `You are Clawx, a coding and execution agent. You help users build software by creating files, writing code, running commands, and iterating based on results.
