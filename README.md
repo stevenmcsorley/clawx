@@ -34,21 +34,33 @@ npm run build
 # Configure (see Model Setup below)
 cp .env.example .env
 
-# Launch the TUI (rich terminal UI — default mode)
-npx clawdex
+# Link the local build as a global command
+# (required because "clawdex" on npm is a different package — Solana DEX CLI)
+npm link
+
+# Now you can run from anywhere:
+clawdex
 
 # Launch TUI with an initial prompt
-npx clawdex "Create a Flask app with auth and a SQLite database"
+clawdex "Create a Flask app with auth and a SQLite database"
 
 # Single-shot run (headless, exits when done)
-npx clawdex run "Create a hello world Express server"
+clawdex run "Create a hello world Express server"
 
 # Basic readline REPL (fallback if TUI has issues)
-npx clawdex --basic
+clawdex --basic
 
 # Continue last session
-npx clawdex continue
+clawdex continue
 ```
+
+> **Note:** We use `npm link` instead of `npx clawdex` because there is an unrelated
+> package called `clawdex` on npm (a Solana DEX CLI). Running `npx clawdex` would
+> fetch that package instead of your local build. After `npm link`, the `clawdex`
+> command points to your local install. If you ever run `npm install` again, re-run
+> `npm link` to restore the global link.
+>
+> A package rename is planned for a future release.
 
 ## Model setup
 
