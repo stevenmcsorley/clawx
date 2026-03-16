@@ -79,16 +79,22 @@ program
         verbose: opts.verbose as boolean | undefined,
       });
     } catch (e) {
-      if (e instanceof ToolsNotSupportedError) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      if (e instanceof ToolsNotSupportedError || errMsg.includes("does not support tools") || errMsg.includes("does not support tool")) {
         console.error(`\n  Model '${config.model}' does not support tool calling.`);
-        console.error(`  Switch to a compatible model: clawx use deepseek`);
-        console.error(`  Or use chat mode: clawx chat\n`);
+        console.error(`  The agent loop requires structured tool calls to work.\n`);
+        console.error(`  Options:`);
+        console.error(`    1. Switch to a model that supports tools:`);
+        console.error(`       clawx use deepseek`);
+        console.error(`       clawx use glm-flash`);
+        console.error(`       clawx use qwen35-35b\n`);
+        console.error(`    2. Use chat mode (no tools, just conversation):`);
+        console.error(`       clawx chat\n`);
         console.error(`  Run 'clawx profiles' to see all available profiles.`);
         process.exit(1);
       }
       // If TUI fails (e.g. missing terminal capabilities), fall back to basic REPL
-      const msg = e instanceof Error ? e.message : String(e);
-      console.error(`TUI failed (${msg}), falling back to basic REPL...`);
+      console.error(`TUI failed (${errMsg}), falling back to basic REPL...`);
       const sessionId = createSessionId();
       await startRepl(config, sessionId, []);
     }

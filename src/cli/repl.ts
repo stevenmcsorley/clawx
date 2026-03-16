@@ -10,7 +10,7 @@ import readline from "node:readline";
 import chalk from "chalk";
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { ClawxConfig, ClawxSession } from "../types/index.js";
-import { runAgent } from "../core/agent.js";
+import { runAgent, ToolsNotSupportedError } from "../core/agent.js";
 import { createStreamRenderer } from "../core/streaming.js";
 import { saveSession } from "../core/session.js";
 import { log } from "../utils/logger.js";
@@ -108,7 +108,12 @@ export async function startRepl(
       // Auto-save after each turn
       saveSession(config.sessionDir, session, messages);
     } catch (e) {
-      if ((e as Error).name === "AbortError") {
+      if (e instanceof ToolsNotSupportedError) {
+        console.error(chalk.red(`\n  Model '${config.model}' does not support tool calling.`));
+        console.error(chalk.yellow(`  Switch model:  clawx use deepseek`));
+        console.error(chalk.yellow(`  Or chat mode:  clawx chat`));
+        console.error(chalk.gray(`  Run 'clawx profiles' to see all available profiles.\n`));
+      } else if ((e as Error).name === "AbortError") {
         console.error(chalk.yellow("\n[aborted]"));
       } else {
         console.error(chalk.red(`\nError: ${e instanceof Error ? e.message : e}`));
