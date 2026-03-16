@@ -32,8 +32,11 @@ Clawx can create files, write code, run commands, execute over SSH, and iterate 
 # Install from npm
 npm install -g @halfagiraf/clawx
 
-# Configure (see Model Setup below)
-clawx   # launches TUI on first run
+# Set up your provider and API key
+clawx init
+
+# Start coding
+clawx
 ```
 
 Or build from source:
@@ -339,6 +342,7 @@ Place a `clawx.json` in your working directory:
 ## CLI commands
 
 ```
+clawx init             Set up provider, model, and API key
 clawx [prompt]         Launch TUI (default mode, rich terminal UI)
 clawx --basic          Launch basic readline REPL instead of TUI
 clawx run <prompt>     Run a task headless and exit

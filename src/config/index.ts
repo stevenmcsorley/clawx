@@ -49,10 +49,31 @@ function loadJsonConfig(workDir: string): Partial<ClawxConfig> {
   }
 }
 
+/** Global config directory: ~/.clawx/ */
+export function getGlobalConfigDir(): string {
+  return path.join(
+    process.env.HOME || process.env.USERPROFILE || ".",
+    ".clawx",
+  );
+}
+
+/** Path to global config file: ~/.clawx/config */
+export function getGlobalConfigPath(): string {
+  return path.join(getGlobalConfigDir(), "config");
+}
+
 export function loadConfig(overrides?: Partial<ClawxConfig>): ClawxConfig {
-  // Load .env — first try cwd, then the clawx install directory
+  // Load config in priority order:
+  // 1. cwd/.env (project-level)
+  // 2. ~/.clawx/config (global — written by `clawx init`)
+  // 3. package install directory .env (dev fallback)
   loadDotenv();
-  // If CLAWDEX_PROVIDER wasn't found in cwd's .env, try the package root
+  if (!process.env.CLAWDEX_PROVIDER) {
+    const globalConfig = getGlobalConfigPath();
+    if (fs.existsSync(globalConfig)) {
+      loadDotenv({ path: globalConfig });
+    }
+  }
   if (!process.env.CLAWDEX_PROVIDER) {
     const packageRoot = path.resolve(
       new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"),
