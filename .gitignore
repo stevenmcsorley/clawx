@@ -3,3 +3,7 @@ dist/
 .env
 *.tsbuildinfo
 openclaw-src/
+.claude/
+*.log
+.DS_Store
+Thumbs.db

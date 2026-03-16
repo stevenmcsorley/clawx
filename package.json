@@ -1,23 +1,54 @@
 {
   "name": "clawx",
   "version": "0.1.0",
-  "description": "Lean coding/execution agent extracted from OpenClaw core (formerly clawdex)",
+  "description": "Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint",
   "type": "module",
   "bin": {
     "clawx": "./dist/cli/main.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    ".env.example",
+    "clawx.json.example"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/cli/main.js",
     "test": "vitest --run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm test"
   },
   "engines": {
     "node": ">=22.0.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stevenmcsorley/clawx.git"
+  },
+  "homepage": "https://github.com/stevenmcsorley/clawx#readme",
+  "bugs": {
+    "url": "https://github.com/stevenmcsorley/clawx/issues"
+  },
+  "keywords": [
+    "coding-agent",
+    "ai-agent",
+    "terminal",
+    "cli",
+    "ollama",
+    "deepseek",
+    "openai",
+    "local-llm",
+    "code-generation",
+    "tool-calling",
+    "ssh",
+    "automation"
+  ],
+  "author": "Steven McSorley",
   "dependencies": {
     "@mariozechner/pi-agent-core": "^0.58.0",
     "@mariozechner/pi-ai": "^0.58.0",
