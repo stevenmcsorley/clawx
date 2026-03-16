@@ -135,6 +135,7 @@ program
       const result = await runAgent(config, {
         prompt,
         onEvent: (event) => renderer.onEvent(event),
+        parseTextToolCalls: true,
       });
 
       renderer.finish();

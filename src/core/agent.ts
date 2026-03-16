@@ -43,6 +43,7 @@ import { createSshRunTool } from "../tools/sshRun.js";
 import { createGitStatusTool } from "../tools/gitStatus.js";
 import { createGitDiffTool } from "../tools/gitDiff.js";
 import { createSearchFilesTool } from "../tools/searchFiles.js";
+import { createToolParsingStreamFn } from "./text-tool-parser.js";
 import { log } from "../utils/logger.js";
 
 export interface AgentRunOptions {
@@ -58,6 +59,8 @@ export interface AgentRunOptions {
   steeringQueue?: AgentMessage[];
   /** Run without tools (plain chat mode) */
   noTools?: boolean;
+  /** Parse text-based tool calls from models that don't return structured tool_calls */
+  parseTextToolCalls?: boolean;
 }
 
 export interface AgentRunResult {
@@ -181,12 +184,18 @@ export async function runAgent(
     },
   };
 
+  // Create text tool call parser if enabled
+  const streamFn = options.parseTextToolCalls && tools.length > 0
+    ? createToolParsingStreamFn(tools.map((t) => t.name))
+    : undefined;
+
   // Run the loop
   const eventStream = agentLoop(
     [userMessage],
     context,
     loopConfig,
     options.signal,
+    streamFn,
   );
 
   let aborted = false;

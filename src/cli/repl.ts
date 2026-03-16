@@ -20,6 +20,7 @@ export async function startRepl(
   config: ClawxConfig,
   sessionId: string,
   existingMessages: AgentMessage[],
+  options?: { chatOnly?: boolean },
 ): Promise<void> {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -29,6 +30,7 @@ export async function startRepl(
 
   let messages = [...existingMessages];
   let abortController: AbortController | null = null;
+  let chatOnly = options?.chatOnly ?? false; // set to true if model doesn't support tools
 
   const session: ClawxSession = {
     id: sessionId,
@@ -39,6 +41,9 @@ export async function startRepl(
   };
 
   printBanner(config.model, config.provider);
+  if (chatOnly) {
+    console.error(chalk.yellow(`Chat mode — no tools (model does not support tool calling)`));
+  }
   console.error(chalk.gray(`Working directory: ${config.workDir}`));
   console.error(chalk.gray(`Type your request. Ctrl+C to cancel, Ctrl+D or "exit" to quit.\n`));
 
@@ -100,6 +105,8 @@ export async function startRepl(
         messages,
         onEvent: (event) => renderer.onEvent(event),
         signal: abortController.signal,
+        noTools: chatOnly,
+        parseTextToolCalls: !chatOnly,
       });
 
       renderer.finish();
@@ -109,10 +116,24 @@ export async function startRepl(
       saveSession(config.sessionDir, session, messages);
     } catch (e) {
       if (e instanceof ToolsNotSupportedError) {
-        console.error(chalk.red(`\n  Model '${config.model}' does not support tool calling.`));
-        console.error(chalk.yellow(`  Switch model:  clawx use deepseek`));
-        console.error(chalk.yellow(`  Or chat mode:  clawx chat`));
-        console.error(chalk.gray(`  Run 'clawx profiles' to see all available profiles.\n`));
+        chatOnly = true;
+        console.error(chalk.yellow(`\n  Model '${config.model}' does not support tools — switching to chat mode (no file/command tools).`));
+        console.error(chalk.gray(`  To use tools, switch model: clawx use deepseek\n`));
+        // Retry the same prompt in chat mode
+        try {
+          const retryResult = await runAgent(config, {
+            prompt: input,
+            messages,
+            onEvent: (event) => renderer.onEvent(event),
+            signal: abortController?.signal,
+            noTools: true,
+          });
+          renderer.finish();
+          messages = retryResult.messages;
+          saveSession(config.sessionDir, session, messages);
+        } catch (retryErr) {
+          console.error(chalk.red(`\nError: ${retryErr instanceof Error ? retryErr.message : retryErr}`));
+        }
       } else if ((e as Error).name === "AbortError") {
         console.error(chalk.yellow("\n[aborted]"));
       } else {
