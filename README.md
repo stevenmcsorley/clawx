@@ -6,6 +6,8 @@
 
 Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint.
 
+> **Beta** — Clawx is under active development. It works well with the providers we've tested (Ollama, DeepSeek, OpenAI, Anthropic) but not every combination has been battle-tested yet. If you hit a bug, [open an issue](https://github.com/stevenmcsorley/clawx/issues) — we fix things fast.
+
 Clawx started because tools like OpenClaw kept getting heavier. Prompts ballooned, context windows filled up, and local models choked. We wanted the good parts — the tool-calling loop, the terminal UI, the coding tools — without the bloat. So we built something lean on top of the open-source [pi-coding-agent](https://github.com/badlogic/pi-mono) SDK: an agent that runs local models on modest hardware, hits DeepSeek when you need more muscle, and scales up to frontier models when the task calls for it. No token budget wasted on platform overhead. Just the model, the tools, and your prompt.
 
 > **Fair warning:** Clawx runs with the guardrails off. It will create files, delete files, install packages, and execute shell commands — all without asking you first. That's the point. No confirmation dialogs, no "are you sure?", no waiting around. You give it a task, it gets on with it. This makes it ideal for disposable environments, home labs, Raspberry Pis, VMs, and machines you're happy to let rip. If you're pointing it at a production server with your life's work on it... maybe don't do that. Or do.
@@ -646,6 +648,46 @@ Next time you run `clawx`, the correct `fd` binary will be downloaded automatica
 ### `/models` shows no models
 
 If you set up clawx via `clawx init`, your configured model should appear in `/models`. If it doesn't, check that your `~/.clawx/config` file has the correct `CLAWDEX_PROVIDER`, `CLAWDEX_MODEL`, and `CLAWDEX_API_KEY` values.
+
+### Model doesn't produce tool calls
+
+If the agent responds with text but never creates files or runs commands, your model likely doesn't support **structured tool calling**. It needs to return `tool_calls` objects in the API response, not text like `<tool_call>`. Check the [model compatibility table](#model-compatibility-and-benchmarks) — models marked "Not compatible" won't work with the agent loop.
+
+### Connection errors
+
+```
+[error] Connection error.
+```
+
+This means clawx can't reach the model endpoint. Check:
+- Is Ollama running? (`ollama serve` or check if the service is active)
+- Is the base URL correct? (`http://localhost:11434/v1` for Ollama)
+- Is the model pulled? (`ollama list` to check)
+- For API providers: is your API key valid?
+
+### Reporting bugs
+
+Clawx is in beta — if something breaks, we want to know. [Open an issue](https://github.com/stevenmcsorley/clawx/issues) with:
+
+1. **What you ran** — the command and prompt
+2. **What happened** — error message or unexpected behaviour
+3. **Your setup** — OS, provider, model, clawx version (`clawx --version`)
+4. **Verbose output** — run with `-v` flag for debug logs: `clawx run -v "your prompt"`
+
+### Tested vs untested providers
+
+| Provider | Status |
+|----------|--------|
+| Ollama | Tested on Windows + Linux |
+| DeepSeek API | Tested |
+| OpenAI API | Tested |
+| Anthropic API | Tested |
+| LM Studio | Untested — should work (OpenAI-compatible) |
+| vLLM | Untested — should work (OpenAI-compatible) |
+| llama.cpp server | Tested — tool calling depends on model |
+| Google / Mistral | Untested |
+
+If you test a provider that isn't listed, let us know how it went.
 
 ## License
 
