@@ -1,8 +1,20 @@
-# Clawx
+<p align="center">
+  <img src="https://raw.githubusercontent.com/stevenmcsorley/clawx/main/logo.png" alt="Clawx" width="200" />
+</p>
 
-Lean coding/execution agent extracted from [OpenClaw](https://github.com/openclaw/openclaw) core.
+<h1 align="center">Clawx</h1>
 
-Clawx is a terminal-first agent that can create files, write code, run commands, execute over SSH, and iterate until the job is done. It uses the model's own judgment to decide what to build and how.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@halfagiraf/clawx"><img src="https://img.shields.io/npm/v/@halfagiraf/clawx" alt="npm version" /></a>
+  <a href="https://github.com/stevenmcsorley/clawx/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@halfagiraf/clawx" alt="license" /></a>
+  <a href="https://www.npmjs.com/package/@halfagiraf/clawx"><img src="https://img.shields.io/npm/dm/@halfagiraf/clawx" alt="downloads" /></a>
+</p>
+
+<p align="center">
+  Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint.
+</p>
+
+Clawx is a lean coding/execution agent that can create files, write code, run commands, execute over SSH, and iterate until the job is done. The model decides what to build and how — no file lists, no hand-holding.
 
 ## What it does
 
