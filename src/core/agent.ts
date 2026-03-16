@@ -193,13 +193,10 @@ export async function runAgent(
   // Process events
   for await (const event of eventStream) {
     // Detect "does not support tools" error from provider
-    if (event.type === "turn_end" && event.message.role === "assistant" && "stopReason" in event.message) {
-      const content = typeof event.message.content === "string" ? event.message.content : "";
-      if (content.includes("does not support tools") || (event.message.stopReason === "error" && content.includes("400"))) {
-        const errMsg = content || `Model does not support tools`;
-        if (errMsg.includes("does not support tools")) {
-          throw new ToolsNotSupportedError(config.model);
-        }
+    if (event.type === "turn_end" && event.message?.role === "assistant" && "stopReason" in event.message && event.message.stopReason === "error") {
+      const errorMsg = ("errorMessage" in event.message ? (event.message as any).errorMessage : "") || "";
+      if (errorMsg.includes("does not support tools") || errorMsg.includes("does not support tool")) {
+        throw new ToolsNotSupportedError(config.model);
       }
     }
     if (options.onEvent) {
