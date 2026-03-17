@@ -18,6 +18,8 @@ export interface ChatModeOptions {
   chatSystemPrompt: string;
   /** Start in chat mode immediately */
   startInChatMode?: boolean;
+  /** Whether SSH tools are enabled (--ssh flag) */
+  sshEnabled?: boolean;
   /** Callback when chat mode changes */
   onChatModeChange?: (chatMode: boolean) => void;
 }
@@ -25,7 +27,9 @@ export interface ChatModeOptions {
 export function createChatModeExtension(options: ChatModeOptions) {
   return function chatModeExtension(pi: ExtensionAPI): void {
     let chatMode = options.startInChatMode ?? false;
+    let sshEnabled = options.sshEnabled ?? false;
     let savedToolNames: string[] = [];
+    const SSH_TOOL = "ssh_run";
 
     function enableChatMode(ctx: { ui: { notify: (msg: string, type?: "info" | "warning" | "error") => void } }) {
       if (chatMode) return;
@@ -55,6 +59,11 @@ export function createChatModeExtension(options: ChatModeOptions) {
         pi.setActiveTools([]);
         ctx.ui.setStatus("mode", "chat mode");
       } else {
+        // Deactivate SSH tools unless --ssh was passed
+        if (!sshEnabled) {
+          const activeTools = pi.getAllTools().map((t) => t.name).filter((n) => n !== SSH_TOOL);
+          pi.setActiveTools(activeTools);
+        }
         ctx.ui.setStatus("mode", "agent mode");
       }
     });
@@ -69,6 +78,28 @@ export function createChatModeExtension(options: ChatModeOptions) {
         } else {
           enableChatMode(ctx);
           ctx.ui.setStatus("mode", "chat mode");
+        }
+      },
+    });
+
+    // Register /ssh command to toggle SSH tools
+    pi.registerCommand("ssh", {
+      description: "Toggle SSH tools (remote command execution)",
+      handler: async (_args, ctx) => {
+        if (chatMode) {
+          ctx.ui.notify("Cannot enable SSH in chat mode — switch to agent mode first with /chat", "warning");
+          return;
+        }
+        sshEnabled = !sshEnabled;
+        const currentTools = pi.getAllTools().map((t) => t.name);
+        if (sshEnabled) {
+          // Activate all tools including SSH
+          pi.setActiveTools(currentTools);
+          ctx.ui.notify("SSH tools enabled — model can now run commands on remote systems", "warning");
+        } else {
+          // Deactivate SSH tool
+          pi.setActiveTools(currentTools.filter((n) => n !== SSH_TOOL));
+          ctx.ui.notify("SSH tools disabled", "info");
         }
       },
     });

@@ -120,6 +120,7 @@ export async function startTui(
     initialMessage?: string;
     continueSession?: boolean;
     verbose?: boolean;
+    sshEnabled?: boolean;
   } = {},
 ): Promise<void> {
   const model = resolveModel(config);
@@ -169,6 +170,7 @@ export async function startTui(
     agentSystemPrompt,
     chatSystemPrompt,
     startInChatMode: !toolsSupported,
+    sshEnabled: options.sshEnabled,
   });
 
   // Create resource loader with our chat mode extension

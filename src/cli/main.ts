@@ -67,7 +67,8 @@ program
     });
 
     // SSH tools are opt-in — don't let models randomly SSH into remote systems
-    if (!opts.ssh) config.sshTargets = {};
+    const sshEnabled = !!opts.ssh;
+    if (!sshEnabled && opts.basic) config.sshTargets = {};
 
     if (opts.basic) {
       // Basic readline REPL fallback
@@ -76,11 +77,12 @@ program
       return;
     }
 
-    // TUI mode (rich terminal UI)
+    // TUI mode (rich terminal UI) — SSH tools are registered but inactive unless --ssh
     try {
       await startTui(config, {
         initialMessage: prompt,
         verbose: opts.verbose as boolean | undefined,
+        sshEnabled,
       });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
