@@ -6,6 +6,11 @@
 
 Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint.
 
+> **Always update before use — this project is in active development and can change by the hour:**
+> ```bash
+> npm install -g @halfagiraf/clawx@latest
+> ```
+
 > **Beta** — Clawx is under active development. It works well with the providers we've tested (Ollama, DeepSeek, OpenAI, Anthropic) but not every combination has been battle-tested yet. If you hit a bug, [open an issue](https://github.com/stevenmcsorley/clawx/issues) — we fix things fast.
 
 Clawx started because tools like OpenClaw kept getting heavier. Prompts ballooned, context windows filled up, and local models choked. We wanted the good parts — the tool-calling loop, the terminal UI, the coding tools — without the bloat. So we built something lean on top of the open-source [pi-coding-agent](https://github.com/badlogic/pi-mono) SDK: an agent that runs local models on modest hardware, hits DeepSeek when you need more muscle, and scales up to frontier models when the task calls for it. No token budget wasted on platform overhead. Just the model, the tools, and your prompt.
