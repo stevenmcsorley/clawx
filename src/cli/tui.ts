@@ -129,10 +129,12 @@ export async function startTui(
 
   printBanner(config.model, config.provider);
 
-  // Pre-flight: check if model supports tools
-  const toolsSupported = await checkOllamaToolSupport(config);
-  if (!toolsSupported) {
-    log.info(`Model '${config.model}' does not support tools — starting in chat mode`);
+  // Pre-flight: check if model supports structured tool calling via Ollama API.
+  // If not, we stay in agent mode anyway — the text tool parser will handle
+  // models that output tool calls as text (e.g. <tool_call>{...}</tool_call>).
+  const structuredToolsSupported = await checkOllamaToolSupport(config);
+  if (!structuredToolsSupported) {
+    log.info(`Model '${config.model}' does not support Ollama structured tools — using text tool parser`);
   }
 
   log.info(`Starting TUI with ${model.id} @ ${model.provider}`);
@@ -170,7 +172,7 @@ export async function startTui(
   const chatModeFactory: ExtensionFactory = createChatModeExtension({
     agentSystemPrompt,
     chatSystemPrompt,
-    startInChatMode: !toolsSupported,
+    startInChatMode: false,
     sshEnabled: options.sshEnabled,
   });
 
@@ -209,8 +211,8 @@ export async function startTui(
       settingsManager,
     });
 
-  // Override system prompt with appropriate one
-  session.agent.setSystemPrompt(toolsSupported ? agentSystemPrompt : chatSystemPrompt);
+  // Always use agent prompt — text tool parser handles models without structured tools
+  session.agent.setSystemPrompt(agentSystemPrompt);
 
   // Inject text-based tool call parser for models that output tool calls as plain text
   // (e.g. Qwen2.5-Coder). This wraps the default streamFn to detect and convert

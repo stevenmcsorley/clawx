@@ -107,10 +107,12 @@ export async function startScout(
   printBanner(config.model, config.provider);
   console.error("  Mode: Scout (HuggingFace Model Researcher)\n");
 
-  // Pre-flight: check tool support
-  const toolsSupported = await checkOllamaToolSupport(config);
-  if (!toolsSupported) {
-    log.info(`Model '${config.model}' does not support tools — starting in chat mode`);
+  // Pre-flight: check if model supports structured tool calling via Ollama API.
+  // If not, stay in agent mode — the text tool parser handles models that output
+  // tool calls as text (e.g. <tool_call>{...}</tool_call>).
+  const structuredToolsSupported = await checkOllamaToolSupport(config);
+  if (!structuredToolsSupported) {
+    log.info(`Model '${config.model}' does not support Ollama structured tools — using text tool parser`);
   }
 
   log.info(`Starting Scout with ${model.id} @ ${model.provider}`);
@@ -147,7 +149,7 @@ export async function startScout(
   const chatModeFactory: ExtensionFactory = createChatModeExtension({
     agentSystemPrompt,
     chatSystemPrompt,
-    startInChatMode: !toolsSupported,
+    startInChatMode: false,
   });
 
   const resourceLoader = new DefaultResourceLoader({
@@ -182,8 +184,8 @@ export async function startScout(
       settingsManager,
     });
 
-  // Set scout system prompt
-  session.agent.setSystemPrompt(toolsSupported ? agentSystemPrompt : chatSystemPrompt);
+  // Always use agent prompt — text tool parser handles models without structured tools
+  session.agent.setSystemPrompt(agentSystemPrompt);
 
   // Inject text tool parser for Qwen-style models
   const allToolNames = session.getAllTools().map((t) => t.name);
