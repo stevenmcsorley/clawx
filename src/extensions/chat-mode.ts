@@ -141,14 +141,9 @@ export function createChatModeExtension(options: ChatModeOptions) {
       }
     });
 
-    // When model changes, check if we should restore tools
-    pi.on("model_select", async (_event, ctx) => {
-      // If user switches model while in auto-chat mode,
-      // give them back tools (they can /chat again if needed)
-      if (chatMode) {
-        disableChatMode(ctx);
-      }
-      ctx.ui.setStatus("mode", "agent mode");
-    });
+    // When model changes while in chat mode, stay in chat mode.
+    // User can /chat to restore agent mode if the new model supports tools.
+    // If in agent mode and new model doesn't support tools, turn_end
+    // will auto-switch to chat mode after the first error.
   };
 }
