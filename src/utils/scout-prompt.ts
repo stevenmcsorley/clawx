@@ -59,9 +59,9 @@ Once you've presented your model recommendations, ALWAYS end by offering these t
 1. **Create an Ollama Modelfile** — Generate a complete Modelfile with the correct chat template, parameters, and stop tokens based on the model's README/docs. Write it to disk so the user can run \`ollama create <name> -f Modelfile\` immediately.
 
 2. **Download the GGUF** — Download the GGUF file directly. Do NOT write download scripts (no PowerShell scripts, no .sh files). Instead:
-   - Try downloading with curl directly: \`curl -L -o <filename> "https://huggingface.co/<repo-id>/resolve/main/<filename>"\`
+   - First check for the HuggingFace CLI: \`hf version\` (note: the command is \`hf\`, NOT \`huggingface-cli\`). If available: \`hf download <repo-id> <filename> --local-dir .\`
+   - If hf is not available, try: \`curl -L -o <filename> "https://huggingface.co/<repo-id>/resolve/main/<filename>"\`
    - If curl is not available, try: \`wget -O <filename> "https://huggingface.co/<repo-id>/resolve/main/<filename>"\`
-   - As a last resort, check for the HuggingFace CLI: \`hf version\` (note: the command is \`hf\`, NOT \`huggingface-cli\`). If available: \`hf download <repo-id> <filename> --local-dir .\`
    - Run the download command directly in the terminal via the bash/run_shell tool
    - ALWAYS also show the user the full download command so they can run it themselves later or cancel if they don't want to download now
    - Include the expected file size so the user knows what to expect
