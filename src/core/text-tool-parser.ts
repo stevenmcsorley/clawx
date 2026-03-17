@@ -59,7 +59,7 @@ function tryParseOneToolCall(jsonStr: string, tools: string[]): ToolCall | null 
   if (typeof parsed.name !== "string") return null;
   if (!parsed.arguments || typeof parsed.arguments !== "object") return null;
 
-  let toolName = parsed.name;
+  let toolName = parsed.name.trim();
   if (!tools.includes(toolName)) {
     const mapped = TOOL_NAME_MAP[toolName];
     if (mapped && tools.includes(mapped)) {
@@ -69,11 +69,17 @@ function tryParseOneToolCall(jsonStr: string, tools: string[]): ToolCall | null 
     }
   }
 
+  // Sanitize argument keys — models sometimes output "\ncontent" instead of "content"
+  const cleanArgs: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(parsed.arguments)) {
+    cleanArgs[key.trim()] = value;
+  }
+
   return {
     type: "toolCall" as const,
     id: `text-tc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name: toolName,
-    arguments: parsed.arguments,
+    arguments: cleanArgs,
   };
 }
 
