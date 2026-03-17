@@ -27,6 +27,7 @@ import {
   AuthStorage,
   ModelRegistry,
   DefaultResourceLoader,
+  SettingsManager,
   type ToolDefinition,
   type ExtensionFactory,
 } from "@mariozechner/pi-coding-agent";
@@ -190,6 +191,10 @@ export async function startTui(
   });
   await resourceLoader.reload();
 
+  // Quiet startup — hide the extensions/keybindings banner
+  const settingsManager = SettingsManager.create(config.workDir);
+  settingsManager.setQuietStartup(true);
+
   // Create session via the SDK
   const { session, extensionsResult, modelFallbackMessage } =
     await createAgentSession({
@@ -201,6 +206,7 @@ export async function startTui(
       authStorage,
       modelRegistry,
       resourceLoader,
+      settingsManager,
     });
 
   // Override system prompt with appropriate one
