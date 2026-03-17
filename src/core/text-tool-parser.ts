@@ -169,14 +169,24 @@ export function createToolParsingStreamFn(toolNames: string[]) {
     const outputStream = createAssistantMessageEventStream();
     const innerStream = streamSimple(model, context, options);
 
+    // Skip parsing entirely in chat mode (no tools in context)
+    const hasTools = context.tools && context.tools.length > 0;
+
     void (async () => {
       try {
         let finalEvent: AssistantMessageEvent | null = null;
 
         for await (const event of innerStream) {
           if (event.type === "done") {
-            // Check if the text content looks like a tool call
             finalEvent = event;
+
+            // In chat mode, pass through without parsing
+            if (!hasTools) {
+              outputStream.push(event);
+              continue;
+            }
+
+            // Check if the text content looks like a tool call
             const message = event.message;
             const textContent = message.content
               .filter((c): c is { type: "text"; text: string } => c.type === "text")
