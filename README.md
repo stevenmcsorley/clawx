@@ -23,6 +23,7 @@ Clawx can create files, write code, run commands, execute over SSH, and iterate 
 - **Iterates** — reads command output, fixes errors, tries again
 - **Streams output** — shows progress as the model works
 - **Falls back to chat** — models without tool support switch to chat mode automatically
+- **Scouts for models** — built-in HuggingFace researcher finds GGUF models that fit your hardware
 
 ## What it doesn't do
 
@@ -527,6 +528,8 @@ clawx chat             Interactive chat (no tools — works with any model)
 clawx chat -c          Resume last session in chat mode
 clawx continue         Resume last session
 clawx sessions         List recent sessions
+clawx scout            AI-powered HuggingFace model researcher
+clawx scout --setup-hardware  Re-prompt hardware specs manually
 clawx profiles         List saved profiles
 clawx add <name>       Save current config as a named profile
 clawx use <name>       Switch to a saved profile
@@ -574,6 +577,80 @@ Clawx runs in two modes, shown in the TUI footer:
 
 `clawx chat` (the CLI command) always starts in chat mode — it never sends tools, so it works with every model regardless of tool support.
 
+### Scout — HuggingFace Model Researcher
+
+Scout is an AI-powered model researcher that searches HuggingFace for GGUF models that fit your hardware. It auto-detects your GPU, VRAM, and RAM, then launches an interactive session where the agent can search, inspect, and recommend models.
+
+> **Windows only for now.** Hardware auto-detection uses `nvidia-smi` and `wmic` which are Windows-native. Linux/macOS support is partially implemented (nvidia-smi works on Linux, macOS uses system_profiler) but hasn't been tested yet.
+
+```bash
+# First run — auto-detects hardware, saves to ~/.clawx/hardware.json
+clawx scout
+
+# Re-prompt hardware specs manually (with auto-detected defaults)
+clawx scout --setup-hardware
+
+# Use a specific model for the scout agent
+clawx scout -m deepseek-chat -p deepseek
+```
+
+On first run, Scout detects your system and auto-sends a starter message with your hardware specs. The agent immediately starts researching:
+
+```
+  ╔═╗╦  ╔═╗╦ ╦═╗╔═
+  ║  ║  ╠═╣║║║ ╚╝
+  ╚═╝╩═╝╩ ╩╚╩╝═╝╚═
+  v0.2.1  ·  deepseek-chat via deepseek
+  ────────────────────────────────────────
+
+  Mode: Scout (HuggingFace Model Researcher)
+
+> My hardware: NVIDIA GeForce RTX 3060, 12GB VRAM, 64GB RAM,
+  Windows 10. What models would you recommend for local coding
+  assistance with tool calling support?
+```
+
+The agent uses three HuggingFace tools to research models:
+
+- **hf_search** — searches HuggingFace by query, filters (gguf, text-generation), and sort order
+- **hf_model_info** — gets detailed metadata including GGUF file sizes for VRAM estimation
+- **hf_readme** — reads model cards for benchmarks, prompt formats, and quant details
+
+Here's an excerpt from a real session. The agent searched for coding models, checked file sizes, read model cards, then delivered recommendations tailored to the user's 12GB VRAM:
+
+```
+ hf_search { "search": "coder gguf", "filter": "gguf,text-generation", "sort": "downloads", "limit": 15 }
+
+ Found 15 models for "coder gguf" (sorted by downloads):
+ - unsloth/Qwen3-Coder-Next-GGUF           481,295 downloads
+ - ggml-org/Qwen3-Coder-30B-A3B-Instruct   176,570 downloads
+ - Qwen/Qwen2.5-Coder-32B-Instruct-GGUF    166,480 downloads
+ - bartowski/Qwen2.5-Coder-7B-Instruct-GGUF 104,034 downloads
+ ...
+
+ hf_model_info { "model_id": "unsloth/Qwen3-Coder-Next-GGUF" }
+ hf_readme { "model_id": "unsloth/Qwen3-Coder-Next-GGUF" }
+
+ Recommended Models for Coding + Tool Calling:
+
+ 1. Qwen3-Coder-Next (80B total, 3B activated) — BEST OVERALL
+    VRAM: ~4-8GB depending on quant | 256K context | Tool calling supported
+    Why: Specifically designed for coding agents, Feb 19 update improved tool-calling
+
+ 2. Qwen2.5-Coder-7B-Instruct — BALANCED PERFORMANCE
+    VRAM: Q5_K_M ~5GB, Q8_0 ~7.5GB | 104K+ downloads
+    Why: Proven, reliable, good quality/size balance
+
+ 3. LFM2.5-1.2B-Nova-Function-Calling — SPECIALIZED TOOL CALLING
+    VRAM: ~0.7-1.2GB | 97% syntax reliability for JSON
+    Why: Tiny but specifically fine-tuned for function calling
+
+ Would you like me to check specific file sizes or help create
+ an Ollama Modelfile for your chosen model?
+```
+
+Scout uses the same model/provider flags as the main TUI. You can run it with a local model (`-m qwen2.5-coder:7b-instruct -p ollama`) or a cloud API (`-p deepseek`). The text tool parser works in scout mode too, so models that output tool calls as text (like Qwen) will still work.
+
 ### Basic REPL commands
 
 ```
@@ -603,22 +680,36 @@ Clawx runs in two modes, shown in the TUI footer:
 
 ```
 src/
-  cli/           CLI entry point and REPL
-  config/        Configuration loading (.env, JSON)
+  cli/
+    main.ts        CLI entry point (Commander.js commands)
+    tui.ts         TUI mode (pi-coding-agent InteractiveMode)
+    scout.ts       Scout mode (HuggingFace model researcher)
+    repl.ts        Basic readline REPL fallback
+    banner.ts      Startup banner and version
+  config/
+    index.ts       Configuration loading (.env, JSON)
+    hardware.ts    Hardware spec detection and management
   core/
-    agent.ts     Agent orchestrator (wires pi-agent-core loop)
-    provider.ts  Model/provider resolution for local endpoints
-    session.ts   JSON-file session persistence
-    streaming.ts Terminal output renderer
+    agent.ts       Agent orchestrator (wires pi-agent-core loop)
+    provider.ts    Model/provider resolution for local endpoints
+    session.ts     JSON-file session persistence
+    streaming.ts   Terminal output renderer
+    text-tool-parser.ts  Text-based tool call parser (Qwen, etc.)
   extensions/
-    chat-mode.ts TUI extension: /chat toggle, auto-detection, prompt swap
+    chat-mode.ts   TUI extension: /chat toggle, auto-detection, prompt swap
   tools/
-    sshRun.ts    SSH execution (ssh2)
-    gitStatus.ts Git status wrapper
-    gitDiff.ts   Git diff wrapper
+    sshRun.ts      SSH execution (ssh2)
+    gitStatus.ts   Git status wrapper
+    gitDiff.ts     Git diff wrapper
     searchFiles.ts File content search (rg/grep)
-  types/         TypeScript type definitions
-  utils/         Logger, system prompt builder
+    hfSearch.ts    HuggingFace model search (Scout)
+    hfModelInfo.ts HuggingFace model details (Scout)
+    hfReadme.ts    HuggingFace README reader (Scout)
+  types/           TypeScript type definitions
+  utils/
+    system-prompt.ts  System prompt builder
+    scout-prompt.ts   Scout system prompt builder
+    logger.ts         Structured logger
 ```
 
 ### Dependencies
