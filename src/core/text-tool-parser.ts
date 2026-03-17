@@ -78,14 +78,52 @@ function tryParseOneToolCall(jsonStr: string, tools: string[]): ToolCall | null 
 }
 
 /**
+ * Extract JSON objects from text by matching balanced braces.
+ * Finds top-level {...} blocks that could be tool call JSON.
+ */
+function extractJsonObjects(text: string): string[] {
+  const results: string[] = [];
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === "{") {
+      let depth = 0;
+      let inString = false;
+      let escape = false;
+      const start = i;
+      for (let j = i; j < text.length; j++) {
+        const ch = text[j];
+        if (escape) { escape = false; continue; }
+        if (ch === "\\" && inString) { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === "{") depth++;
+        else if (ch === "}") {
+          depth--;
+          if (depth === 0) {
+            results.push(text.slice(start, j + 1));
+            i = j + 1;
+            break;
+          }
+        }
+        if (j === text.length - 1) i = j + 1; // unclosed brace, skip
+      }
+    } else {
+      i++;
+    }
+  }
+  return results;
+}
+
+/**
  * Parse text-based tool calls from message content.
  * Returns an array of ToolCalls found (may be empty).
  *
  * Handles:
  * - Single raw JSON: {"name": "write", "arguments": {...}}
- * - Multiple code-fenced blocks: ```json\n{...}\n```
+ * - Multiple JSON objects in one response (back-to-back or separated by text)
+ * - Code-fenced blocks with any language label: ```bash\n{...}\n```
  * - <tool_call> tags: <tool_call>{...}</tool_call>
- * - Multiple tool calls in one response
+ * - JSON embedded in explanatory prose
  */
 function parseTextToolCalls(text: string, tools: string[]): ToolCall[] {
   const results: ToolCall[] = [];
@@ -99,8 +137,8 @@ function parseTextToolCalls(text: string, tools: string[]): ToolCall[] {
   }
   if (results.length > 0) return results;
 
-  // 2. Try code-fenced JSON blocks (may be multiple)
-  const fenceRegex = /```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/g;
+  // 2. Try code-fenced blocks with any language label (json, bash, etc.)
+  const fenceRegex = /```\w*\s*\n?([\s\S]*?)\n?\s*```/g;
   let fenceMatch;
   while ((fenceMatch = fenceRegex.exec(text)) !== null) {
     const tc = tryParseOneToolCall(fenceMatch[1], tools);
@@ -108,9 +146,12 @@ function parseTextToolCalls(text: string, tools: string[]): ToolCall[] {
   }
   if (results.length > 0) return results;
 
-  // 3. Try raw JSON (entire text is one tool call)
-  const tc = tryParseOneToolCall(text, tools);
-  if (tc) results.push(tc);
+  // 3. Find all JSON objects in the text (handles back-to-back, embedded in prose, etc.)
+  const jsonBlocks = extractJsonObjects(text);
+  for (const block of jsonBlocks) {
+    const tc = tryParseOneToolCall(block, tools);
+    if (tc) results.push(tc);
+  }
 
   return results;
 }
