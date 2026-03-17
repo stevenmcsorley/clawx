@@ -649,6 +649,49 @@ Here's an excerpt from a real session. The agent searched for coding models, che
  an Ollama Modelfile for your chosen model?
 ```
 
+Ask it to create a Modelfile and it does the rest — inspects the model's GGUF files, reads the README for the prompt format, and generates a complete Ollama setup:
+
+```
+> Yes, create an Ollama Modelfile for NovachronoAI/LFM2.5-1.2B-Nova-Function-Calling-GGUF
+
+ hf_model_info { "model_id": "NovachronoAI/LFM2.5-1.2B-Nova-Function-Calling-GGUF" }
+
+ GGUF files (6):
+   LFM2.5-1.2B-Nova-Function-Calling.Q2_K.gguf
+   LFM2.5-1.2B-Nova-Function-Calling.Q4_K_M.gguf
+   LFM2.5-1.2B-Nova-Function-Calling.Q8_0.gguf
+   ...
+
+ hf_readme { "model_id": "NovachronoAI/LFM2.5-1.2B-Nova-Function-Calling-GGUF" }
+
+ ChatML Native: Uses the standard <|im_start|> format
+ JSON Reliability: 97% syntax accuracy
+ Expected output: <tool_call>{"name": "...", "arguments": {...}}</tool_call>
+
+ [writes Modelfile]
+ FROM ./LFM2.5-1.2B-Nova-Function-Calling.Q4_K_M.gguf
+ TEMPLATE """<|im_start|>system
+ {{ .System }}<|im_end|>
+ {{ range .Messages }}<|im_start|>{{ .Role }}
+ {{ .Content }}<|im_end|>
+ {{ end }}<|im_start|>assistant
+ """
+ PARAMETER temperature 0.1
+ PARAMETER num_ctx 4096
+ PARAMETER stop <|im_end|>
+ PARAMETER stop <|im_start|>
+
+ [writes download_model.ps1]   — PowerShell script to download the GGUF
+ [writes test_function_calling.py] — Python test script to verify it works
+
+ Quick Start:
+   .\download_model.ps1
+   ollama create lfm-nova -f Modelfile
+   ollama run lfm-nova "Calculate area of circle with radius 5"
+
+ Expected VRAM: ~0.8GB — plenty of room on your 12GB RTX 3060
+```
+
 Scout uses the same model/provider flags as the main TUI. You can run it with a local model (`-m qwen2.5-coder:7b-instruct -p ollama`) or a cloud API (`-p deepseek`). The text tool parser works in scout mode too, so models that output tool calls as text (like Qwen) will still work.
 
 ### Basic REPL commands
