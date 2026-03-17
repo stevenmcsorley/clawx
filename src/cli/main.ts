@@ -56,7 +56,7 @@ program
   .option("-v, --verbose", "Verbose logging")
   .option("--basic", "Use basic readline REPL instead of TUI")
   .action(async (prompt: string | undefined, opts: Record<string, string | boolean>) => {
-    if (opts.verbose) log.setLogLevel("debug");
+    if (opts.verbose) log.setLogLevel("info");
 
     const config = loadConfig({
       model: opts.model as string | undefined,
@@ -110,7 +110,7 @@ program
   .option("-d, --work-dir <dir>", "Working directory")
   .option("-v, --verbose", "Verbose logging")
   .action(async (prompt: string, opts: Record<string, string | boolean>) => {
-    if (opts.verbose) log.setLogLevel("debug");
+    if (opts.verbose) log.setLogLevel("info");
 
     const config = loadConfig({
       model: opts.model as string | undefined,
@@ -171,7 +171,7 @@ program
   .option("-v, --verbose", "Verbose logging")
   .option("-c, --continue", "Continue the last session")
   .action(async (opts: Record<string, string | boolean>) => {
-    if (opts.verbose) log.setLogLevel("debug");
+    if (opts.verbose) log.setLogLevel("info");
 
     const config = loadConfig({
       model: opts.model as string | undefined,
@@ -202,7 +202,7 @@ program
   .description("Continue the last session")
   .option("-v, --verbose", "Verbose logging")
   .action(async (opts: Record<string, string | boolean>) => {
-    if (opts.verbose) log.setLogLevel("debug");
+    if (opts.verbose) log.setLogLevel("info");
     const config = loadConfig();
     const latest = getLatestSession(config.sessionDir);
     if (!latest) {

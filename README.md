@@ -217,9 +217,9 @@ clawx run -m my-model -p ollama -u http://localhost:11434/v1 "Your prompt here"
 
 > **Note:** The template above uses the ChatML format (`<|im_start|>`/`<|im_end|>`) which works with most Qwen, GLM, and many other models. Check your model's docs if it uses a different chat template (e.g. Llama, Mistral).
 
-### Option 3: Qwen2.5-Coder-14B via Ollama (reference only)
+### Option 3: Qwen2.5-Coder-14B via Ollama
 
-> **Warning:** This model does NOT produce structured tool calls. It is listed here for reference only. Tool-using agent tasks will fail. You can still use it for plain chat without tools.
+> **Note:** This model outputs tool calls as plain text JSON instead of structured `tool_calls`. Clawx's built-in text tool parser automatically detects and converts these, so it works in agent mode. See the compatibility table above — status is **"Works (with parser)"**.
 
 If you have the GGUF file locally (e.g. `D:/model/Qwen2.5-Coder-14B-Abliterated/`):
 
@@ -249,7 +249,7 @@ ollama list
 # 5. Test it responds (plain chat works fine)
 ollama run qwen-coder-abliterated:latest "Write a Python quicksort"
 
-# 6. .env for this model (tool calling won't work)
+# 6. .env for this model
 cat > .env << 'EOF'
 CLAWDEX_PROVIDER=ollama
 CLAWDEX_BASE_URL=http://localhost:11434/v1
@@ -262,7 +262,7 @@ EOF
 
 ### Option 3b: Qwen2.5-Coder-14B via llama-server (llama.cpp)
 
-> **Warning:** Same limitation — text-only tool calls, not compatible with Clawx agent loop.
+> **Note:** Same as Option 3 — text-based tool calls are automatically parsed by Clawx.
 
 If you have llama.cpp built locally (e.g. `D:/llama-cpp/`):
 

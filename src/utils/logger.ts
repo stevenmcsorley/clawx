@@ -7,7 +7,7 @@ import chalk from "chalk";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
-let currentLevel: LogLevel = "info";
+let currentLevel: LogLevel = "warn";
 
 const LEVEL_PRIORITY: Record<LogLevel, number> = {
   debug: 0,
