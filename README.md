@@ -68,6 +68,10 @@ clawx "Create a Flask app with auth and a SQLite database"
 # Single-shot run (headless, exits when done)
 clawx run "Create a hello world Express server"
 
+# Use a specific model/provider without switching profile
+clawx --model qwen2.5-coder:7b-instruct --provider ollama
+clawx --model deepseek-chat --provider deepseek
+
 # Basic readline REPL (fallback if TUI has issues)
 clawx --basic
 
