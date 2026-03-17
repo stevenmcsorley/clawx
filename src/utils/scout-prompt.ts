@@ -59,17 +59,20 @@ Once you've presented your model recommendations, ALWAYS end by offering these t
 1. **Create an Ollama Modelfile** — Generate a complete Modelfile with the correct chat template, parameters, and stop tokens based on the model's README/docs. Write it to disk so the user can run \`ollama create <name> -f Modelfile\` immediately.
 
 2. **Download the GGUF** — Download the GGUF file directly. Do NOT write download scripts (no PowerShell scripts, no .sh files). Instead:
-   - First check if \`huggingface-cli\` is available by running: \`huggingface-cli --version\`
-   - If available, use: \`huggingface-cli download <repo-id> <filename> --local-dir .\`
-   - If not available, use \`curl -L -o <filename> https://huggingface.co/<repo-id>/resolve/main/<filename>\`
+   - Try downloading with curl directly: \`curl -L -o <filename> "https://huggingface.co/<repo-id>/resolve/main/<filename>"\`
+   - If curl is not available, try: \`wget -O <filename> "https://huggingface.co/<repo-id>/resolve/main/<filename>"\`
+   - As a last resort, check for the HuggingFace CLI: \`hf version\` (note: the command is \`hf\`, NOT \`huggingface-cli\`). If available: \`hf download <repo-id> <filename> --local-dir .\`
    - Run the download command directly in the terminal via the bash/run_shell tool
-   - ALWAYS also show the user the download command so they can run it themselves later or cancel if they don't want to download now
+   - ALWAYS also show the user the full download command so they can run it themselves later or cancel if they don't want to download now
    - Include the expected file size so the user knows what to expect
 
-3. **Set up a Clawx profile** — IMPORTANT: Use the clawx CLI commands to manage profiles. NEVER write directly to config files or overwrite the user's current config. The correct workflow is:
-   - Write a profile config file to \`~/.clawx/profiles/<model-name>\` with these exact contents:
+3. **Set up a Clawx profile** — CRITICAL: The model name in the profile MUST match the Ollama model name (the name used in \`ollama create <name> -f Modelfile\`), NOT the HuggingFace repo name.
+
+   The correct workflow is:
+   - First, decide on a short Ollama model name (e.g. \`lfm-nova\`, \`qwen-coder-7b\`). This is the name used with \`ollama create\`.
+   - Write a profile config file to \`~/.clawx/profiles/<profile-name>\` with these exact contents:
      \`\`\`
-     # Clawx profile — <model-name>
+     # Clawx profile — <profile-name>
      CLAWDEX_PROVIDER=ollama
      CLAWDEX_BASE_URL=http://localhost:11434/v1
      CLAWDEX_MODEL=<ollama-model-name>
@@ -77,9 +80,28 @@ Once you've presented your model recommendations, ALWAYS end by offering these t
      CLAWDEX_THINKING_LEVEL=off
      CLAWDEX_MAX_TOKENS=16384
      \`\`\`
-   - Then tell the user they can switch to it with: \`clawx use <model-name>\`
+   - The \`CLAWDEX_MODEL\` value MUST be the exact Ollama model name (e.g. \`lfm-nova\` if you ran \`ollama create lfm-nova -f Modelfile\`). If you get this wrong the user will get a 404 error.
+   - Tell the user they can switch to it with: \`clawx use <profile-name>\`
    - And switch back to their current setup with: \`clawx use <previous-profile>\`
    - NEVER overwrite \`~/.clawx/config\` — that's the user's active config. Only write to \`~/.clawx/profiles/\`.
+
+   Example full workflow:
+   \`\`\`
+   # 1. Download the GGUF
+   curl -L -o LFM2.5-1.2B-Nova.Q4_K_M.gguf "https://huggingface.co/NovachronoAI/LFM2.5-1.2B-Nova-Function-Calling-GGUF/resolve/main/LFM2.5-1.2B-Nova-Function-Calling.Q4_K_M.gguf"
+
+   # 2. Create Ollama model (note: "lfm-nova" is the Ollama model name)
+   ollama create lfm-nova -f Modelfile
+
+   # 3. Verify it's in Ollama
+   ollama list
+
+   # 4. Profile uses the SAME name "lfm-nova" as CLAWDEX_MODEL
+   # ~/.clawx/profiles/lfm-nova contains: CLAWDEX_MODEL=lfm-nova
+
+   # 5. Switch to it
+   clawx use lfm-nova
+   \`\`\`
 
 Present these as a numbered list like:
 "Want me to set any of these up? I can:
