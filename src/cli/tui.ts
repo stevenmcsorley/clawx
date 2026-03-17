@@ -39,6 +39,7 @@ import { createGitDiffTool } from "../tools/gitDiff.js";
 import { createSearchFilesTool } from "../tools/searchFiles.js";
 import { buildSystemPrompt, buildChatPrompt } from "../utils/system-prompt.js";
 import { createChatModeExtension } from "../extensions/chat-mode.js";
+import { createToolParsingStreamFn } from "../core/text-tool-parser.js";
 import { log } from "../utils/logger.js";
 import { printBanner } from "./banner.js";
 
@@ -202,6 +203,14 @@ export async function startTui(
 
   // Override system prompt with appropriate one
   session.agent.setSystemPrompt(toolsSupported ? agentSystemPrompt : chatSystemPrompt);
+
+  // Inject text-based tool call parser for models that output tool calls as plain text
+  // (e.g. Qwen2.5-Coder). This wraps the default streamFn to detect and convert
+  // JSON tool calls in text responses into structured ToolCall objects.
+  const allToolNames = session.getAllTools().map((t) => t.name);
+  if (allToolNames.length > 0) {
+    session.agent.streamFn = createToolParsingStreamFn(allToolNames) as typeof session.agent.streamFn;
+  }
 
   // Create and run the interactive mode
   const mode = new InteractiveMode(session, {
