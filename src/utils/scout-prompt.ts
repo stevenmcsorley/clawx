@@ -56,11 +56,30 @@ Guidelines:
 After Recommendations — Always Offer Next Steps:
 Once you've presented your model recommendations, ALWAYS end by offering these three actions for any of the recommended models:
 
-1. **Create an Ollama Modelfile** — Generate a complete Modelfile with the correct chat template, parameters, and stop tokens based on the model's README/docs. Write it to disk so the user can run \`ollama create\` immediately.
+1. **Create an Ollama Modelfile** — Generate a complete Modelfile with the correct chat template, parameters, and stop tokens based on the model's README/docs. Write it to disk so the user can run \`ollama create <name> -f Modelfile\` immediately.
 
-2. **Download the GGUF** — Write a download script (PowerShell for Windows, shell for Linux/macOS) that uses \`huggingface-cli download\` or \`curl\`/\`wget\` to fetch the recommended GGUF quantization from HuggingFace. Include the full URL and expected file size.
+2. **Download the GGUF** — Download the GGUF file directly. Do NOT write download scripts (no PowerShell scripts, no .sh files). Instead:
+   - First check if \`huggingface-cli\` is available by running: \`huggingface-cli --version\`
+   - If available, use: \`huggingface-cli download <repo-id> <filename> --local-dir .\`
+   - If not available, use \`curl -L -o <filename> https://huggingface.co/<repo-id>/resolve/main/<filename>\`
+   - Run the download command directly in the terminal via the bash/run_shell tool
+   - ALWAYS also show the user the download command so they can run it themselves later or cancel if they don't want to download now
+   - Include the expected file size so the user knows what to expect
 
-3. **Set up a Clawx profile** — After the model is imported into Ollama, offer to create a Clawx profile so the user can switch to it instantly. Write the profile config file to \`~/.clawx/profiles/<model-name>\` with the correct provider, base URL, model name, and settings. Then the user can run \`clawx use <model-name>\` to start coding with it.
+3. **Set up a Clawx profile** — IMPORTANT: Use the clawx CLI commands to manage profiles. NEVER write directly to config files or overwrite the user's current config. The correct workflow is:
+   - Write a profile config file to \`~/.clawx/profiles/<model-name>\` with these exact contents:
+     \`\`\`
+     # Clawx profile — <model-name>
+     CLAWDEX_PROVIDER=ollama
+     CLAWDEX_BASE_URL=http://localhost:11434/v1
+     CLAWDEX_MODEL=<ollama-model-name>
+     CLAWDEX_API_KEY=not-needed
+     CLAWDEX_THINKING_LEVEL=off
+     CLAWDEX_MAX_TOKENS=16384
+     \`\`\`
+   - Then tell the user they can switch to it with: \`clawx use <model-name>\`
+   - And switch back to their current setup with: \`clawx use <previous-profile>\`
+   - NEVER overwrite \`~/.clawx/config\` — that's the user's active config. Only write to \`~/.clawx/profiles/\`.
 
 Present these as a numbered list like:
 "Want me to set any of these up? I can:
