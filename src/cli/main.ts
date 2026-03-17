@@ -54,6 +54,7 @@ program
   .option("-u, --base-url <url>", "Provider base URL")
   .option("-d, --work-dir <dir>", "Working directory")
   .option("-v, --verbose", "Verbose logging")
+  .option("--ssh", "Enable SSH tools (requires sshTargets in config)")
   .option("--basic", "Use basic readline REPL instead of TUI")
   .action(async (prompt: string | undefined, opts: Record<string, string | boolean>) => {
     if (opts.verbose) log.setLogLevel("info");
@@ -64,6 +65,9 @@ program
       baseUrl: opts.baseUrl as string | undefined,
       workDir: opts.workDir as string | undefined,
     });
+
+    // SSH tools are opt-in — don't let models randomly SSH into remote systems
+    if (!opts.ssh) config.sshTargets = {};
 
     if (opts.basic) {
       // Basic readline REPL fallback
@@ -109,6 +113,7 @@ program
   .option("-u, --base-url <url>", "Provider base URL")
   .option("-d, --work-dir <dir>", "Working directory")
   .option("-v, --verbose", "Verbose logging")
+  .option("--ssh", "Enable SSH tools (requires sshTargets in config)")
   .action(async (prompt: string, opts: Record<string, string | boolean>) => {
     if (opts.verbose) log.setLogLevel("info");
 
@@ -118,6 +123,8 @@ program
       baseUrl: opts.baseUrl as string | undefined,
       workDir: opts.workDir as string | undefined,
     });
+
+    if (!opts.ssh) config.sshTargets = {};
 
     const sessionId = createSessionId();
     const session: ClawxSession = {
