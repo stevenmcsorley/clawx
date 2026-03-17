@@ -18,7 +18,7 @@ import {
 import type { Model, Api } from "@mariozechner/pi-ai";
 import type { ClawxConfig } from "../types/index.js";
 import { resolveModel } from "../core/provider.js";
-import { loadHardwareSpec, promptHardwareSpec, type HardwareSpec } from "../config/hardware.js";
+import { loadHardwareSpec, promptHardwareSpec, autoDetectAndSave, type HardwareSpec } from "../config/hardware.js";
 import { createHfSearchTool } from "../tools/hfSearch.js";
 import { createHfModelInfoTool } from "../tools/hfModelInfo.js";
 import { createHfReadmeTool } from "../tools/hfReadme.js";
@@ -87,16 +87,17 @@ export async function startScout(
     verbose?: boolean;
   } = {},
 ): Promise<void> {
-  // Load or prompt for hardware spec
+  // Load or detect hardware spec
   let hardware: HardwareSpec | null = null;
 
   if (options.setupHardware) {
+    // --setup-hardware: manual prompts with auto-detected defaults
     hardware = await promptHardwareSpec();
   } else {
     hardware = loadHardwareSpec();
     if (!hardware) {
-      console.log("  No hardware spec found. Let's set up your system info for Scout.\n");
-      hardware = await promptHardwareSpec();
+      // First run: auto-detect and save (only prompts if detection fails)
+      hardware = await autoDetectAndSave();
     }
   }
 
@@ -190,9 +191,16 @@ export async function startScout(
     session.agent.streamFn = createToolParsingStreamFn(allToolNames) as typeof session.agent.streamFn;
   }
 
+  // Build a welcome initial message so the agent introduces itself with hardware context
+  const initialMessage =
+    `My hardware: ${hardware.gpu}, ${hardware.vram} VRAM, ${hardware.ram} RAM, ${hardware.os}` +
+    (hardware.notes ? `. ${hardware.notes}` : "") +
+    `. What models would you recommend for local coding assistance with tool calling support?`;
+
   // Launch interactive mode
   const mode = new InteractiveMode(session, {
     modelFallbackMessage,
+    initialMessage,
     verbose: options.verbose,
   });
 
