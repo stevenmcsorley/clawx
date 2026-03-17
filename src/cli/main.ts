@@ -36,6 +36,7 @@ import type { ClawxSession } from "../types/index.js";
 import { log } from "../utils/logger.js";
 import { startRepl } from "./repl.js";
 import { startTui } from "./tui.js";
+import { startScout } from "./scout.js";
 import { VERSION, printBannerCompact } from "./banner.js";
 
 const program = new Command();
@@ -204,6 +205,37 @@ program
     // `clawx chat` is ALWAYS chat-only — no tools, just conversation.
     // This is the mode users are directed to when their model doesn't support tools.
     await startRepl(config, sessionId, messages, { chatOnly: true });
+  });
+
+program
+  .command("scout")
+  .description("AI-powered HuggingFace model researcher — find models that fit your hardware")
+  .option("-m, --model <model>", "Model to use for the scout agent")
+  .option("-p, --provider <provider>", "Provider")
+  .option("-u, --base-url <url>", "Provider base URL")
+  .option("-d, --work-dir <dir>", "Working directory")
+  .option("-v, --verbose", "Verbose logging")
+  .option("--setup-hardware", "Re-prompt hardware specs (GPU, VRAM, RAM)")
+  .action(async (opts: Record<string, string | boolean>) => {
+    if (opts.verbose) log.setLogLevel("info");
+
+    const config = loadConfig({
+      model: opts.model as string | undefined,
+      provider: opts.provider as string | undefined,
+      baseUrl: opts.baseUrl as string | undefined,
+      workDir: opts.workDir as string | undefined,
+    });
+
+    try {
+      await startScout(config, {
+        setupHardware: !!opts.setupHardware,
+        verbose: opts.verbose as boolean | undefined,
+      });
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      console.error(`Scout failed: ${errMsg}`);
+      process.exit(1);
+    }
   });
 
 program
