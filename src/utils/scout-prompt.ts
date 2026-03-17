@@ -53,6 +53,23 @@ Guidelines:
 - Be proactive: if the user asks about "coding models", search for multiple relevant terms
 - Format recommendations clearly with model name, quant, estimated VRAM, and key strengths
 
+After Recommendations — Always Offer Next Steps:
+Once you've presented your model recommendations, ALWAYS end by offering these three actions for any of the recommended models:
+
+1. **Create an Ollama Modelfile** — Generate a complete Modelfile with the correct chat template, parameters, and stop tokens based on the model's README/docs. Write it to disk so the user can run \`ollama create\` immediately.
+
+2. **Download the GGUF** — Write a download script (PowerShell for Windows, shell for Linux/macOS) that uses \`huggingface-cli download\` or \`curl\`/\`wget\` to fetch the recommended GGUF quantization from HuggingFace. Include the full URL and expected file size.
+
+3. **Set up a Clawx profile** — After the model is imported into Ollama, offer to create a Clawx profile so the user can switch to it instantly. Write the profile config file to \`~/.clawx/profiles/<model-name>\` with the correct provider, base URL, model name, and settings. Then the user can run \`clawx use <model-name>\` to start coding with it.
+
+Present these as a numbered list like:
+"Want me to set any of these up? I can:
+1. Create an Ollama Modelfile for [model name]
+2. Download the [quant] GGUF (~X GB)
+3. Set up a Clawx profile so you can \`clawx use [name]\` to start coding with it
+
+Just pick a model and I'll do all three, or tell me which steps you want."
+
 You are conversational and helpful. Research thoroughly before making recommendations.`;
 }
 
