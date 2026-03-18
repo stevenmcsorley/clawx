@@ -8,6 +8,7 @@ import { ToolDefinition } from '../types/extension.js';
 import { log } from '../utils/logger.js';
 import { startAgentServer } from '../core/agent-server.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
+import { agentMaster } from '../core/agent-master.js';
 import { v4 as uuidv4 } from 'uuid';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -41,15 +42,30 @@ export const agentServeTool: ToolDefinition = {
   },
   
   async execute(params: any, context: any) {
-    const name = params.name || 'master';
-    const requestedPort = params.port || 0; // 0 = auto
-    const allowedTools = params.allowed_tools || [];
+    log.debug('agent_serve raw params:', params);
+    
+    // Normalize parameter names
+    const normalizedParams = {
+      name: params.name || params.agent_name || 'master',
+      port: params.port || 0,
+      allowed_tools: params.allowed_tools || params.allowedTools || [],
+    };
+    
+    log.debug('agent_serve normalized params:', normalizedParams);
+    
+    const name = normalizedParams.name;
+    const requestedPort = normalizedParams.port;
+    const allowedTools = normalizedParams.allowed_tools;
     
     try {
-      // Check if already serving
-      if (context._agentServer) {
+      // Check if already serving (using singleton)
+      if (agentMaster.isServing()) {
+        const config = agentMaster.getConfig();
         return {
-          content: [{ type: 'text', text: 'Already serving as agent' }],
+          content: [{
+            type: 'text',
+            text: `Already serving as agent "${config?.name}" on port ${config?.port}`,
+          }],
           details: { already_serving: true },
         };
       }
@@ -61,13 +77,26 @@ export const agentServeTool: ToolDefinition = {
         mkdirSync(workspace, { recursive: true });
       }
       
-      // Determine actual port
-      let actualPort = requestedPort;
-      if (requestedPort === 0) {
-        // Auto-select from master range
-        const { findAvailablePortInRange } = await import('../utils/agent-utils.js');
-        actualPort = await findAvailablePortInRange('master');
-        log.debug(`Auto-selected master port: ${actualPort}`);
+      // Determine actual port with safety checks
+      let actualPort: number;
+      try {
+        const { acquirePort } = await import('../utils/agent-utils.js');
+        actualPort = await acquirePort(requestedPort, 'master');
+        log.debug(`Acquired port: ${actualPort} (requested: ${requestedPort})`);
+      } catch (error: any) {
+        if (error.message.includes('already in use')) {
+          return {
+            content: [{
+              type: 'text',
+              text: `❌ ${error.message}\n\n` +
+                    `Use \`agent_cleanup_port --port ${requestedPort} --force true\` to free the port,\n` +
+                    `or try a different port with \`agent_serve --port <new_port>\`.`,
+            }],
+            details: { error: error.message, port: requestedPort },
+            isError: true,
+          };
+        }
+        throw error;
       }
       
       // Create agent config
@@ -88,9 +117,8 @@ export const agentServeTool: ToolDefinition = {
       // Start server
       const server = await startAgentServer(config);
       
-      // Store in context for later access
-      context._agentServer = server;
-      context._agentConfig = config;
+      // Store in singleton for later access
+      agentMaster.setServer(server, config);
       
       // Register self in registry
       const registry = new AgentRegistryManager();
@@ -119,6 +147,7 @@ export const agentServeTool: ToolDefinition = {
                 `Endpoint: http://localhost:${server.port}\n` +
                 `Workspace: ${workspace}\n` +
                 `Port: ${server.port} (requested: ${requestedPort === 0 ? 'auto' : requestedPort})\n` +
+                `Debug: raw port param was "${params.port}", type ${typeof params.port}\n` +
                 `Allowed tools: ${allowedTools.length > 0 ? allowedTools.join(', ') : 'all'}\n\n` +
                 'Use agent_list to see registered agents.\n' +
                 'Use agent_spawn_local to spawn worker agents.\n' +

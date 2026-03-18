@@ -96,6 +96,7 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     const { agentResultTool } = await import('../tools/agentResult.js');
     const { agentCleanupTool } = await import('../tools/agentCleanup.js');
     const { agentMasterStatusTool } = await import('../tools/agentMasterStatus.js');
+    const { agentCleanupPortTool } = await import('../tools/agentCleanupPort.js');
     
     tools.push(toolToDefinition(agentServeTool));
     tools.push(toolToDefinition(agentListTool));
@@ -105,6 +106,7 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     tools.push(toolToDefinition(agentResultTool));
     tools.push(toolToDefinition(agentCleanupTool));
     tools.push(toolToDefinition(agentMasterStatusTool));
+    tools.push(toolToDefinition(agentCleanupPortTool));
   } catch (error) {
     log.debug('Agent tools not available:', error instanceof Error ? error.message : String(error));
     // Continue without agent tools - don't break Clawx

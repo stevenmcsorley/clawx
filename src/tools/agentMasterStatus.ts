@@ -8,6 +8,7 @@ import { ToolDefinition } from '../types/extension.js';
 import { log } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
 import { checkAgentHealth } from '../utils/agent-utils.js';
+import { agentMaster } from '../core/agent-master.js';
 
 export const agentMasterStatusTool: ToolDefinition = {
   name: 'agent_master_status',
@@ -34,9 +35,9 @@ export const agentMasterStatusTool: ToolDefinition = {
       
       let output = `# 🎯 Clawx Agent Network Status\n\n`;
       
-      // Check if this session is serving as master
-      const isServing = !!context._agentServer;
-      const masterConfig = context._agentConfig;
+      // Check if this session is serving as master (using singleton)
+      const isServing = agentMaster.isServing();
+      const masterConfig = agentMaster.getConfig();
       
       output += `## Current Session\n`;
       if (isServing && masterConfig) {

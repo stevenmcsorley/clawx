@@ -14,6 +14,7 @@ import {
   checkAgentHealth,
   getUniqueAgentName 
 } from '../utils/agent-utils.js';
+import { agentMaster } from '../core/agent-master.js';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
 import { join } from 'path';
@@ -52,20 +53,40 @@ export const agentSpawnLocalTool: ToolDefinition = {
   },
   
   async execute(params: any, context: any) {
-    const name = params.name;
+    log.debug('agent_spawn_local raw params:', params);
+    
+    // Normalize parameter names (handle both snake_case and camelCase)
+    const normalizedParams = {
+      name: params.name || params.agent_name,
+      allowed_tools: params.allowed_tools || params.allowedTools || [],
+      port: params.port || 0,
+      master_endpoint: params.master_endpoint || params.masterEndpoint || '',
+    };
+    
+    log.debug('agent_spawn_local normalized params:', normalizedParams);
+    
+    const name = normalizedParams.name;
     if (!name || typeof name !== 'string') {
+      log.debug('name validation failed:', { 
+        rawParams: params, 
+        normalizedParams,
+        name, 
+        type: typeof name 
+      });
       return {
         content: [{
           type: 'text',
-          text: '❌ Agent name is required and must be a string',
+          text: '❌ Agent name is required and must be a string\n' +
+                `Received: ${JSON.stringify(params)}\n` +
+                `Normalized: ${JSON.stringify(normalizedParams)}`,
         }],
-        details: { error: 'Name required' },
+        details: { error: 'Name required', rawParams: params, normalizedParams },
         isError: true,
       };
     }
     
-    const allowedTools = params.allowed_tools || [];
-    const requestedPort = params.port || 0;
+    const allowedTools = normalizedParams.allowed_tools;
+    const requestedPort = normalizedParams.port;
     
     try {
       // Clean up stale agents first
@@ -86,10 +107,11 @@ export const agentSpawnLocalTool: ToolDefinition = {
       const workspace = registry.ensureAgentWorkspace(agentId);
       
       // Determine master endpoint - require explicit master or current instance
-      let masterEndpoint = params.master_endpoint;
-      if (!masterEndpoint && context._agentConfig) {
+      let masterEndpoint = normalizedParams.master_endpoint;
+      if (!masterEndpoint && agentMaster.isServing()) {
         // Use current instance as master
-        masterEndpoint = `http://localhost:${context._agentConfig.port}`;
+        const config = agentMaster.getConfig();
+        masterEndpoint = `http://localhost:${config?.port}`;
         log.info(`Using current instance as master: ${masterEndpoint}`);
       } else if (!masterEndpoint) {
         // No master available - fail clearly

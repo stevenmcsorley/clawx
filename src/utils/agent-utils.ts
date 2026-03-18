@@ -5,6 +5,31 @@
 import { AgentRegistryManager } from '../core/agent-registry.js';
 import { AgentIdentity } from '../types/agent.js';
 import { log } from './logger.js';
+import net from 'net';
+
+/**
+ * Check if a port is in use
+ */
+export async function isPortInUse(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    
+    server.once('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(true);
+      } else {
+        resolve(false);
+      }
+    });
+    
+    server.once('listening', () => {
+      server.close();
+      resolve(false);
+    });
+    
+    server.listen(port, 'localhost');
+  });
+}
 
 /**
  * Check if an agent name already exists in registry
@@ -164,4 +189,69 @@ export function getUniqueAgentName(baseName: string): string {
   }
   
   return `${baseName}-${counter}`;
+}
+
+/** Kill process using a port (Windows) */
+export async function killProcessOnPort(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') {
+      log.warn(`killProcessOnPort only implemented for Windows, port ${port} may be in use`);
+      resolve(false);
+      return;
+    }
+    
+    try {
+      const { execSync } = require('child_process');
+      // Find PID using netstat
+      const netstatOutput = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { 
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore']
+      }).trim();
+      
+      if (!netstatOutput) {
+        log.debug(`No process found listening on port ${port}`);
+        resolve(false);
+        return;
+      }
+      
+      // Parse PID from netstat output
+      const lines = netstatOutput.split('\n');
+      for (const line of lines) {
+        const match = line.match(/\s+(\d+)$/);
+        if (match) {
+          const pid = match[1];
+          log.info(`Found process ${pid} on port ${port}, attempting to kill`);
+          try {
+            execSync(`taskkill /F /PID ${pid}`, { 
+              stdio: ['pipe', 'pipe', 'ignore'],
+              timeout: 5000 
+            });
+            log.info(`Killed process ${pid} on port ${port}`);
+            resolve(true);
+          } catch (killError) {
+            log.warn(`Failed to kill process ${pid}: ${killError}`);
+          }
+        }
+      }
+      resolve(false);
+    } catch (error) {
+      log.debug(`Failed to check/kill process on port ${port}: ${error}`);
+      resolve(false);
+    }
+  });
+}
+
+/** Safe port acquisition with cleanup option */
+export async function acquirePort(port: number, range: 'master' | 'worker' = 'master'): Promise<number> {
+  // If specific port requested
+  if (port > 0) {
+    const inUse = await isPortInUse(port);
+    if (inUse) {
+      throw new Error(`Port ${port} is already in use. Use agent_cleanup_port tool to free it.`);
+    }
+    return port;
+  }
+  
+  // Auto-select from range
+  return await findAvailablePortInRange(range);
 }
