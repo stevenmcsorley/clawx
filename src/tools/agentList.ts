@@ -87,6 +87,10 @@ export const agentListTool: ToolDefinition = {
           output += `- **Search**: ${search.recommendedTool} (grep: ${search.hasGrep ? '✓' : '✗'}, rg: ${search.hasRipgrep ? '✓' : '✗'})\n`;
         }
         
+        if (agent.persona?.loaded) {
+          output += `- **Persona**: ${agent.persona.name} (${agent.persona.role})\n`;
+        }
+        
         if (showTasks) {
           const tasks = registry.getAgentTasks(agent.id);
           const recentTasks = tasks

@@ -48,6 +48,18 @@ export interface AgentIdentity {
       recommendedTool: 'grep' | 'ripgrep' | 'node';
     };
   };
+  
+  /** Persona information (loaded from user space) */
+  persona?: {
+    /** Whether persona is loaded */
+    loaded: boolean;
+    
+    /** Persona name if loaded */
+    name?: string;
+    
+    /** Persona role if loaded */
+    role?: string;
+  };
 }
 
 export interface AgentTask {

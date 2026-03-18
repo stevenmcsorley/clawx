@@ -1,0 +1,237 @@
+/**
+ * Worker-side model caller for persona-driven conversations
+ * 
+ * Provides a clean interface for workers to generate chat responses
+ * using the configured model/provider, with persona and memory context.
+ */
+
+import { streamSimple, type Context, type Message, type Model, type AssistantMessage } from "@mariozechner/pi-ai";
+import { resolveModel } from "../core/provider.js";
+import { loadConfig } from "../config/index.js";
+import { log } from "./logger.js";
+import type { Persona, Memory, ConversationTurn } from "../types/persona.js";
+
+/**
+ * Build conversation context from persona, memory, and incoming turn
+ */
+export function buildConversationContext(
+  persona: Persona | null,
+  memory: Memory | null,
+  turn: ConversationTurn,
+  workspace: string
+): string {
+  let context = `# Agent Conversation Context\n\n`;
+  
+  // Agent identity
+  context += `## Agent Identity\n`;
+  context += `Workspace: ${workspace}\n`;
+  context += `Current time: ${new Date().toISOString()}\n\n`;
+  
+  // Persona context
+  if (persona) {
+    context += `## Persona: ${persona.name}\n`;
+    context += `Role: ${persona.role}\n`;
+    context += `Tone: ${persona.tone}\n`;
+    context += `Decision Style: ${persona.decision_style}\n`;
+    
+    if (persona.strengths.length > 0) {
+      context += `Strengths: ${persona.strengths.join(', ')}\n`;
+    }
+    
+    if (persona.goals.length > 0) {
+      context += `Goals: ${persona.goals.join(', ')}\n`;
+    }
+    
+    if (persona.biases.length > 0) {
+      context += `Biases to be aware of: ${persona.biases.join(', ')}\n`;
+    }
+    
+    if (persona.boundaries.length > 0) {
+      context += `Boundaries: ${persona.boundaries.join(', ')}\n`;
+    }
+    
+    context += `Relationship to Master: ${persona.relationship_to_master}\n`;
+    
+    if (persona.notes) {
+      context += `Notes: ${persona.notes}\n`;
+    }
+    
+    context += `\n`;
+  } else {
+    context += `## Persona: Not configured (default agent behavior)\n\n`;
+  }
+  
+  // Memory context
+  if (memory) {
+    context += `## Memory Summary\n`;
+    context += `${memory.summary}\n\n`;
+    
+    if (memory.key_facts.length > 0) {
+      context += `Key Facts:\n`;
+      memory.key_facts.forEach(fact => {
+        context += `- ${fact}\n`;
+      });
+      context += `\n`;
+    }
+    
+    if (memory.recent_context.length > 0) {
+      context += `Recent Context:\n`;
+      memory.recent_context.slice(-3).forEach(contextItem => {
+        context += `- ${contextItem}\n`;
+      });
+      context += `\n`;
+    }
+  }
+  
+  // Conversation context
+  context += `## Current Conversation\n`;
+  context += `Speaker: ${turn.speaker}\n`;
+  context += `Mode: ${turn.mode || 'discussion'}\n`;
+  if (turn.context && Object.keys(turn.context).length > 0) {
+    context += `Additional context: ${JSON.stringify(turn.context, null, 2)}\n`;
+  }
+  context += `\n`;
+  
+  // Instructions
+  context += `## Instructions\n`;
+  context += `Respond as the agent persona described above.\n`;
+  context += `Be authentic to the persona's tone, role, and decision style.\n`;
+  context += `If the message suggests a task could be helpful, mention your capabilities.\n`;
+  context += `Keep responses concise but thoughtful.\n`;
+  
+  return context;
+}
+
+/**
+ * Generate a chat response using the actual model
+ */
+export async function generateModelChatResponse(
+  persona: Persona | null,
+  memory: Memory | null,
+  turn: ConversationTurn,
+  workspace: string
+): Promise<{ reply: string; thinking?: string }> {
+  try {
+    // Load worker configuration
+    // Workers inherit config from master's environment, but can have workspace-specific overrides
+    // First try to load from workspace, then fall back to default
+    let config;
+    try {
+      // Change to workspace directory to load local config
+      const originalCwd = process.cwd();
+      process.chdir(workspace);
+      config = loadConfig();
+      process.chdir(originalCwd);
+    } catch (error) {
+      // Fall back to default config
+      config = loadConfig();
+    }
+    
+    // Resolve model from config
+    const model = resolveModel(config);
+    
+    // Build system prompt from persona and memory
+    const systemPrompt = buildConversationContext(persona, memory, turn, workspace);
+    
+    // Build user message
+    const userMessage = turn.message;
+    
+    // Create context for model call
+    const context: Context = {
+      systemPrompt,
+      messages: [
+        {
+          role: 'user' as const,
+          content: userMessage,
+          timestamp: Date.now(),
+        }
+      ],
+      tools: [], // No tools for chat mode
+    };
+    
+    log.info(`Generating chat response for persona: ${persona?.name || 'default'}`);
+    log.debug(`System prompt length: ${systemPrompt.length} chars`);
+    log.debug(`User message: ${userMessage.substring(0, 100)}...`);
+    
+    // Call the model
+    const stream = streamSimple(model, context, {
+      apiKey: config.apiKey,
+      maxTokens: config.maxTokens,
+      reasoning: config.thinkingLevel === 'off' ? undefined : config.thinkingLevel,
+    });
+    
+    // Collect response
+    let reply = '';
+    let thinking = '';
+    
+    for await (const event of stream) {
+      if (event.type === 'text_delta') {
+        reply += event.delta;
+      } else if (event.type === 'thinking_delta') {
+        thinking += event.delta;
+      } else if (event.type === 'done') {
+        // Response complete
+        const message = event.message as AssistantMessage;
+        if (message.stopReason === 'error') {
+          throw new Error(`Model error: ${message.errorMessage || 'Unknown error'}`);
+        }
+        break;
+      } else if (event.type === 'error') {
+        throw new Error(`Stream error: ${event.error?.errorMessage || 'Unknown stream error'}`);
+      }
+    }
+    
+    log.info(`Generated response length: ${reply.length} chars`);
+    if (thinking) {
+      log.debug(`Thinking length: ${thinking.length} chars`);
+    }
+    
+    return { reply, thinking };
+    
+  } catch (error) {
+    log.error('Failed to generate model chat response:', error);
+    
+    // Fallback to simple response if model fails
+    const fallbackReply = persona 
+      ? `As ${persona.name} (${persona.role}), I received your message: "${turn.message.substring(0, 100)}${turn.message.length > 100 ? '...' : ''}"\n\n[Note: Model call failed, using fallback response]`
+      : `I received your message: "${turn.message.substring(0, 100)}${turn.message.length > 100 ? '...' : ''}"\n\n[Note: Model call failed, using fallback response]`;
+    
+    return { reply: fallbackReply };
+  }
+}
+
+/**
+ * Update memory based on conversation
+ */
+export function updateMemoryFromConversation(
+  existingMemory: Memory | null,
+  persona: Persona | null,
+  turn: ConversationTurn,
+  reply: string
+): Memory {
+  const memory = existingMemory || {
+    summary: 'New agent with default configuration',
+    key_facts: [],
+    recent_context: [],
+    updatedAt: Date.now(),
+  };
+  
+  // Update summary if it's the default
+  if (memory.summary === 'New agent with default configuration' && persona) {
+    memory.summary = `Agent "${persona.name}" configured as ${persona.role}.`;
+  }
+  
+  // Add conversation to recent context
+  const conversationSummary = `Conversation with ${turn.speaker}: ${turn.message.substring(0, 100)}${turn.message.length > 100 ? '...' : ''}`;
+  memory.recent_context.push(conversationSummary);
+  
+  // Keep only last 10 context items
+  if (memory.recent_context.length > 10) {
+    memory.recent_context = memory.recent_context.slice(-10);
+  }
+  
+  // Update timestamp
+  memory.updatedAt = Date.now();
+  
+  return memory;
+}

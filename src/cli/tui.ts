@@ -97,6 +97,12 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     const { agentCleanupTool } = await import('../tools/agentCleanup.js');
     const { agentMasterStatusTool } = await import('../tools/agentMasterStatus.js');
     const { agentCleanupPortTool } = await import('../tools/agentCleanupPort.js');
+    // Persona tools
+    const { agentPersonaShowTool } = await import('../tools/agentPersonaShow.js');
+    const { agentPersonaSetTool } = await import('../tools/agentPersonaSet.js');
+    const { agentChatTool } = await import('../tools/agentChat.js');
+    const { agentMemoryShowTool } = await import('../tools/agentMemoryShow.js');
+    const { agentMemoryUpdateTool } = await import('../tools/agentMemoryUpdate.js');
     
     tools.push(toolToDefinition(agentServeTool));
     tools.push(toolToDefinition(agentListTool));
@@ -107,6 +113,12 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     tools.push(toolToDefinition(agentCleanupTool));
     tools.push(toolToDefinition(agentMasterStatusTool));
     tools.push(toolToDefinition(agentCleanupPortTool));
+    // Persona tools
+    tools.push(toolToDefinition(agentPersonaShowTool));
+    tools.push(toolToDefinition(agentPersonaSetTool));
+    tools.push(toolToDefinition(agentChatTool));
+    tools.push(toolToDefinition(agentMemoryShowTool));
+    tools.push(toolToDefinition(agentMemoryUpdateTool));
   } catch (error) {
     log.debug('Agent tools not available:', error instanceof Error ? error.message : String(error));
     // Continue without agent tools - don't break Clawx

@@ -15,6 +15,17 @@ import { createGitStatusTool } from '../tools/gitStatus.js';
 import { createGitDiffTool } from '../tools/gitDiff.js';
 import { createSshRunTool } from '../tools/sshRun.js';
 import { getPlatformSearchCapabilities } from '../utils/search-utils.js';
+import { 
+  loadPersona, 
+  loadMemory, 
+  saveMemory, 
+  logConversationTurn,
+  buildPersonaContext,
+  createDefaultPersona,
+  createDefaultMemory 
+} from '../utils/persona-utils.js';
+import { generateModelChatResponse, updateMemoryFromConversation } from '../utils/worker-model-caller.js';
+import type { Persona, Memory, ChatRequest, ChatResponse, ConversationTurn } from '../types/persona.js';
 
 export interface AgentServer {
   port: number;
@@ -87,6 +98,65 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       task.completed = Date.now();
       task.error = error instanceof Error ? error.message : String(error);
       log.error(`Task ${taskId} failed:`, error);
+    }
+  }
+  
+  /** Generate chat response using actual model with persona context */
+  async function generateChatResponse(
+    persona: Persona | null, 
+    memory: Memory | null, 
+    turn: ConversationTurn, 
+    personaContext: string,
+    workspace: string
+  ): Promise<ChatResponse> {
+    try {
+      // Generate response using actual model
+      const { reply, thinking } = await generateModelChatResponse(
+        persona,
+        memory,
+        turn,
+        workspace
+      );
+      
+      // Update memory based on conversation
+      const updatedMemory = updateMemoryFromConversation(memory, persona, turn, reply);
+      saveMemory(workspace, updatedMemory);
+      
+      return {
+        reply,
+        notes: {
+          persona_applied: !!persona,
+          persona_name: persona?.name || 'default',
+          persona_role: persona?.role || 'Agent',
+          response_style: persona?.tone || 'neutral',
+          model_used: true,
+          thinking_length: thinking?.length || 0,
+        },
+        memory_update: `Conversation with ${turn.speaker}: ${turn.message.substring(0, 50)}...`,
+        next_actions: ['continue_conversation', 'execute_task_if_needed'],
+      };
+      
+    } catch (error) {
+      log.error('Failed to generate model chat response:', error);
+      
+      // Fallback response if model fails
+      const fallbackReply = persona 
+        ? `As ${persona.name} (${persona.role}), I received your message: "${turn.message.substring(0, 100)}${turn.message.length > 100 ? '...' : ''}"\n\n[Note: Model call failed, using fallback response]`
+        : `I received your message: "${turn.message.substring(0, 100)}${turn.message.length > 100 ? '...' : ''}"\n\n[Note: Model call failed, using fallback response]`;
+      
+      return {
+        reply: fallbackReply,
+        notes: {
+          persona_applied: !!persona,
+          persona_name: persona?.name || 'default',
+          persona_role: persona?.role || 'Agent',
+          response_style: persona?.tone || 'neutral',
+          model_used: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        memory_update: undefined,
+        next_actions: ['continue_conversation'],
+      };
     }
   }
   
@@ -273,6 +343,80 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     });
   });
   
+  // Chat turn - conversational interaction
+  app.post('/chat', async (req: Request, res: Response) => {
+    try {
+      const { speaker, target, message, context, mode = 'discussion' } = req.body as ChatRequest;
+      
+      if (!speaker || !target || !message) {
+        return res.status(400).json({ error: 'speaker, target, and message required' });
+      }
+      
+      // Load persona and memory for this agent
+      const persona = loadPersona(config.workspace) || createDefaultPersona(config.id, config.name);
+      const memory = loadMemory(config.workspace) || createDefaultMemory();
+      
+      // Create conversation turn
+      const turnId = uuidv4();
+      const turn: ConversationTurn = {
+        id: turnId,
+        speaker,
+        target,
+        message,
+        context,
+        mode,
+        timestamp: Date.now(),
+      };
+      
+      // Log the incoming turn
+      logConversationTurn(config.workspace, turn);
+      
+      // Build persona context for the model
+      const personaContext = buildPersonaContext(persona, memory);
+      
+      // Generate response using actual model with persona context
+      const response = await generateChatResponse(persona, memory, turn, personaContext, config.workspace);
+      
+      // Update memory if response includes memory update
+      if (response.memory_update) {
+        memory.summary = response.memory_update;
+        memory.recent_context.push(`Conversation with ${speaker}: ${message.substring(0, 100)}...`);
+        memory.updatedAt = Date.now();
+        saveMemory(config.workspace, memory);
+      }
+      
+      // Log the response turn
+      const responseTurn: ConversationTurn = {
+        id: uuidv4(),
+        speaker: config.id,
+        target: speaker,
+        message: response.reply,
+        context: response.notes,
+        mode,
+        timestamp: Date.now(),
+        notes: response.notes,
+      };
+      logConversationTurn(config.workspace, responseTurn);
+      
+      res.json({
+        success: true,
+        turnId,
+        response,
+        persona: {
+          name: persona.name,
+          role: persona.role,
+        },
+      });
+      
+    } catch (error) {
+      log.error('Chat turn failed:', error);
+      res.status(500).json({ 
+        error: 'Chat turn failed',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // Heartbeat
   app.post('/heartbeat', (req: Request, res: Response) => {
     res.json({
@@ -327,6 +471,22 @@ export function createAgentIdentity(config: AgentConfig, port: number): AgentIde
     }
   }
   
+  // Check if persona exists for this agent
+  let personaInfo = undefined;
+  try {
+    const persona = loadPersona(config.workspace);
+    if (persona) {
+      personaInfo = {
+        loaded: true,
+        name: persona.name,
+        role: persona.role,
+      };
+    }
+  } catch (error) {
+    // Persona loading failed, continue without it
+    log.debug(`Failed to load persona for agent ${config.id}:`, error);
+  }
+  
   return {
     id: config.id,
     name: config.name,
@@ -341,6 +501,7 @@ export function createAgentIdentity(config: AgentConfig, port: number): AgentIde
     platformCapabilities: {
       search: getPlatformSearchCapabilities(),
     },
+    persona: personaInfo,
   };
 }
 
