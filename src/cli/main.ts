@@ -553,4 +553,8 @@ oldForgeCommand.name("forge-old");
 oldForgeCommand.description("[DEPRECATED] Old deterministic Forge CLI");
 program.addCommand(oldForgeCommand);
 
+// Add agent commands
+import { createAgentCommand } from './agent.js';
+program.addCommand(createAgentCommand());
+
 program.parse();
