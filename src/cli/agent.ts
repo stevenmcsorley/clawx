@@ -107,6 +107,31 @@ async function serveAgent(options: any): Promise<void> {
   const server = await startAgentServer(config);
   
   log.info(`Agent server started on port ${server.port}`);
+  
+  // Auto-register with master if master endpoint provided
+  if (options.master && options.master !== 'http://localhost:3000') {
+    try {
+      const response = await fetch(`${options.master}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId: agentId,
+          agentName: agentName,
+          endpoint: `http://localhost:${server.port}`,
+          capabilities: config.allowedTools,
+        }),
+      });
+      
+      if (response.ok) {
+        log.info(`Registered with master: ${options.master}`);
+      } else {
+        log.warn(`Failed to register with master: ${response.status}`);
+      }
+    } catch (error) {
+      log.warn(`Could not register with master: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
   log.info('Press Ctrl+C to stop');
 
   // Handle shutdown

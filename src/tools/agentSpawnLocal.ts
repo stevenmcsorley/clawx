@@ -107,38 +107,79 @@ export const agentSpawnLocalTool: ToolDefinition = {
         '--workspace', workspace,
       ];
       
-      log.info(`Command: ${nodePath} ${scriptPath} ${args.join(' ')}`);
+      log.info(`Spawning agent process...`);
       
-      // TODO: Actually spawn process
-      // For v1, we'll register the agent but not actually spawn
-      // This keeps the implementation simple for MVP
+      // Actually spawn the agent process
+      const agentProcess = spawn(nodePath, [scriptPath, ...args], {
+        cwd: workspace,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: true,
+      });
       
-      // Register agent (offline for now since not actually spawned)
+      // Store process info
+      const processInfo = {
+        pid: agentProcess.pid,
+        stdout: '',
+        stderr: '',
+      };
+      
+      // Capture output
+      agentProcess.stdout?.on('data', (data) => {
+        processInfo.stdout += data.toString();
+        log.debug(`Agent ${name} stdout: ${data.toString().trim()}`);
+      });
+      
+      agentProcess.stderr?.on('data', (data) => {
+        processInfo.stderr += data.toString();
+        log.debug(`Agent ${name} stderr: ${data.toString().trim()}`);
+      });
+      
+      // Handle process exit
+      agentProcess.on('exit', (code) => {
+        log.info(`Agent ${name} exited with code ${code}`);
+        // Mark as offline in registry
+        const registry = new AgentRegistryManager();
+        const agent = registry.getAgent(agentId);
+        if (agent) {
+          agent.status = 'offline';
+          registry.upsertAgent(agent);
+          registry.save();
+        }
+      });
+      
+      // Register agent as starting
       const agent = {
         id: agentId,
         name,
         type: 'local' as const,
-        status: 'offline' as const,
+        status: 'working' as const,
         capabilities: allowedTools.length > 0 ? allowedTools : ['all'],
+        endpoint: `http://localhost:${port}`,
         workspace,
         created: Date.now(),
+        lastHeartbeat: Date.now(),
+        processId: agentProcess.pid,
       };
       
       registry.upsertAgent(agent);
       registry.save();
       
-      const output = `✅ Agent "${name}" registered (ID: ${agentId})\n\n` +
+      // Wait a moment for agent to start
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const output = `✅ Agent "${name}" spawned (ID: ${agentId})\n\n` +
                     `**Details:**\n` +
                     `- ID: ${agentId}\n` +
                     `- Name: ${name}\n` +
                     `- Type: local\n` +
-                    `- Status: offline (not spawned)\n` +
+                    `- Status: starting\n` +
+                    `- PID: ${agentProcess.pid}\n` +
+                    `- Endpoint: http://localhost:${port}\n` +
                     `- Workspace: ${workspace}\n` +
                     `- Master endpoint: ${masterEndpoint}\n` +
                     `- Allowed tools: ${allowedTools.length > 0 ? allowedTools.join(', ') : 'all'}\n\n` +
-                    `**Note:** Process spawning not implemented in v1.\n` +
-                    `To start agent manually:\n` +
-                    `\`${nodePath} ${scriptPath} agent serve --id ${agentId} --name ${name} --port ${port} --master ${masterEndpoint} --workspace ${workspace}\``;
+                    `Agent process started. It will register itself when ready.\n` +
+                    `Use \`agent_list\` to check status.`;
       
       return {
         content: [{ type: 'text', text: output }],

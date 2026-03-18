@@ -10,6 +10,10 @@ import { createServer, Server } from 'http';
 import { log } from '../utils/logger.js';
 import { AgentConfig, AgentIdentity, AgentTask } from '../types/agent.js';
 import { v4 as uuidv4 } from 'uuid';
+import { createSearchFilesTool } from '../tools/searchFiles.js';
+import { createGitStatusTool } from '../tools/gitStatus.js';
+import { createGitDiffTool } from '../tools/gitDiff.js';
+import { createSshRunTool } from '../tools/sshRun.js';
 
 export interface AgentServer {
   port: number;
@@ -22,6 +26,53 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
   
   const server = createServer(app);
   const tasks = new Map<string, AgentTask>();
+  
+  /** Execute a task with real tool */
+  async function executeTask(taskId: string, tool: string, params: any, context: any): Promise<void> {
+    const task = tasks.get(taskId);
+    if (!task) return;
+    
+    task.status = 'running';
+    task.started = Date.now();
+    
+    try {
+      // Get the appropriate tool
+      let toolDefinition;
+      const cwd = config.workspace;
+      
+      switch (tool) {
+        case 'search_files':
+          toolDefinition = createSearchFilesTool(cwd);
+          break;
+        case 'git_status':
+          toolDefinition = createGitStatusTool(cwd);
+          break;
+        case 'git_diff':
+          toolDefinition = createGitDiffTool(cwd);
+          break;
+        case 'ssh_run':
+          // SSH targets from config (empty for now)
+          toolDefinition = createSshRunTool({});
+          break;
+        default:
+          throw new Error(`Tool not supported by agent: ${tool}`);
+      }
+      
+      // Execute the tool
+      const result = await toolDefinition.execute(params, context);
+      
+      // Update task with result
+      task.status = 'completed';
+      task.completed = Date.now();
+      task.result = result;
+      
+    } catch (error) {
+      task.status = 'failed';
+      task.completed = Date.now();
+      task.error = error instanceof Error ? error.message : String(error);
+      throw error;
+    }
+  }
   
   // Health endpoint
   app.get('/health', (req: Request, res: Response) => {
@@ -80,20 +131,16 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
       tasks.set(taskId, task);
       
-      // TODO: Actually execute task
-      // For now, simulate execution
-      setTimeout(() => {
+      // Execute task in background
+      executeTask(taskId, tool, params, context).catch(error => {
+        log.error(`Task ${taskId} execution failed:`, error);
         const storedTask = tasks.get(taskId);
         if (storedTask) {
-          storedTask.status = 'completed';
-          storedTask.started = Date.now();
+          storedTask.status = 'failed';
           storedTask.completed = Date.now();
-          storedTask.result = {
-            content: [{ type: 'text', text: `Task ${taskId} completed (simulated)` }],
-            details: { simulated: true, tool, timestamp: Date.now() },
-          };
+          storedTask.error = error.message;
         }
-      }, 100);
+      });
       
       res.json({
         taskId,
@@ -226,3 +273,4 @@ export function createAgentIdentity(config: AgentConfig, port: number): AgentIde
     lastHeartbeat: Date.now(),
   };
 }
+

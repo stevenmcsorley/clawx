@@ -100,6 +100,39 @@ export const agentServeTool: ToolDefinition = {
       registry.upsertAgent(agentIdentity);
       registry.save();
       
+      // Add registration endpoint to server
+      context._agentServer.app?.post('/register', (req: any, res: any) => {
+        try {
+          const { agentId, agentName, endpoint, capabilities } = req.body;
+          
+          if (!agentId || !agentName || !endpoint) {
+            return res.status(400).json({ error: 'agentId, agentName, and endpoint required' });
+          }
+          
+          const agent = {
+            id: agentId,
+            name: agentName,
+            type: 'local' as const,
+            status: 'idle' as const,
+            capabilities: capabilities || [],
+            endpoint,
+            workspace: join(homedir(), '.clawx', 'agents', agentId),
+            created: Date.now(),
+            lastHeartbeat: Date.now(),
+          };
+          
+          registry.upsertAgent(agent);
+          registry.save();
+          
+          log.info(`Agent registered: ${agentName} (${agentId}) at ${endpoint}`);
+          
+          res.json({ success: true, registered: true });
+        } catch (error) {
+          log.error('Registration failed:', error);
+          res.status(500).json({ error: 'Registration failed' });
+        }
+      });
+      
       return {
         content: [{
           type: 'text',
