@@ -27,6 +27,11 @@ const DEFAULTS: ClawxConfig = {
   ),
   sshTargets: {},
   huggingfaceToken: process.env.HUGGINGFACE_TOKEN || "",
+  extensionsDir: path.join(
+    process.env.HOME || process.env.USERPROFILE || ".",
+    ".clawx",
+    "extensions",
+  ),
 };
 
 function parseSshTargets(raw: string): Record<string, SshTarget> {

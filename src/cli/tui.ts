@@ -41,6 +41,7 @@ import { createSearchFilesTool } from "../tools/searchFiles.js";
 import { buildSystemPrompt, buildChatPrompt } from "../utils/system-prompt.js";
 import { createChatModeExtension } from "../extensions/chat-mode.js";
 import { createToolParsingStreamFn } from "../core/text-tool-parser.js";
+import { loadExtensions, getDefaultExtensionsDir } from "../core/extension-loader.js";
 import { log } from "../utils/logger.js";
 import { printBanner } from "./banner.js";
 
@@ -60,16 +61,38 @@ function toolToDefinition(tool: { name: string; label: string; description: stri
   } as unknown as ToolDefinition;
 }
 
-function buildCustomTools(config: ClawxConfig): ToolDefinition[] {
+/**
+ * Check if an object is already a ToolDefinition
+ */
+function isToolDefinition(obj: any): obj is ToolDefinition {
+  return obj && 
+    typeof obj.name === 'string' &&
+    typeof obj.label === 'string' &&
+    typeof obj.description === 'string' &&
+    typeof obj.execute === 'function';
+}
+
+async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> {
   const cwd = config.workDir;
   const tools: ToolDefinition[] = [];
 
+  // Core Clawx tools
   tools.push(toolToDefinition(createSearchFilesTool(cwd)));
   tools.push(toolToDefinition(createGitStatusTool(cwd)));
   tools.push(toolToDefinition(createGitDiffTool(cwd)));
 
   if (Object.keys(config.sshTargets).length > 0) {
     tools.push(toolToDefinition(createSshRunTool(config.sshTargets)));
+  }
+
+  // Load extensions
+  const extensionsDir = config.extensionsDir || getDefaultExtensionsDir();
+  try {
+    const extensionTools = await loadExtensions(extensionsDir);
+    tools.push(...extensionTools);
+  } catch (error) {
+    log.warn(`Failed to load extensions: ${error instanceof Error ? error.message : String(error)}`);
+    // Continue without extensions - don't break Clawx
   }
 
   return tools;
@@ -125,7 +148,7 @@ export async function startTui(
   } = {},
 ): Promise<void> {
   const model = resolveModel(config);
-  const customTools = buildCustomTools(config);
+  const customTools = await buildCustomTools(config);
 
   printBanner(config.model, config.provider);
 

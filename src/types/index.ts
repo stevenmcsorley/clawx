@@ -19,6 +19,7 @@ export interface ClawxConfig {
   sshTargets: Record<string, SshTarget>;
   systemPrompt?: string;
   huggingfaceToken?: string;
+  extensionsDir?: string;
 }
 
 export interface SshTarget {
