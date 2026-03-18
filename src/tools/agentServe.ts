@@ -27,8 +27,8 @@ export const agentServeTool: ToolDefinition = {
       },
       port: {
         type: 'number',
-        description: 'Port to listen on (default: 3000)',
-        default: 3000,
+        description: 'Port to listen on (0 = auto-select from master range)',
+        default: 0,
       },
       allowed_tools: {
         type: 'array',
@@ -42,7 +42,7 @@ export const agentServeTool: ToolDefinition = {
   
   async execute(params: any, context: any) {
     const name = params.name || 'master';
-    const port = params.port || 3000;
+    const requestedPort = params.port || 0; // 0 = auto
     const allowedTools = params.allowed_tools || [];
     
     try {
@@ -61,20 +61,29 @@ export const agentServeTool: ToolDefinition = {
         mkdirSync(workspace, { recursive: true });
       }
       
+      // Determine actual port
+      let actualPort = requestedPort;
+      if (requestedPort === 0) {
+        // Auto-select from master range
+        const { findAvailablePortInRange } = await import('../utils/agent-utils.js');
+        actualPort = await findAvailablePortInRange('master');
+        log.debug(`Auto-selected master port: ${actualPort}`);
+      }
+      
       // Create agent config
       const config = {
         id: agentId,
         name,
-        port,
+        port: actualPort,
         workspace,
-        masterEndpoint: `http://localhost:${port}`, // Self as master
+        masterEndpoint: `http://localhost:${actualPort}`, // Self as master
         allowedTools,
       };
       
       const configPath = join(workspace, 'agent-config.json');
       writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
       
-      log.info(`Starting agent server: ${name} (${agentId}) on port ${port}`);
+      log.info(`Starting agent server: ${name} (${agentId}) on port ${actualPort}`);
       
       // Start server
       const server = await startAgentServer(config);
@@ -109,6 +118,7 @@ export const agentServeTool: ToolDefinition = {
           text: `✅ Now serving as agent "${name}" (ID: ${agentId})\n` +
                 `Endpoint: http://localhost:${server.port}\n` +
                 `Workspace: ${workspace}\n` +
+                `Port: ${server.port} (requested: ${requestedPort === 0 ? 'auto' : requestedPort})\n` +
                 `Allowed tools: ${allowedTools.length > 0 ? allowedTools.join(', ') : 'all'}\n\n` +
                 'Use agent_list to see registered agents.\n' +
                 'Use agent_spawn_local to spawn worker agents.\n' +
@@ -121,6 +131,8 @@ export const agentServeTool: ToolDefinition = {
           workspace,
           allowed_tools: allowedTools,
           config_path: configPath,
+          port: server.port,
+          requested_port: requestedPort,
         },
       };
       

@@ -6,6 +6,7 @@
 
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
+import { log } from '../utils/logger.js';
 
 export const agentResultTool: ToolDefinition = {
   name: 'agent_result',
@@ -24,6 +25,17 @@ export const agentResultTool: ToolDefinition = {
   
   async execute(params: any) {
     const taskId = params.task_id;
+    
+    if (!taskId || typeof taskId !== 'string') {
+      return {
+        content: [{
+          type: 'text',
+          text: '❌ Task ID is required and must be a string',
+        }],
+        details: { error: 'Task ID required' },
+        isError: true,
+      };
+    }
     
     try {
       const registry = new AgentRegistryManager();
@@ -92,7 +104,13 @@ export const agentResultTool: ToolDefinition = {
       // If we don't have result but agent is reachable, try to fetch it
       if (!task.result && agent?.endpoint) {
         try {
-          const response = await fetch(`${agent.endpoint}/task/${taskId}/result`);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const response = await fetch(`${agent.endpoint}/task/${taskId}/result`, {
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          
           if (response.ok) {
             const agentResult: any = await response.json();
             output += `\n**Fetched from agent:**\n`;

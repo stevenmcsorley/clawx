@@ -53,6 +53,17 @@ export const agentSpawnLocalTool: ToolDefinition = {
   
   async execute(params: any, context: any) {
     const name = params.name;
+    if (!name || typeof name !== 'string') {
+      return {
+        content: [{
+          type: 'text',
+          text: '❌ Agent name is required and must be a string',
+        }],
+        details: { error: 'Name required' },
+        isError: true,
+      };
+    }
+    
     const allowedTools = params.allowed_tools || [];
     const requestedPort = params.port || 0;
     
@@ -65,7 +76,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       
       const registry = new AgentRegistryManager();
       
-      // Get unique name
+      // Get unique name (only if needed)
       const finalName = getUniqueAgentName(name);
       if (finalName !== name) {
         log.warn(`Agent name "${name}" already exists, using "${finalName}" instead`);
@@ -74,21 +85,77 @@ export const agentSpawnLocalTool: ToolDefinition = {
       const agentId = uuidv4();
       const workspace = registry.ensureAgentWorkspace(agentId);
       
-      // Determine master endpoint
+      // Determine master endpoint - require explicit master or current instance
       let masterEndpoint = params.master_endpoint;
       if (!masterEndpoint && context._agentConfig) {
         // Use current instance as master
         masterEndpoint = `http://localhost:${context._agentConfig.port}`;
+        log.info(`Using current instance as master: ${masterEndpoint}`);
       } else if (!masterEndpoint) {
-        // Default fallback
-        masterEndpoint = 'http://localhost:3000';
+        // No master available - fail clearly
+        return {
+          content: [{
+            type: 'text',
+            text: '❌ No master endpoint available. Either:\n' +
+                  '1. Start a master first with agent_serve\n' +
+                  '2. Provide --master_endpoint parameter\n' +
+                  '3. Use agent_spawn_local from a master session',
+          }],
+          details: { error: 'No master endpoint' },
+          isError: true,
+        };
+      }
+      
+      // Verify master is reachable
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const healthResponse = await fetch(`${masterEndpoint}/health`, { 
+          signal: controller.signal 
+        });
+        clearTimeout(timeoutId);
+        if (!healthResponse.ok) {
+          return {
+            content: [{
+              type: 'text',
+              text: `❌ Master endpoint ${masterEndpoint} is not reachable or healthy.\n` +
+                    'Start a master with agent_serve first.',
+            }],
+            details: { error: 'Master unreachable', endpoint: masterEndpoint },
+            isError: true,
+          };
+        }
+      } catch (error) {
+        return {
+          content: [{
+            type: 'text',
+            text: `❌ Cannot connect to master endpoint ${masterEndpoint}\n` +
+                  `Error: ${error instanceof Error ? error.message : String(error)}\n` +
+                  'Start a master with agent_serve first.',
+          }],
+          details: { error: 'Master connection failed', endpoint: masterEndpoint },
+          isError: true,
+        };
       }
       
       // Find available port
       let actualPort = requestedPort;
       if (requestedPort === 0) {
-        actualPort = await findAvailablePort(30000, 100);
-        log.debug(`Found available port: ${actualPort}`);
+        // Auto-select from worker range
+        const { findAvailablePortInRange } = await import('../utils/agent-utils.js');
+        actualPort = await findAvailablePortInRange('worker');
+        log.debug(`Auto-selected worker port: ${actualPort}`);
+      }
+      
+      // Agents only support basic tools for now
+      const agentSupportedTools = ['search_files', 'git_status', 'git_diff', 'ssh_run'];
+      const effectiveAllowedTools = allowedTools.length > 0 
+        ? allowedTools.filter((tool: string) => agentSupportedTools.includes(tool))
+        : agentSupportedTools;
+      
+      if (allowedTools.length > 0 && effectiveAllowedTools.length !== allowedTools.length) {
+        const unsupported = allowedTools.filter((tool: string) => !agentSupportedTools.includes(tool));
+        log.warn(`Agent cannot support tools: ${unsupported.join(', ')}. Only supporting: ${agentSupportedTools.join(', ')}`);
       }
       
       // Create agent config
@@ -98,7 +165,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
         port: actualPort,
         workspace,
         masterEndpoint,
-        allowedTools,
+        allowedTools: effectiveAllowedTools,
       };
       
       const configPath = join(workspace, 'agent-config.json');

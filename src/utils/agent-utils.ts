@@ -56,6 +56,27 @@ export async function findAvailablePort(basePort: number, maxAttempts = 10): Pro
 }
 
 /**
+ * Get port range for agent type
+ */
+export function getPortRange(type: 'master' | 'worker'): { start: number, end: number } {
+  // Dedicated high internal range for Clawx agent networking
+  // master: 43100-43119, workers: 43120-43199
+  if (type === 'master') {
+    return { start: 43100, end: 43119 };
+  } else {
+    return { start: 43120, end: 43199 };
+  }
+}
+
+/**
+ * Find available port in appropriate range
+ */
+export async function findAvailablePortInRange(type: 'master' | 'worker'): Promise<number> {
+  const range = getPortRange(type);
+  return await findAvailablePort(range.start, range.end - range.start + 1);
+}
+
+/**
  * Clean up stale agents from registry
  * - Agents marked offline for more than cleanupThresholdMs
  * - Agents with no recent heartbeat

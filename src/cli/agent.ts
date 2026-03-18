@@ -89,14 +89,14 @@ async function serveAgent(options: any): Promise<void> {
   log.info(`Workspace: ${workspace}`);
   log.info(`Port: ${port === 0 ? 'auto' : port}`);
 
-  // Write agent config
+  // Write agent config - masterEndpoint will be updated after server starts
   const config = {
     id: agentId,
     name: agentName,
     port,
     workspace,
-    masterEndpoint: options.master || 'http://localhost:3000',
-    allowedTools: [], // Empty = all tools
+    masterEndpoint: options.master || '', // Will be set after server starts
+    allowedTools: options.allowedTools ? options.allowedTools.split(',') : [],
   };
 
   const configPath = join(workspace, 'agent-config.json');
@@ -108,8 +108,15 @@ async function serveAgent(options: any): Promise<void> {
   
   log.info(`Agent server started on port ${server.port}`);
   
-  // Auto-register with master if master endpoint provided
-  if (options.master && options.master !== 'http://localhost:3000') {
+  // Update config with actual endpoint
+  const actualEndpoint = `http://localhost:${server.port}`;
+  config.masterEndpoint = options.master || actualEndpoint;
+  
+  // Save updated config
+  writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+  
+  // Auto-register with master if master endpoint provided and different from self
+  if (options.master && options.master !== actualEndpoint) {
     try {
       const response = await fetch(`${options.master}/register`, {
         method: 'POST',

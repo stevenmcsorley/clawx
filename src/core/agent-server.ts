@@ -47,8 +47,10 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     try {
       // Get the appropriate tool
       let toolDefinition;
-      const cwd = config.workspace;
+      // Use current directory from context, or workspace as fallback
+      const cwd = context?.cwd || config.workspace;
       
+      // Basic tools that agents can execute
       switch (tool) {
         case 'search_files':
           toolDefinition = createSearchFilesTool(cwd);
@@ -64,7 +66,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
           toolDefinition = createSshRunTool({});
           break;
         default:
-          throw new Error(`Tool not supported by agent: ${tool}`);
+          throw new Error(`Tool not supported by agent: ${tool}. Agents only support: search_files, git_status, git_diff, ssh_run`);
       }
       
       // Execute the tool with timeout
