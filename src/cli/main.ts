@@ -38,6 +38,7 @@ import { startRepl } from "./repl.js";
 import { startTui } from "./tui.js";
 import { startScout } from "./scout.js";
 import { createForgeCommand } from "./forge.js";
+import { startForgeTUI } from "./forge-tui.js";
 import { VERSION, printBannerCompact } from "./banner.js";
 
 const program = new Command();
@@ -520,7 +521,36 @@ program
     console.log(`\n  Profile '${name}' removed.\n`);
   });
 
-// Add Forge command
-program.addCommand(createForgeCommand(loadConfig()));
+// Add new Forge TUI command
+program
+  .command("forge")
+  .description("Interactive capability builder (TUI mode)")
+  .option("-m, --model <model>", "Model to use (e.g., 'qwen2.5-coder:7b-instruct', 'deepseek-chat')")
+  .option("-p, --provider <provider>", "Provider: 'ollama', 'deepseek', 'openai', 'anthropic', 'groq', 'together'")
+  .option("--base-url <url>", "Custom API base URL")
+  .option("--api-key <key>", "API key (if required)")
+  .option("--max-tokens <number>", "Maximum tokens to generate", "16384")
+  .option("--thinking-level <level>", "Thinking level: 'off', 'fast', 'medium', 'long'", "off")
+  .option("--work-dir <path>", "Working directory for file operations", ".")
+  .action((options) => {
+    const config = loadConfig();
+    
+    // Override with command-line options
+    if (options.model) config.model = options.model;
+    if (options.provider) config.provider = options.provider;
+    if (options.baseUrl) config.baseUrl = options.baseUrl;
+    if (options.apiKey) config.apiKey = options.apiKey;
+    if (options.maxTokens) config.maxTokens = parseInt(options.maxTokens, 10);
+    if (options.thinkingLevel) config.thinkingLevel = options.thinkingLevel;
+    if (options.workDir) config.workDir = options.workDir;
+    
+    startForgeTUI(config);
+  });
+
+// Add old deterministic Forge command (temporary - will be removed)
+const oldForgeCommand = createForgeCommand(loadConfig());
+oldForgeCommand.name("forge-old");
+oldForgeCommand.description("[DEPRECATED] Old deterministic Forge CLI");
+program.addCommand(oldForgeCommand);
 
 program.parse();
