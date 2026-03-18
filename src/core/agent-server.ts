@@ -28,13 +28,21 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
   const server = createServer(app);
   const tasks = new Map<string, AgentTask>();
   
-  /** Execute a task with real tool */
+  /** Execute a task with real tool with timeout */
   async function executeTask(taskId: string, tool: string, params: any, context: any): Promise<void> {
     const task = tasks.get(taskId);
     if (!task) return;
     
     task.status = 'running';
     task.started = Date.now();
+    
+    // Set up timeout
+    const timeoutMs = 5 * 60 * 1000; // 5 minutes default timeout
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Task timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+    });
     
     try {
       // Get the appropriate tool
@@ -59,8 +67,11 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
           throw new Error(`Tool not supported by agent: ${tool}`);
       }
       
-      // Execute the tool
-      const result = await toolDefinition.execute(params, context);
+      // Execute the tool with timeout
+      const result = await Promise.race([
+        toolDefinition.execute(params, context),
+        timeoutPromise,
+      ]);
       
       // Update task with result
       task.status = 'completed';
@@ -71,7 +82,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       task.status = 'failed';
       task.completed = Date.now();
       task.error = error instanceof Error ? error.message : String(error);
-      throw error;
+      log.error(`Task ${taskId} failed:`, error);
     }
   }
   
@@ -82,6 +93,21 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       agentId: config.id,
       agentName: config.name,
       timestamp: Date.now(),
+    });
+  });
+  
+  // Heartbeat endpoint (for master to check worker health)
+  app.get('/heartbeat', (req: Request, res: Response) => {
+    res.json({
+      agentId: config.id,
+      agentName: config.name,
+      status: 'alive',
+      timestamp: Date.now(),
+      tasks: Array.from(tasks.values()).map(t => ({
+        id: t.id,
+        status: t.status,
+        tool: t.payload?.tool || 'unknown',
+      })),
     });
   });
   

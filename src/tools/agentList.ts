@@ -6,6 +6,8 @@
 
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
+import { checkAgentHealth } from '../utils/agent-utils.js';
+import { log } from '../utils/logger.js';
 
 export const agentListTool: ToolDefinition = {
   name: 'agent_list',
@@ -23,6 +25,11 @@ export const agentListTool: ToolDefinition = {
         type: 'number',
         description: 'Maximum tasks to show per agent',
         default: 5,
+      },
+      check_health: {
+        type: 'boolean',
+        description: 'Check agent health status',
+        default: true,
       },
     },
     required: [],

@@ -7,6 +7,13 @@
 import { ToolDefinition } from '../types/extension.js';
 import { log } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
+import { 
+  isDuplicateName, 
+  findAvailablePort, 
+  cleanupStaleAgents,
+  checkAgentHealth,
+  getUniqueAgentName 
+} from '../utils/agent-utils.js';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
 import { join } from 'path';
@@ -47,22 +54,21 @@ export const agentSpawnLocalTool: ToolDefinition = {
   async execute(params: any, context: any) {
     const name = params.name;
     const allowedTools = params.allowed_tools || [];
-    const port = params.port || 0;
+    const requestedPort = params.port || 0;
     
     try {
+      // Clean up stale agents first
+      const cleaned = cleanupStaleAgents();
+      if (cleaned > 0) {
+        log.info(`Cleaned up ${cleaned} stale agents`);
+      }
+      
       const registry = new AgentRegistryManager();
       
-      // Check if name already exists
-      const existing = registry.getAgentByName(name);
-      if (existing) {
-        return {
-          content: [{
-            type: 'text',
-            text: `❌ Agent with name "${name}" already exists (ID: ${existing.id})`,
-          }],
-          details: { error: 'Agent name already exists', existing_agent: existing },
-          isError: true,
-        };
+      // Get unique name
+      const finalName = getUniqueAgentName(name);
+      if (finalName !== name) {
+        log.warn(`Agent name "${name}" already exists, using "${finalName}" instead`);
       }
       
       const agentId = uuidv4();
@@ -78,11 +84,18 @@ export const agentSpawnLocalTool: ToolDefinition = {
         masterEndpoint = 'http://localhost:3000';
       }
       
+      // Find available port
+      let actualPort = requestedPort;
+      if (requestedPort === 0) {
+        actualPort = await findAvailablePort(30000, 100);
+        log.debug(`Found available port: ${actualPort}`);
+      }
+      
       // Create agent config
       const config = {
         id: agentId,
-        name,
-        port,
+        name: finalName,
+        port: actualPort,
         workspace,
         masterEndpoint,
         allowedTools,
@@ -91,7 +104,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       const configPath = join(workspace, 'agent-config.json');
       writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
       
-      log.info(`Spawning local agent: ${name} (${agentId})`);
+      log.info(`Spawning local agent: ${finalName} (${agentId}) on port ${actualPort}`);
       log.info(`Workspace: ${workspace}`);
       log.info(`Master: ${masterEndpoint}`);
       
@@ -101,11 +114,15 @@ export const agentSpawnLocalTool: ToolDefinition = {
       const args = [
         'agent', 'serve',
         '--id', agentId,
-        '--name', name,
-        '--port', port.toString(),
+        '--name', finalName,
+        '--port', actualPort.toString(),
         '--master', masterEndpoint,
         '--workspace', workspace,
       ];
+      
+      if (allowedTools.length > 0) {
+        args.push('--allowed-tools', allowedTools.join(','));
+      }
       
       log.info(`Spawning agent process...`);
       
@@ -126,35 +143,37 @@ export const agentSpawnLocalTool: ToolDefinition = {
       // Capture output
       agentProcess.stdout?.on('data', (data) => {
         processInfo.stdout += data.toString();
-        log.debug(`Agent ${name} stdout: ${data.toString().trim()}`);
+        log.debug(`Agent ${finalName} stdout: ${data.toString().trim()}`);
       });
       
       agentProcess.stderr?.on('data', (data) => {
         processInfo.stderr += data.toString();
-        log.debug(`Agent ${name} stderr: ${data.toString().trim()}`);
+        log.debug(`Agent ${finalName} stderr: ${data.toString().trim()}`);
       });
       
       // Handle process exit
-      agentProcess.on('exit', (code) => {
-        log.info(`Agent ${name} exited with code ${code}`);
+      agentProcess.on('exit', (code, signal) => {
+        log.info(`Agent ${finalName} exited - code: ${code}, signal: ${signal}`);
         // Mark as offline in registry
         const registry = new AgentRegistryManager();
         const agent = registry.getAgent(agentId);
         if (agent) {
           agent.status = 'offline';
+          agent.lastHeartbeat = Date.now();
           registry.upsertAgent(agent);
           registry.save();
+          log.info(`Marked agent ${finalName} as offline`);
         }
       });
       
       // Register agent as starting
       const agent = {
         id: agentId,
-        name,
+        name: finalName,
         type: 'local' as const,
-        status: 'working' as const,
+        status: 'starting' as const,
         capabilities: allowedTools.length > 0 ? allowedTools : ['all'],
-        endpoint: `http://localhost:${port}`,
+        endpoint: `http://localhost:${actualPort}`,
         workspace,
         created: Date.now(),
         lastHeartbeat: Date.now(),
@@ -164,22 +183,52 @@ export const agentSpawnLocalTool: ToolDefinition = {
       registry.upsertAgent(agent);
       registry.save();
       
-      // Wait a moment for agent to start
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait for agent to start and verify health
+      log.info(`Waiting for agent ${finalName} to start...`);
+      let isHealthy = false;
+      const maxWaitTime = 10000; // 10 seconds
+      const startTime = Date.now();
       
-      // Update agent status to idle (assuming it started successfully)
-      agent.status = 'idle';
-      registry.upsertAgent(agent);
+      while (Date.now() - startTime < maxWaitTime) {
+        try {
+          isHealthy = await checkAgentHealth(`http://localhost:${actualPort}`, 2000);
+          if (isHealthy) {
+            break;
+          }
+        } catch (error) {
+          // Agent not ready yet
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      if (!isHealthy) {
+        // Agent failed to start
+        agentProcess.kill('SIGTERM');
+        registry.removeAgent(agentId);
+        registry.save();
+        
+        throw new Error(`Agent failed to start within ${maxWaitTime}ms. Check logs for errors.`);
+      }
+      
+      // Update agent status to idle
+      const updatedAgent = {
+        ...agent,
+        status: 'idle' as const,
+        lastHeartbeat: Date.now(),
+      };
+      registry.upsertAgent(updatedAgent);
       registry.save();
       
-      const output = `✅ Agent "${name}" spawned (ID: ${agentId})\n\n` +
+      log.info(`Agent ${finalName} started successfully on http://localhost:${actualPort}`);
+      
+      const output = `✅ Agent "${finalName}" spawned (ID: ${agentId})\n\n` +
                     `**Details:**\n` +
                     `- ID: ${agentId}\n` +
-                    `- Name: ${name}\n` +
+                    `- Name: ${finalName}${finalName !== name ? ` (requested: "${name}")` : ''}\n` +
                     `- Type: local\n` +
                     `- Status: idle\n` +
                     `- PID: ${agentProcess.pid}\n` +
-                    `- Endpoint: http://localhost:${port}\n` +
+                    `- Endpoint: http://localhost:${actualPort}\n` +
                     `- Workspace: ${workspace}\n` +
                     `- Master endpoint: ${masterEndpoint}\n` +
                     `- Allowed tools: ${allowedTools.length > 0 ? allowedTools.join(', ') : 'all'}\n\n` +
@@ -190,13 +239,13 @@ export const agentSpawnLocalTool: ToolDefinition = {
         content: [{ type: 'text', text: output }],
         details: {
           agent_id: agentId,
-          agent_name: name,
+          agent_name: finalName,
           workspace,
           master_endpoint: masterEndpoint,
           allowed_tools: allowedTools,
           config_path: configPath,
           command: `${nodePath} ${scriptPath} ${args.join(' ')}`,
-          spawned: false, // TODO: Set to true when actually spawning
+          spawned: true,
         },
       };
       

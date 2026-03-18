@@ -16,7 +16,7 @@ export interface AgentIdentity {
   type: 'local' | 'remote' | 'self';
   
   /** Current status */
-  status: 'idle' | 'working' | 'offline' | 'error';
+  status: 'idle' | 'working' | 'offline' | 'error' | 'starting';
   
   /** Tools this agent can execute */
   capabilities: string[];
