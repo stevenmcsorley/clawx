@@ -30,7 +30,7 @@ export const agentCleanupTool: ToolDefinition = {
     required: [],
   },
   
-  async execute(params: any, context: any) {
+  async execute(toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, context?: any) {
     const force = params.force || false;
     const cleanupThresholdMinutes = params.cleanup_threshold_minutes || 5;
     

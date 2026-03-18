@@ -28,7 +28,7 @@ export const agentCleanupPortTool: ToolDefinition = {
     required: ['port'],
   },
   
-  async execute(params: any) {
+  async execute(toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, context?: any) {
     const port = params.port;
     const force = params.force === true;
     

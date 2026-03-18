@@ -23,7 +23,7 @@ export const agentResultTool: ToolDefinition = {
     required: ['task_id'],
   },
   
-  async execute(params: any) {
+  async execute(toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, context?: any) {
     const taskId = params.task_id;
     
     if (!taskId || typeof taskId !== 'string') {

@@ -41,14 +41,22 @@ export const agentServeTool: ToolDefinition = {
     required: [],
   },
   
-  async execute(params: any, context: any) {
+  async execute(toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, context?: any) {
+    log.debug('agent_serve toolCallId:', toolCallId);
     log.debug('agent_serve raw params:', params);
+    
+    // Handle case where params might be toolCallId
+    let actualParams = params;
+    if (typeof params === 'string' && params.startsWith('call_')) {
+      log.warn('Received toolCallId as params, using default params');
+      actualParams = {};
+    }
     
     // Normalize parameter names
     const normalizedParams = {
-      name: params.name || params.agent_name || 'master',
-      port: params.port || 0,
-      allowed_tools: params.allowed_tools || params.allowedTools || [],
+      name: actualParams.name || actualParams.agent_name || 'master',
+      port: actualParams.port || 0,
+      allowed_tools: actualParams.allowed_tools || actualParams.allowedTools || [],
     };
     
     log.debug('agent_serve normalized params:', normalizedParams);
@@ -122,6 +130,18 @@ export const agentServeTool: ToolDefinition = {
       
       // Register self in registry
       const registry = new AgentRegistryManager();
+      
+      // Remove any existing self agents to avoid duplicates
+      const existingAgents = registry.getAgents();
+      let removedCount = 0;
+      for (const agent of existingAgents) {
+        if (agent.type === 'self') {
+          registry.removeAgent(agent.id);
+          removedCount++;
+          log.debug(`Removed existing self agent: ${agent.name} (${agent.id})`);
+        }
+      }
+      
       const agentIdentity = {
         id: agentId,
         name,
@@ -136,6 +156,10 @@ export const agentServeTool: ToolDefinition = {
       
       registry.upsertAgent(agentIdentity);
       registry.save();
+      
+      if (removedCount > 0) {
+        log.info(`Replaced ${removedCount} existing self agent(s)`);
+      }
       
       // The agent server already has /register-worker endpoint
       // No need to add custom endpoint

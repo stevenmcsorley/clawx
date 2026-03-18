@@ -35,7 +35,7 @@ export const agentListTool: ToolDefinition = {
     required: [],
   },
   
-  async execute(params: any) {
+  async execute(toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, context?: any) {
     const showTasks = params.show_tasks || false;
     const maxTasks = params.max_tasks || 5;
     

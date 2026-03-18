@@ -234,24 +234,61 @@ async function spawnLocalAgent(name: string): Promise<void> {
   log.info(`Spawning local agent: ${name} (${agentId})`);
   log.info(`Command: ${cmd} ${script} ${args.join(' ')}`);
   
-  // TODO: Actually spawn process
-  // For now, just register placeholder
-  const agent = {
-    id: agentId,
-    name,
-    type: 'local' as const,
-    status: 'offline' as const,
-    capabilities: [],
-    workspace,
-    created: Date.now(),
-  };
-  
-  registry.upsertAgent(agent);
-  registry.save();
-  
-  console.log(`Agent "${name}" registered (ID: ${agentId})`);
-  console.log(`Workspace: ${workspace}`);
-  console.log('\nNote: Process spawning not implemented in v1.');
-  console.log('To start agent manually:');
-  console.log(`  ${cmd} ${script} agent serve --id ${agentId} --name ${name}`);
+  try {
+    // Actually spawn the process
+    const { spawn } = await import('child_process');
+    const agentProcess = spawn(cmd, [script, ...args], {
+      cwd: workspace,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
+    });
+    
+    // Store process info
+    let stdout = '';
+    let stderr = '';
+    
+    agentProcess.stdout?.on('data', (data) => {
+      stdout += data.toString();
+      log.debug(`Agent ${name} stdout:`, data.toString().trim());
+    });
+    
+    agentProcess.stderr?.on('data', (data) => {
+      stderr += data.toString();
+      log.debug(`Agent ${name} stderr:`, data.toString().trim());
+    });
+    
+    agentProcess.on('error', (error) => {
+      log.error(`Failed to spawn agent ${name}:`, error);
+    });
+    
+    agentProcess.on('exit', (code, signal) => {
+      log.info(`Agent ${name} exited with code ${code}, signal ${signal}`);
+    });
+    
+    // Unref to allow parent to exit independently
+    agentProcess.unref();
+    
+    // Register agent in registry
+    const agent = {
+      id: agentId,
+      name,
+      type: 'local' as const,
+      status: 'starting' as const,
+      capabilities: [],
+      workspace,
+      created: Date.now(),
+      pid: agentProcess.pid,
+    };
+    
+    registry.upsertAgent(agent);
+    registry.save();
+    
+    console.log(`✅ Agent "${name}" spawned (ID: ${agentId}, PID: ${agentProcess.pid})`);
+    console.log(`Workspace: ${workspace}`);
+    console.log(`Process detached - will continue running after CLI exits`);
+    
+  } catch (error) {
+    log.error(`Failed to spawn agent ${name}:`, error);
+    process.exit(1);
+  }
 }

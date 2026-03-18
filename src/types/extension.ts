@@ -69,7 +69,7 @@ export interface ToolDefinition {
   label: string;
   description: string;
   parameters: any;
-  execute: (params: any, ctx?: any) => Promise<any>;
+  execute: (toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, ctx?: any) => Promise<any>;
 }
 
 /**

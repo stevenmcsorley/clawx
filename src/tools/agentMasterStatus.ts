@@ -26,7 +26,7 @@ export const agentMasterStatusTool: ToolDefinition = {
     required: [],
   },
   
-  async execute(params: any, context: any) {
+  async execute(toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, context?: any) {
     const checkHealth = params.check_health !== false;
     
     try {

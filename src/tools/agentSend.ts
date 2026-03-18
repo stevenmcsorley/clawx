@@ -38,7 +38,7 @@ export const agentSendTool: ToolDefinition = {
     required: ['tool'],
   },
   
-  async execute(params: any, context: any) {
+  async execute(toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, context?: any) {
     const agentId = params.agent_id;
     const agentName = params.agent_name;
     const tool = params.tool;

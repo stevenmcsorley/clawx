@@ -52,15 +52,23 @@ export const agentSpawnLocalTool: ToolDefinition = {
     required: ['name'],
   },
   
-  async execute(params: any, context: any) {
+  async execute(toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, context?: any) {
+    log.debug('agent_spawn_local toolCallId:', toolCallId);
     log.debug('agent_spawn_local raw params:', params);
+    
+    // Handle case where params might be toolCallId (legacy issue)
+    let actualParams = params;
+    if (typeof params === 'string' && params.startsWith('call_')) {
+      log.warn('Received toolCallId as params, using empty params');
+      actualParams = {};
+    }
     
     // Normalize parameter names (handle both snake_case and camelCase)
     const normalizedParams = {
-      name: params.name || params.agent_name,
-      allowed_tools: params.allowed_tools || params.allowedTools || [],
-      port: params.port || 0,
-      master_endpoint: params.master_endpoint || params.masterEndpoint || '',
+      name: actualParams.name || actualParams.agent_name,
+      allowed_tools: actualParams.allowed_tools || actualParams.allowedTools || [],
+      port: actualParams.port || 0,
+      master_endpoint: actualParams.master_endpoint || actualParams.masterEndpoint || '',
     };
     
     log.debug('agent_spawn_local normalized params:', normalizedParams);
@@ -68,7 +76,8 @@ export const agentSpawnLocalTool: ToolDefinition = {
     const name = normalizedParams.name;
     if (!name || typeof name !== 'string') {
       log.debug('name validation failed:', { 
-        rawParams: params, 
+        toolCallId,
+        rawParams: actualParams, 
         normalizedParams,
         name, 
         type: typeof name 
@@ -77,10 +86,11 @@ export const agentSpawnLocalTool: ToolDefinition = {
         content: [{
           type: 'text',
           text: '❌ Agent name is required and must be a string\n' +
-                `Received: ${JSON.stringify(params)}\n` +
+                `ToolCallId: ${toolCallId}\n` +
+                `Received params: ${JSON.stringify(actualParams)}\n` +
                 `Normalized: ${JSON.stringify(normalizedParams)}`,
         }],
-        details: { error: 'Name required', rawParams: params, normalizedParams },
+        details: { error: 'Name required', toolCallId, rawParams: actualParams, normalizedParams },
         isError: true,
       };
     }
