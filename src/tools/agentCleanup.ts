@@ -14,16 +14,20 @@ export const agentCleanupTool: ToolDefinition = {
   label: 'Clean Up Agents',
   description: 'Clean up stale/dead agents and tasks',
   parameters: {
-    force: {
-      type: 'boolean',
-      description: 'Force cleanup without confirmation',
-      default: false,
+    type: 'object',
+    properties: {
+      force: {
+        type: 'boolean',
+        description: 'Force cleanup without confirmation',
+        default: false,
+      },
+      cleanup_threshold_minutes: {
+        type: 'number',
+        description: 'Cleanup threshold in minutes',
+        default: 5,
+      },
     },
-    cleanup_threshold_minutes: {
-      type: 'number',
-      description: 'Cleanup threshold in minutes',
-      default: 5,
-    },
+    required: [],
   },
   
   async execute(params: any, context: any) {
