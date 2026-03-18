@@ -17,6 +17,7 @@ import { createSshRunTool } from '../tools/sshRun.js';
 
 export interface AgentServer {
   port: number;
+  app: express.Application;
   close: () => void;
 }
 
@@ -84,7 +85,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     });
   });
   
-  // Register with master
+  // Register with master (for agents)
   app.post('/register', async (req: Request, res: Response) => {
     try {
       const { masterEndpoint } = req.body;
@@ -100,6 +101,25 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     } catch (error) {
       log.error('Registration failed:', error);
       res.status(500).json({ error: 'Registration failed' });
+    }
+  });
+  
+  // Accept registration from workers (for masters)
+  app.post('/register-worker', async (req: Request, res: Response) => {
+    try {
+      const { agentId, agentName, endpoint, capabilities } = req.body;
+      
+      if (!agentId || !agentName || !endpoint) {
+        return res.status(400).json({ error: 'agentId, agentName, and endpoint required' });
+      }
+      
+      // In a real implementation, this would update a registry
+      log.info(`Worker registered: ${agentName} (${agentId}) at ${endpoint}`);
+      
+      res.json({ success: true, registered: true });
+    } catch (error) {
+      log.error('Worker registration failed:', error);
+      res.status(500).json({ error: 'Worker registration failed' });
     }
   });
   
@@ -245,6 +265,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
       resolve({
         port: actualPort,
+        app,
         close: () => {
           server.close();
           log.info('Agent server stopped');

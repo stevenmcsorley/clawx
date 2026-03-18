@@ -165,21 +165,26 @@ export const agentSpawnLocalTool: ToolDefinition = {
       registry.save();
       
       // Wait a moment for agent to start
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Update agent status to idle (assuming it started successfully)
+      agent.status = 'idle';
+      registry.upsertAgent(agent);
+      registry.save();
       
       const output = `✅ Agent "${name}" spawned (ID: ${agentId})\n\n` +
                     `**Details:**\n` +
                     `- ID: ${agentId}\n` +
                     `- Name: ${name}\n` +
                     `- Type: local\n` +
-                    `- Status: starting\n` +
+                    `- Status: idle\n` +
                     `- PID: ${agentProcess.pid}\n` +
                     `- Endpoint: http://localhost:${port}\n` +
                     `- Workspace: ${workspace}\n` +
                     `- Master endpoint: ${masterEndpoint}\n` +
                     `- Allowed tools: ${allowedTools.length > 0 ? allowedTools.join(', ') : 'all'}\n\n` +
-                    `Agent process started. It will register itself when ready.\n` +
-                    `Use \`agent_list\` to check status.`;
+                    `Agent process started and ready to receive tasks.\n` +
+                    `Use \`agent_send\` to send tasks to this agent.`;
       
       return {
         content: [{ type: 'text', text: output }],
