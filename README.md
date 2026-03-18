@@ -83,6 +83,9 @@ clawx --basic
 
 # Continue last session
 clawx continue
+
+# Build Clawx extensions with Forge
+clawx forge "Build a sentiment analysis tool for product reviews"
 ```
 
 ## Model setup
@@ -699,63 +702,58 @@ Ask it to create a Modelfile and it does the rest — inspects the model's GGUF 
 
 Scout uses the same model/provider flags as the main TUI. You can run it with a local model (`-m qwen2.5-coder:7b-instruct -p ollama`) or a cloud API (`-p deepseek`). The text tool parser works in scout mode too, so models that output tool calls as text (like Qwen) will still work.
 
-### Forge v1 — discover and scaffold new capabilities
+### Forge — build real Clawx extensions
 
-Forge explores models and datasets on Hugging Face and turns them into scaffoldable opportunities. Unlike Scout (which finds models to run Clawx itself), Forge discovers buildable opportunities from the Hugging Face ecosystem and scaffolds starter projects.
+Forge builds real, loadable Clawx tool extensions using Hugging Face models or plain code. It creates complete extension packages that can be enabled and used immediately in Clawx sessions.
 
 **What it does:**
-- Searches HF Hub for models and datasets
-- Creates ranked opportunities with simple scoring (usefulness, novelty, feasibility, fit)
-- Stores discovered opportunities for later reference
-- Scaffolds starter projects as either Clawx tools or standalone apps
+- Searches HF Hub for practical models (< 100MB recommended)
+- Creates real Clawx extensions in `~/.clawx/extensions/<name>/`
+- Generates: capability.json, tool.ts, package.json, README.md
+- Follows strict Clawx extension contract
+- Chooses appropriate implementation (plain code, small HF model, current model, or scaffold)
 
-**What it does not do:**
-- Auto-load generated tools into Clawx sessions (scaffolding only)
-- Run model inference (creates starter code only)
-- Build pipelines or multi-step workflows
-- Provide community features or sharing
+**Global rules enforced:**
+1. Exactly one extension per request
+2. Only writes to `~/.clawx/extensions/<name>/` (never current directory)
+3. Prefers smallest practical implementation
+4. No silent faking of HF/model use
+5. Honest about capabilities and limitations
+6. Builds first-time ready (`npm install && npm run build` works)
 
-**Commands:**
-
+**Usage:**
 ```bash
-# Search HF Hub for models and datasets
-clawx forge discover "medical text classification"
+# Build a text formatting extension (plain code)
+clawx forge "Build a tool to capitalize sentences"
 
-# List discovered opportunities
-clawx forge list
+# Build a sentiment analysis extension (small HF model)
+clawx forge "Build a sentiment analysis tool for product reviews"
 
-# Show details for a specific opportunity
-clawx forge info opp_x1r9v7
-
-# Scaffold an opportunity into a starter project
-clawx forge scaffold opp_x1r9v7 --type tool --name medical-classifier
-clawx forge scaffold opp_x1r9v7 --type app --name medical-classifier-app
+# Build a creative suggestion tool (uses current Clawx model)
+clawx forge "Build a tool to suggest product improvements from reviews"
 ```
 
-**Example flow:**
-
+**After building:**
 ```bash
-# Discover opportunities for medical text classification
-clawx forge discover "medical text classification"
+# Build the extension
+cd ~/.clawx/extensions/<extension-name>/
+npm install
+npm run build
 
-# List the top opportunities
-clawx forge list
+# Enable it
+# Edit capability.json and set "enabled": true
 
-# Get details on a specific opportunity
-clawx forge info opp_x1r9v7
-
-# Scaffold it as a Clawx tool
-clawx forge scaffold opp_x1r9v7 --type tool --name medical-classifier
-
-# Or scaffold as a standalone Python app
-clawx forge scaffold opp_x1r9v7 --type app --name medical-classifier-app
+# Restart Clawx
+# The tool will be available in your next session
 ```
 
-Scaffolded projects include:
-- **Tools**: TypeScript projects with README, manifest, implementation, and dependencies
-- **Apps**: Python projects with README, app code, configuration, requirements, and examples
+**Implementation choices:**
+- **Plain code**: For deterministic tasks (regex, algorithms, < 1MB)
+- **Small HF model**: For practical ML tasks (< 100MB, runs on CPU)
+- **Current Clawx model**: For creative/reasoning tasks
+- **Scaffold only**: For impractical requests (> 500MB, GPU, complex setup)
 
-Forge v1 creates starter projects only — you build and integrate them manually.
+Forge creates honest, practical extensions that do what they claim and build successfully.
 
 ### Basic REPL commands
 
@@ -781,6 +779,12 @@ Forge v1 creates starter projects only — you build and integrate them manually
 | `git_status` | Clawx | Git repository status |
 | `git_diff` | Clawx | Git file differences |
 | `ssh_run` | Clawx | Execute commands on SSH targets |
+| `hf_search` | Clawx (Forge) | Search HuggingFace for models |
+| `hf_model_info` | Clawx (Forge) | Get model details (size, requirements) |
+| `hf_readme` | Clawx (Forge) | Read model documentation |
+| `hf_dataset_search` | Clawx (Forge) | Search HuggingFace for datasets |
+| `forge_write_capability` | Clawx (Forge) | Create real Clawx extensions |
+| `forge_list_capabilities` | Clawx (Forge) | List existing extensions |
 
 ## Architecture
 
@@ -801,6 +805,7 @@ src/
     session.ts     JSON-file session persistence
     streaming.ts   Terminal output renderer
     text-tool-parser.ts  Text-based tool call parser (Qwen, etc.)
+    extension-loader.ts  Loads and manages Clawx extensions
   extensions/
     chat-mode.ts   TUI extension: /chat toggle, auto-detection, prompt swap
   tools/
