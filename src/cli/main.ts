@@ -37,6 +37,7 @@ import { log } from "../utils/logger.js";
 import { startRepl } from "./repl.js";
 import { startTui } from "./tui.js";
 import { startScout } from "./scout.js";
+import { createForgeCommand } from "./forge.js";
 import { VERSION, printBannerCompact } from "./banner.js";
 
 const program = new Command();
@@ -518,5 +519,8 @@ program
     }
     console.log(`\n  Profile '${name}' removed.\n`);
   });
+
+// Add Forge command
+program.addCommand(createForgeCommand(loadConfig()));
 
 program.parse();

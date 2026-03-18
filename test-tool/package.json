@@ -1,0 +1,16 @@
+{
+  "name": "test-tool",
+  "version": "0.1.0",
+  "description": "Clawx tool: test-tool",
+  "main": "tool.js",
+  "scripts": {
+    "build": "tsc tool.ts --outDir . --module commonjs --target es2020",
+    "test": "echo 'No tests yet'"
+  },
+  "dependencies": {
+    "@mariozechner/pi-agent-core": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "sshTargets": {
+    "pi": {
+      "host": "192.168.1.198",
+      "username": "dev",
+      "privateKeyPath": "~/.ssh/id_ed25519"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "@halfagiraf/clawx",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint",
   "type": "module",
   "bin": {
@@ -55,6 +55,7 @@
     "@mariozechner/pi-ai": "^0.58.0",
     "@mariozechner/pi-coding-agent": "^0.58.0",
     "@sinclair/typebox": "^0.34.0",
+    "@swc/core": "^1.15.18",
     "chalk": "^5.4.0",
     "commander": "^13.0.0",
     "dotenv": "^16.4.0",

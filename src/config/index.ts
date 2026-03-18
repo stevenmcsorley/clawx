@@ -26,6 +26,7 @@ const DEFAULTS: ClawxConfig = {
     "sessions",
   ),
   sshTargets: {},
+  huggingfaceToken: process.env.HUGGINGFACE_TOKEN || "",
 };
 
 function parseSshTargets(raw: string): Record<string, SshTarget> {
@@ -178,6 +179,12 @@ export function loadConfig(overrides?: Partial<ClawxConfig>): ClawxConfig {
         ? parseSshTargets(env.CLAWDEX_SSH_TARGETS)
         : jsonConfig.sshTargets || DEFAULTS.sshTargets),
     systemPrompt: overrides?.systemPrompt || jsonConfig.systemPrompt,
+    huggingfaceToken:
+      overrides?.huggingfaceToken ||
+      env.HUGGINGFACE_TOKEN ||
+      env.HUGGING_FACE_HUB_TOKEN ||
+      jsonConfig.huggingfaceToken ||
+      DEFAULTS.huggingfaceToken,
   };
 
   return config;

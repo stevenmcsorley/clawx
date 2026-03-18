@@ -699,6 +699,64 @@ Ask it to create a Modelfile and it does the rest — inspects the model's GGUF 
 
 Scout uses the same model/provider flags as the main TUI. You can run it with a local model (`-m qwen2.5-coder:7b-instruct -p ollama`) or a cloud API (`-p deepseek`). The text tool parser works in scout mode too, so models that output tool calls as text (like Qwen) will still work.
 
+### Forge v1 — discover and scaffold new capabilities
+
+Forge explores models and datasets on Hugging Face and turns them into scaffoldable opportunities. Unlike Scout (which finds models to run Clawx itself), Forge discovers buildable opportunities from the Hugging Face ecosystem and scaffolds starter projects.
+
+**What it does:**
+- Searches HF Hub for models and datasets
+- Creates ranked opportunities with simple scoring (usefulness, novelty, feasibility, fit)
+- Stores discovered opportunities for later reference
+- Scaffolds starter projects as either Clawx tools or standalone apps
+
+**What it does not do:**
+- Auto-load generated tools into Clawx sessions (scaffolding only)
+- Run model inference (creates starter code only)
+- Build pipelines or multi-step workflows
+- Provide community features or sharing
+
+**Commands:**
+
+```bash
+# Search HF Hub for models and datasets
+clawx forge discover "medical text classification"
+
+# List discovered opportunities
+clawx forge list
+
+# Show details for a specific opportunity
+clawx forge info opp_x1r9v7
+
+# Scaffold an opportunity into a starter project
+clawx forge scaffold opp_x1r9v7 --type tool --name medical-classifier
+clawx forge scaffold opp_x1r9v7 --type app --name medical-classifier-app
+```
+
+**Example flow:**
+
+```bash
+# Discover opportunities for medical text classification
+clawx forge discover "medical text classification"
+
+# List the top opportunities
+clawx forge list
+
+# Get details on a specific opportunity
+clawx forge info opp_x1r9v7
+
+# Scaffold it as a Clawx tool
+clawx forge scaffold opp_x1r9v7 --type tool --name medical-classifier
+
+# Or scaffold as a standalone Python app
+clawx forge scaffold opp_x1r9v7 --type app --name medical-classifier-app
+```
+
+Scaffolded projects include:
+- **Tools**: TypeScript projects with README, manifest, implementation, and dependencies
+- **Apps**: Python projects with README, app code, configuration, requirements, and examples
+
+Forge v1 creates starter projects only — you build and integrate them manually.
+
 ### Basic REPL commands
 
 ```

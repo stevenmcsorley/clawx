@@ -1,0 +1,21 @@
+{
+  "name": "test-tool",
+  "label": "test-tool",
+  "description": "Use beto-sentiment-analysis to text-classification on NLU-Sentiment-Analysis text data",
+  "parameters": {
+    "input": {
+      "type": "string",
+      "description": "Input text to process"
+    }
+  },
+  "implementation": {
+    "type": "custom",
+    "file": "./tool.js"
+  },
+  "metadata": {
+    "model": "finiteautomata/beto-sentiment-analysis",
+    "task": "text-classification",
+    "generatedBy": "clawx-forge",
+    "generatedAt": "2026-03-18T00:29:46.643Z"
+  }
+}

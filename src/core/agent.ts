@@ -43,6 +43,7 @@ import { createSshRunTool } from "../tools/sshRun.js";
 import { createGitStatusTool } from "../tools/gitStatus.js";
 import { createGitDiffTool } from "../tools/gitDiff.js";
 import { createSearchFilesTool } from "../tools/searchFiles.js";
+// Forge tools loading removed for v1 - scaffolding creates files, doesn't load them
 import { createToolParsingStreamFn } from "./text-tool-parser.js";
 import { log } from "../utils/logger.js";
 
@@ -92,7 +93,7 @@ export class ToolsNotSupportedError extends Error {
  * We discard ALL of that. Our tools are the pi-coding-agent defaults plus
  * our custom SSH/git/search tools. No policies, no sandboxing, no restrictions.
  */
-function createTools(config: ClawxConfig): AgentTool<any>[] {
+async function createTools(config: ClawxConfig): Promise<AgentTool<any>[]> {
   const cwd = config.workDir;
 
   // pi-coding-agent's built-in coding tools: read, write, edit, bash (exec)
@@ -116,6 +117,8 @@ function createTools(config: ClawxConfig): AgentTool<any>[] {
     customTools.push(createSshRunTool(config.sshTargets));
   }
 
+  // Forge v1: Scaffolding creates starter projects only
+  // No runtime tool loading in this version
   return [...builtinTools, ...customTools];
 }
 
@@ -135,7 +138,7 @@ export async function runAgent(
   options: AgentRunOptions,
 ): Promise<AgentRunResult> {
   const model = resolveModel(config);
-  const tools = options.noTools ? [] : createTools(config);
+  const tools = options.noTools ? [] : await createTools(config);
   const systemPrompt = options.noTools ? buildChatPrompt(config) : buildSystemPrompt(config);
 
   log.info(`Tools: ${tools.length > 0 ? tools.map((t) => t.name).join(", ") : "(none — chat mode)"}`);
