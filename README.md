@@ -755,6 +755,70 @@ npm run build
 
 Forge creates honest, practical extensions that do what they claim and build successfully.
 
+### Multi-agent loop — hardened local worker pool
+
+Clawx includes a hardened local multi-agent system for parallel task execution. The loop is designed to be boring and reliable — failures are handled predictably, operators get clear feedback, and the core remains stable.
+
+**Key hardening features:**
+- ✅ **Duplicate name handling** — auto-renames workers (`worker` → `worker-1` → `worker-2`)
+- ✅ **Port collision avoidance** — scans 30000-30099 for available ports
+- ✅ **Stale agent cleanup** — removes offline agents (>5min) and old tasks (>24h)
+- ✅ **Dead worker detection** — health checks with clear visual indicators
+- ✅ **Task timeout/cancellation** — 5min default timeout, `/task/:id/cancel` endpoint
+- ✅ **Clear lifecycle states** — `starting` → `idle` → `working` → `offline`
+- ✅ **Better operator feedback** — health status (✅/❌), actionable suggestions
+
+**Agent tools:**
+```bash
+# List all agents with health checks
+clawx agent_list
+
+# Spawn a local worker agent
+clawx agent_spawn_local --name worker --allowed_tools search_files,git_status
+
+# Send a task to an idle agent
+clawx agent_send --agent_id <id> --tool search_files --pattern "TODO"
+
+# Check task result
+clawx agent_result --task_id <id>
+
+# Clean up stale/dead agents
+clawx agent_cleanup --force true
+
+# Serve as a master agent (accept tasks from workers)
+clawx agent_serve --name master --port 3000
+```
+
+**Lifecycle flow:**
+```
+starting → idle → working → idle → offline
+     ↑         │         │         │
+     └─────────┴─────────┴─────────┘
+     Health check   Task   Process
+       passed     complete  exit
+```
+
+**Failure handling:**
+- Duplicate names → auto-renamed
+- Port collisions → findAvailablePort() scans range
+- Agent startup failures → 10s health check timeout
+- Stale registry entries → cleanupStaleAgents()
+- Dead workers → health detection in agent_list
+- Task timeouts → 5min default
+- Process crashes → marked offline in registry
+
+**Honest limitations (still local-only):**
+- ❌ Automatic periodic cleanup (manual via `agent_cleanup`)
+- ❌ Graceful shutdown coordination
+- ❌ Resource usage limits
+- ❌ Task retry logic
+- ❌ Load balancing between workers
+- ❌ Persistent task queue
+- ❌ Remote SSH deploy (next phase)
+- ❌ Authentication/authorization
+
+The local multi-agent loop is now robust enough to be boring — it just works, failures are handled predictably, and operators have the tools to manage the lifecycle.
+
 ### Basic REPL commands
 
 ```
