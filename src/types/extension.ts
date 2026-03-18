@@ -55,13 +55,21 @@ export interface LoadedExtension {
 
 /**
  * Tool definition matching pi-coding-agent's expected shape
+ * 
+ * Note: pi-coding-agent expects:
+ * execute(toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, ctx?: any): Promise<any>
+ * 
+ * But for simplicity in extensions, we allow:
+ * execute(params: any, ctx?: any): Promise<any>
+ * 
+ * The extension loader wraps extension tools to match the full signature.
  */
 export interface ToolDefinition {
   name: string;
   label: string;
   description: string;
   parameters: any;
-  execute: (params: any) => Promise<any>;
+  execute: (params: any, ctx?: any) => Promise<any>;
 }
 
 /**

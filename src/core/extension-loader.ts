@@ -101,17 +101,69 @@ async function loadTool(extensionDir: string, manifest: ExtensionManifest): Prom
       throw new ExtensionError('Module must export default tool definition', manifest.name);
     }
     
-    const tool = module.default as ToolDefinition;
+    const rawTool = module.default as any;
     
     // Validate tool shape
-    if (!tool.name || !tool.execute || typeof tool.execute !== 'function') {
+    if (!rawTool.name || !rawTool.execute || typeof rawTool.execute !== 'function') {
       throw new ExtensionError('Invalid tool definition (missing name or execute)', manifest.name);
     }
     
     // Ensure tool name matches manifest
-    if (tool.name !== manifest.tool.name) {
-      log.warn(`Tool name mismatch: manifest=${manifest.tool.name}, export=${tool.name}. Using export name.`);
+    if (rawTool.name !== manifest.tool.name) {
+      log.warn(`Tool name mismatch: manifest=${manifest.tool.name}, export=${rawTool.name}. Using export name.`);
     }
+    
+    // Wrap the tool to match pi-coding-agent's ToolDefinition contract
+    const tool: ToolDefinition = {
+      name: rawTool.name,
+      label: rawTool.label || manifest.tool.label,
+      description: rawTool.description || manifest.tool.description,
+      parameters: rawTool.parameters || manifest.tool.parameters,
+      
+      // Wrap execute to match pi-coding-agent's signature:
+      // execute(toolCallId, params, signal, onUpdate, ctx) → Promise<AgentToolResult>
+      async execute(
+        toolCallId: string,
+        params: any,
+        signal?: AbortSignal,
+        onUpdate?: any,
+        ctx?: any
+      ): Promise<any> {
+        try {
+          // Call the extension's execute function
+          const result = await rawTool.execute(params, ctx);
+          
+          // Convert result to AgentToolResult format
+          // If result already has content array, assume it's already AgentToolResult
+          if (result && Array.isArray(result.content)) {
+            return result;
+          }
+          
+          // Otherwise wrap plain result in AgentToolResult
+          return {
+            content: [
+              {
+                type: 'text',
+                text: typeof result === 'string' ? result : JSON.stringify(result, null, 2)
+              }
+            ],
+            details: result
+          };
+        } catch (error) {
+          // Return error as AgentToolResult
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error: ${error instanceof Error ? error.message : String(error)}`
+              }
+            ],
+            details: { error: error instanceof Error ? error.message : String(error) },
+            isError: true
+          };
+        }
+      }
+    };
     
     return tool;
   } catch (error) {
