@@ -78,6 +78,15 @@ export const agentListTool: ToolDefinition = {
           output += `- **Capabilities**: all\n`;
         }
         
+        if (agent.platform) {
+          output += `- **Platform**: ${agent.platform}\n`;
+        }
+        
+        if (agent.platformCapabilities?.search) {
+          const search = agent.platformCapabilities.search;
+          output += `- **Search**: ${search.recommendedTool} (grep: ${search.hasGrep ? '✓' : '✗'}, rg: ${search.hasRipgrep ? '✓' : '✗'})\n`;
+        }
+        
         if (showTasks) {
           const tasks = registry.getAgentTasks(agent.id);
           const recentTasks = tasks

@@ -98,7 +98,40 @@ export function getPortRange(type: 'master' | 'worker'): { start: number, end: n
  */
 export async function findAvailablePortInRange(type: 'master' | 'worker'): Promise<number> {
   const range = getPortRange(type);
-  return await findAvailablePort(range.start, range.end - range.start + 1);
+  const maxAttempts = range.end - range.start + 1;
+  
+  // First, check registry for already allocated ports
+  const registry = new AgentRegistryManager();
+  const agents = registry.getAgents();
+  const usedPorts = new Set<number>();
+  
+  for (const agent of agents) {
+    if (agent.endpoint) {
+      const match = agent.endpoint.match(/:(\d+)/);
+      if (match) {
+        usedPorts.add(parseInt(match[1], 10));
+      }
+    }
+  }
+  
+  // Try to find an available port
+  for (let i = 0; i < maxAttempts; i++) {
+    const port = range.start + i;
+    
+    // Skip if already used by registered agents
+    if (usedPorts.has(port)) {
+      continue;
+    }
+    
+    // Check if port is actually available
+    const isAvailable = await isPortInUse(port);
+    if (!isAvailable) {
+      return port;
+    }
+  }
+  
+  // If no port found in range, try any available port
+  throw new Error(`No available ports found in ${type} range ${range.start}-${range.end}`);
 }
 
 /**

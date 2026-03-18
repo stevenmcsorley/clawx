@@ -35,6 +35,19 @@ export interface AgentIdentity {
   
   /** Last heartbeat timestamp */
   lastHeartbeat?: number;
+  
+  /** Platform (win32, darwin, linux) */
+  platform?: string;
+  
+  /** Platform-specific capabilities */
+  platformCapabilities?: {
+    /** Search tool availability */
+    search?: {
+      hasGrep: boolean;
+      hasRipgrep: boolean;
+      recommendedTool: 'grep' | 'ripgrep' | 'node';
+    };
+  };
 }
 
 export interface AgentTask {

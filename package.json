@@ -1,6 +1,6 @@
 {
   "name": "@halfagiraf/clawx",
-  "version": "0.2.26",
+  "version": "0.2.27",
   "description": "Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint",
   "type": "module",
   "bin": {

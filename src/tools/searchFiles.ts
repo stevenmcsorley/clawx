@@ -10,10 +10,12 @@
 
 import { Type, type Static } from "@sinclair/typebox";
 import type { AgentTool, AgentToolResult } from "@mariozechner/pi-agent-core";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
+import { 
+  getPlatformSearchCapabilities, 
+  executeRipgrep, 
+  executeGrep,
+  searchFilesNode 
+} from "../utils/search-utils.js";
 
 const SearchFilesSchema = Type.Object({
   pattern: Type.String({ description: "Search pattern (regex supported)" }),
@@ -37,7 +39,7 @@ export function createSearchFilesTool(
     name: "search_files",
     label: "Search Files",
     description:
-      "Search file contents for a pattern. Uses grep/ripgrep for fast regex search across files.",
+      "Search file contents for a pattern. Uses ripgrep/grep if available, falls back to Node.js search.",
     parameters: SearchFilesSchema,
     async execute(
       _toolCallId: string,
@@ -45,74 +47,60 @@ export function createSearchFilesTool(
     ): Promise<AgentToolResult<unknown>> {
       const cwd = params.path || defaultCwd;
       const maxResults = params.maxResults || 50;
-
-      // Try ripgrep first, fall back to grep
-      const rgArgs = [
-        "--no-heading",
-        "--line-number",
-        "--color=never",
-        `--max-count=${maxResults}`,
-      ];
-      if (params.glob) {
-        rgArgs.push("--glob", params.glob);
-      }
-      rgArgs.push(params.pattern);
-
+      
+      // Check platform capabilities
+      const capabilities = getPlatformSearchCapabilities();
+      
+      let resultText = "";
+      let searchMethod = "node";
+      
       try {
-        const { stdout } = await execFileAsync("rg", rgArgs, {
-          cwd,
-          timeout: 15_000,
-          maxBuffer: 512 * 1024,
-          encoding: "utf-8",
-        });
-        const lines = stdout.trim().split("\n").slice(0, maxResults);
+        if (capabilities.recommendedTool === 'ripgrep') {
+          searchMethod = 'ripgrep';
+          const result = await executeRipgrep(params.pattern, cwd, params.glob, maxResults);
+          if (result.success) {
+            resultText = result.output || "(no matches)";
+          } else {
+            // Fall back to grep
+            searchMethod = 'grep-fallback';
+            const grepResult = await executeGrep(params.pattern, cwd, params.glob, maxResults);
+            resultText = grepResult.success ? grepResult.output || "(no matches)" : `rg failed: ${result.error}`;
+          }
+        } else if (capabilities.recommendedTool === 'grep') {
+          searchMethod = 'grep';
+          const result = await executeGrep(params.pattern, cwd, params.glob, maxResults);
+          resultText = result.success ? result.output || "(no matches)" : `grep failed: ${result.error}`;
+        } else {
+          // Use Node.js fallback
+          searchMethod = 'node';
+          const results = searchFilesNode(params.pattern, cwd, params.glob, maxResults);
+          resultText = results.length > 0 ? results.join("\n") : "(no matches)";
+        }
+        
+        // Limit output lines
+        const lines = resultText.split("\n").slice(0, maxResults);
+        const finalText = lines.length > 0 ? lines.join("\n") : "(no matches)";
+        
         return {
           content: [
             {
               type: "text",
-              text: lines.length > 0 ? lines.join("\n") : "(no matches)",
+              text: finalText,
             },
           ],
-          details: {},
+          details: {
+            searchMethod,
+            capabilities,
+            maxResults,
+            pattern: params.pattern,
+          },
         };
-      } catch {
-        // rg not found or failed, try grep
-        try {
-          const grepArgs = ["-rn", "--color=never"];
-          if (params.glob) {
-            grepArgs.push(`--include=${params.glob}`);
-          }
-          grepArgs.push(params.pattern, ".");
-          const { stdout } = await execFileAsync("grep", grepArgs, {
-            cwd,
-            timeout: 15_000,
-            maxBuffer: 512 * 1024,
-            encoding: "utf-8",
-          });
-          const lines = stdout.trim().split("\n").slice(0, maxResults);
-          return {
-            content: [
-              {
-                type: "text",
-                text: lines.length > 0 ? lines.join("\n") : "(no matches)",
-              },
-            ],
-            details: {},
-          };
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          // grep returns exit 1 for no matches — that's not an error
-          if (msg.includes("exit code 1")) {
-            return {
-              content: [{ type: "text", text: "(no matches)" }],
-              details: {},
-            };
-          }
-          return {
-            content: [{ type: "text", text: `search error: ${msg}` }],
-            details: {},
-          };
-        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        return {
+          content: [{ type: "text", text: `search error: ${msg}` }],
+          details: { error: msg, searchMethod },
+        };
       }
     },
   };

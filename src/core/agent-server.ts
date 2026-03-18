@@ -14,6 +14,7 @@ import { createSearchFilesTool } from '../tools/searchFiles.js';
 import { createGitStatusTool } from '../tools/gitStatus.js';
 import { createGitDiffTool } from '../tools/gitDiff.js';
 import { createSshRunTool } from '../tools/sshRun.js';
+import { getPlatformSearchCapabilities } from '../utils/search-utils.js';
 
 export interface AgentServer {
   port: number;
@@ -37,7 +38,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     task.started = Date.now();
     
     // Set up timeout
-    const timeoutMs = 5 * 60 * 1000; // 5 minutes default timeout
+    const timeoutMs = 2 * 60 * 1000; // 2 minutes default timeout (shorter for agents)
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
         reject(new Error(`Task timeout after ${timeoutMs}ms`));
@@ -71,7 +72,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
       // Execute the tool with timeout
       const result = await Promise.race([
-        toolDefinition.execute(params, context),
+        toolDefinition.execute(taskId, params, context),
         timeoutPromise,
       ]);
       
@@ -79,6 +80,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       task.status = 'completed';
       task.completed = Date.now();
       task.result = result;
+      log.info(`Task ${taskId} completed successfully`);
       
     } catch (error) {
       task.status = 'failed';
@@ -310,16 +312,35 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
 
 /** Create agent identity from config */
 export function createAgentIdentity(config: AgentConfig, port: number): AgentIdentity {
+  // Filter capabilities based on platform
+  let capabilities = config.allowedTools.length > 0 ? config.allowedTools : ['all'];
+  
+  // If search_files is included, check if it's actually supported
+  if (capabilities.includes('search_files') || capabilities.includes('all')) {
+    const searchCapabilities = getPlatformSearchCapabilities();
+    if (!searchCapabilities.hasGrep && !searchCapabilities.hasRipgrep) {
+      // Remove search_files from capabilities if grep/ripgrep not available
+      if (config.allowedTools.length > 0) {
+        capabilities = capabilities.filter(tool => tool !== 'search_files');
+      }
+      // Note: we still include it but will handle gracefully in execution
+    }
+  }
+  
   return {
     id: config.id,
     name: config.name,
     type: 'local',
     status: 'idle',
-    capabilities: config.allowedTools.length > 0 ? config.allowedTools : ['all'],
+    capabilities,
     endpoint: `http://localhost:${port}`,
     workspace: config.workspace,
     created: Date.now(),
     lastHeartbeat: Date.now(),
+    platform: process.platform,
+    platformCapabilities: {
+      search: getPlatformSearchCapabilities(),
+    },
   };
 }
 
