@@ -109,16 +109,18 @@ If the user needs to build something, suggest they switch back with /chat.`;
     cwd: config.workDir,
     extensionFactories: [chatModeFactory],
     extensionsOverride: (base) => {
-      for (const ext of base.extensions) {
-        // Check if this is the chat-mode extension
-        const extAny = ext as any;
-        if (extAny.agentSystemPrompt !== undefined) {
-          // This is likely the chat-mode extension
-          extAny.agentSystemPrompt = agentSystemPrompt;
-          extAny.chatSystemPrompt = chatSystemPrompt;
-        }
-      }
-      return base;
+      // Override extensions to ONLY include chat mode
+      // This prevents loading of default file system tools
+      return {
+        ...base,
+        extensions: base.extensions.filter((ext: any) => {
+          // Only keep extensions that look like our chat mode extension
+          // or have no tools
+          const hasTools = ext.tools && Array.isArray(ext.tools) && ext.tools.length > 0;
+          const isChatMode = ext.agentSystemPrompt !== undefined;
+          return isChatMode || !hasTools;
+        }),
+      };
     },
   });
 
@@ -141,10 +143,53 @@ If the user needs to build something, suggest they switch back with /chat.`;
   // Always use agent prompt
   session.agent.setSystemPrompt(agentSystemPrompt);
 
+  // CRITICAL: Remove all non-Forge tools from the session
+  // DefaultResourceLoader loads generic file system tools (read, write, edit, etc.)
+  // but Forge should only have the 6 Forge-specific tools
+  const allTools = session.getAllTools();
+  const forgeToolNames = new Set(customTools.map(t => t.name));
+  
+  // Get non-Forge tools to remove
+  const toolsToRemove = allTools.filter(tool => !forgeToolNames.has(tool.name));
+  
+  if (toolsToRemove.length > 0) {
+    log.info(`Removing ${toolsToRemove.length} non-Forge tools: ${toolsToRemove.map(t => t.name).join(', ')}`);
+    
+    // Try to remove tools from the session
+    // This is a hacky approach since pi-coding-agent might not expose a public API for this
+    // We'll try to access internal properties
+    const sessionAny = session as any;
+    
+    // Try different approaches to remove tools
+    if (sessionAny.tools && Array.isArray(sessionAny.tools)) {
+      // Direct tools array
+      sessionAny.tools = sessionAny.tools.filter((t: any) => forgeToolNames.has(t.name));
+    }
+    
+    if (sessionAny.agent && sessionAny.agent.tools && Array.isArray(sessionAny.agent.tools)) {
+      // Agent tools array
+      sessionAny.agent.tools = sessionAny.agent.tools.filter((t: any) => forgeToolNames.has(t.name));
+    }
+    
+    if (sessionAny._extensions) {
+      // Clear extensions that might provide tools
+      sessionAny._extensions = sessionAny._extensions.filter((ext: any) => {
+        // Keep only extensions without tools or with only Forge tools
+        if (!ext.tools || !Array.isArray(ext.tools)) return true;
+        const extToolNames = ext.tools.map((t: any) => t.name);
+        return extToolNames.every((name: string) => forgeToolNames.has(name));
+      });
+    }
+  }
+
+  // Get final tool list after removal
+  const finalTools = session.getAllTools();
+  log.info(`Final Forge tools: ${finalTools.map((t) => t.name).join(", ")}`);
+
   // Inject text tool parser for Qwen-style models
-  const allToolNames = session.getAllTools().map((t) => t.name);
-  if (allToolNames.length > 0) {
-    session.agent.streamFn = createToolParsingStreamFn(allToolNames) as typeof session.agent.streamFn;
+  const finalToolNames = finalTools.map((t) => t.name);
+  if (finalToolNames.length > 0) {
+    session.agent.streamFn = createToolParsingStreamFn(finalToolNames) as typeof session.agent.streamFn;
   }
 
   // Build a direct initial message

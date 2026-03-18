@@ -187,10 +187,53 @@ export async function startScout(
   // Always use agent prompt — text tool parser handles models without structured tools
   session.agent.setSystemPrompt(agentSystemPrompt);
 
+  // CRITICAL: Remove all non-Scout tools from the session
+  // DefaultResourceLoader loads generic file system tools (read, write, edit, etc.)
+  // but Scout should only have the 3 Scout-specific tools
+  const allTools = session.getAllTools();
+  const scoutToolNames = new Set(customTools.map(t => t.name));
+  
+  // Get non-Scout tools to remove
+  const toolsToRemove = allTools.filter(tool => !scoutToolNames.has(tool.name));
+  
+  if (toolsToRemove.length > 0) {
+    log.info(`Removing ${toolsToRemove.length} non-Scout tools: ${toolsToRemove.map(t => t.name).join(', ')}`);
+    
+    // Try to remove tools from the session
+    // This is a hacky approach since pi-coding-agent might not expose a public API for this
+    // We'll try to access internal properties
+    const sessionAny = session as any;
+    
+    // Try different approaches to remove tools
+    if (sessionAny.tools && Array.isArray(sessionAny.tools)) {
+      // Direct tools array
+      sessionAny.tools = sessionAny.tools.filter((t: any) => scoutToolNames.has(t.name));
+    }
+    
+    if (sessionAny.agent && sessionAny.agent.tools && Array.isArray(sessionAny.agent.tools)) {
+      // Agent tools array
+      sessionAny.agent.tools = sessionAny.agent.tools.filter((t: any) => scoutToolNames.has(t.name));
+    }
+    
+    if (sessionAny._extensions) {
+      // Clear extensions that might provide tools
+      sessionAny._extensions = sessionAny._extensions.filter((ext: any) => {
+        // Keep only extensions without tools or with only Scout tools
+        if (!ext.tools || !Array.isArray(ext.tools)) return true;
+        const extToolNames = ext.tools.map((t: any) => t.name);
+        return extToolNames.every((name: string) => scoutToolNames.has(name));
+      });
+    }
+  }
+
+  // Get final tool list after removal
+  const finalTools = session.getAllTools();
+  log.info(`Final Scout tools: ${finalTools.map((t) => t.name).join(", ")}`);
+
   // Inject text tool parser for Qwen-style models
-  const allToolNames = session.getAllTools().map((t) => t.name);
-  if (allToolNames.length > 0) {
-    session.agent.streamFn = createToolParsingStreamFn(allToolNames) as typeof session.agent.streamFn;
+  const finalToolNames = finalTools.map((t) => t.name);
+  if (finalToolNames.length > 0) {
+    session.agent.streamFn = createToolParsingStreamFn(finalToolNames) as typeof session.agent.streamFn;
   }
 
   // Build a welcome initial message so the agent introduces itself with hardware context
