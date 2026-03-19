@@ -215,8 +215,17 @@ export const agentSpawnLocalTool: ToolDefinition = {
       log.info(`Master: ${masterEndpoint}`);
       
       // Build command to start agent
+      // Use the same entry point that started this process
       const nodePath = process.argv[0];
-      const scriptPath = process.argv[1];
+      let scriptPath = process.argv[1];
+      
+      // Try to get the main module filename if available
+      if (require.main && require.main.filename) {
+        scriptPath = require.main.filename;
+      }
+      
+      log.debug(`Spawning agent with: ${nodePath} ${scriptPath}`);
+      
       const args = [
         'agent', 'serve',
         '--id', agentId,
@@ -251,19 +260,13 @@ export const agentSpawnLocalTool: ToolDefinition = {
       let agentProcess;
       
       if (process.platform === 'win32') {
-        // On Windows: use cmd.exe explicitly to avoid WSL bash
-        // Build the full command with proper quoting
-        const cmdArgs = [scriptPath, ...args].map(arg => 
-          arg.includes(' ') ? `"${arg}"` : arg
-        ).join(' ');
+        // On Windows: use shell for better compatibility
+        log.debug(`Spawning on Windows: ${nodePath} ${scriptPath} ${args.join(' ')}`);
         
-        const fullCommand = `"${nodePath}" ${cmdArgs}`;
-        log.debug(`Spawning on Windows with command: ${fullCommand}`);
-        
-        agentProcess = spawn('cmd.exe', ['/c', fullCommand], {
+        agentProcess = spawn(nodePath, [scriptPath, ...args], {
           cwd: workspace,
           stdio: ['ignore', 'pipe', 'pipe'],
-          shell: false, // Don't use shell, we're using cmd.exe directly
+          shell: true, // Use shell for Windows compatibility
           windowsHide: true, // Hide the terminal window
         });
       } else {
@@ -335,21 +338,46 @@ export const agentSpawnLocalTool: ToolDefinition = {
         try {
           isHealthy = await checkAgentHealth(`http://localhost:${actualPort}`, 2000);
           if (isHealthy) {
+            log.info(`Health check passed for agent ${finalName} on port ${actualPort}`);
             break;
           }
         } catch (error) {
-          // Agent not ready yet
+          // Agent not ready yet, log first few attempts
+          const attempt = Math.floor((Date.now() - startTime) / 500) + 1;
+          if (attempt <= 3) {
+            log.debug(`Health check attempt ${attempt} failed: ${error instanceof Error ? error.message : String(error)}`);
+          }
         }
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
       if (!isHealthy) {
-        // Agent failed to start
-        agentProcess.kill('SIGTERM');
+        // Agent failed to start - check if process is still running
+        let processExited = false;
+        try {
+          // Check if process is still alive (non-zero exit means process ended)
+          processExited = agentProcess.exitCode !== null;
+        } catch (error) {
+          processExited = true;
+        }
+        
+        log.error(`Agent ${finalName} failed health checks. Process exited: ${processExited}`);
+        log.error(`Process stdout (last 1000 chars): ${processInfo.stdout.slice(-1000)}`);
+        log.error(`Process stderr (last 1000 chars): ${processInfo.stderr.slice(-1000)}`);
+        
+        // Try to kill process if still running
+        if (!processExited) {
+          try {
+            agentProcess.kill('SIGTERM');
+          } catch (error) {
+            log.debug('Error killing process:', error);
+          }
+        }
+        
         registry.removeAgent(agentId);
         registry.save();
         
-        throw new Error(`Agent failed to start within ${maxWaitTime}ms. Check logs for errors.`);
+        throw new Error(`Agent failed to start within ${maxWaitTime}ms. Process ${processExited ? 'exited' : 'still running'}. Check logs for details.`);
       }
       
       // Update agent status to idle

@@ -2,6 +2,22 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.5] - 2025-01-15
+
+### Critical Agent Spawning Fix
+- **Fixed agent spawning failure**: Agents were failing to start due to incorrect script path resolution
+- **Improved Windows compatibility**: Better shell handling and process management
+- **Enhanced debugging**: Added detailed error logging for spawn failures
+- **Fixed health check logic**: Better timeout handling and error reporting
+- **Correct entry point detection**: Now uses `require.main.filename` for reliable script path
+
+### Technical Changes
+- Fixed script path resolution in `agentSpawnLocal.ts` to use main module filename
+- Improved Windows spawn with proper shell usage
+- Added detailed process output logging for debugging spawn failures
+- Increased health check timeout from 10s to 15s
+- Better error messages with process stdout/stderr output
+
 ## [0.4.4] - 2025-01-15
 
 ### Agent Stability & Windows Fixes
