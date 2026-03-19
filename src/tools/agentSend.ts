@@ -111,6 +111,7 @@ export const agentSendTool: ToolDefinition = {
         agentId: agent.id,
         agentName: agent.name,
         operationId: taskId,
+        operationType: 'task',
         onUpdate: onUpdate,
         signal,
       }, async () => {

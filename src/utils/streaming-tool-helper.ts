@@ -14,6 +14,7 @@ export interface StreamingOptions {
   agentId: string;
   agentName: string;
   operationId: string;
+  operationType: 'chat' | 'task';
   onUpdate?: (update: any) => void;
   signal?: AbortSignal;
 }
@@ -30,7 +31,7 @@ export async function withWorkerStreaming(
   options: StreamingOptions,
   operation: () => Promise<any>
 ): Promise<StreamingResult> {
-  const { endpoint, agentId, agentName, operationId, onUpdate, signal } = options;
+  const { endpoint, agentId, agentName, operationId, operationType, onUpdate, signal } = options;
   
   const events: StreamEvent[] = [];
   let operationClient: ReturnType<OperationScopedStreamingManager['subscribeForOperation']> | null = null;
@@ -48,6 +49,7 @@ export async function withWorkerStreaming(
     // Subscribe to worker events for this specific operation
     operationClient = streamingManager.subscribeForOperation({
       operationId,
+      operationType,
       agentId,
       agentName,
       endpoint,

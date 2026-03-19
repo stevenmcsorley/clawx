@@ -11,6 +11,7 @@ import type { StreamEvent } from './streaming-events.js';
 
 export interface OperationScope {
   operationId: string;
+  operationType: 'chat' | 'task';
   agentId: string;
   agentName: string;
   endpoint: string;
@@ -19,6 +20,7 @@ export interface OperationScope {
 
 export interface OperationClient {
   operationId: string;
+  operationType: 'chat' | 'task';
   agentId: string;
   client: StreamingClient;
   handler: (event: StreamEvent) => void;
@@ -42,14 +44,14 @@ export class OperationScopedStreamingManager {
    * Subscribe to worker events for a specific operation
    */
   subscribeForOperation(options: OperationScope): OperationClient {
-    const { operationId, agentId, agentName, endpoint, onEvent } = options;
+    const { operationId, operationType, agentId, agentName, endpoint, onEvent } = options;
     
-    log.debug(`Subscribing to events for operation ${operationId} on agent ${agentName}`);
+    log.debug(`Subscribing to events for operation ${operationId} (type: ${operationType}) on agent ${agentName}`);
     
     // Create operation-scoped event handler
     const operationScopedHandler = (event: StreamEvent) => {
-      // Filter events by operationId (event doesn't have agent info yet)
-      if (!this.eventBelongsToOperationBasic(event, operationId)) {
+      // Filter events by operationId and operationType (event doesn't have agent info yet)
+      if (!this.eventBelongsToOperation(event, operationId, operationType)) {
         return; // Ignore unrelated events
       }
       
@@ -72,6 +74,7 @@ export class OperationScopedStreamingManager {
     // Track operation with handler reference for cleanup
     const operationClient: OperationClient = {
       operationId,
+      operationType,
       agentId,
       client,
       handler: operationScopedHandler,
@@ -121,46 +124,18 @@ export class OperationScopedStreamingManager {
   }
   
   /**
-   * Check if an event belongs to a specific operation (basic version without agent info)
+   * Check if an event belongs to a specific operation (with type checking)
    */
-  private eventBelongsToOperationBasic(event: StreamEvent, operationId: string): boolean {
-    // First, try to use the explicit parent operation fields if available
-    if ('parentOperationId' in event && event.parentOperationId) {
-      return event.parentOperationId === operationId;
+  private eventBelongsToOperation(event: StreamEvent, operationId: string, operationType: 'chat' | 'task'): boolean {
+    // Canonical path: use explicit parent operation fields
+    if ('parentOperationId' in event && event.parentOperationId && 
+        'parentOperationType' in event && event.parentOperationType) {
+      return event.parentOperationId === operationId && 
+             event.parentOperationType === operationType;
     }
     
-    // Fallback for backward compatibility
-    // Chat events use turnId
-    if (event.type === 'agent_message_start' || 
-        event.type === 'agent_message_delta' || 
-        event.type === 'agent_message_end') {
-      return 'turnId' in event && event.turnId === operationId;
-    }
-    
-    // Task events use taskId
-    if (event.type === 'task_started' || 
-        event.type === 'task_progress' || 
-        event.type === 'task_completed' || 
-        event.type === 'task_failed' || 
-        event.type === 'task_cancelled') {
-      return 'taskId' in event && event.taskId === operationId;
-    }
-    
-    // Tool events use taskId (parent operation)
-    if (event.type === 'tool_started' || 
-        event.type === 'tool_stdout' || 
-        event.type === 'tool_stderr' || 
-        event.type === 'tool_finished') {
-      // Must have taskId and match operationId
-      return 'taskId' in event && event.taskId === operationId;
-    }
-    
-    // Heartbeat events are global - reject them from operation streams
-    if (event.type === 'heartbeat') {
-      return false;
-    }
-    
-    // Reject all other unknown event types
+    // Reject events without parent operation fields - they cannot be routed to operations
+    // This ensures we don't rely on legacy field overloading
     return false;
   }
   

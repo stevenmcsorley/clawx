@@ -164,6 +164,7 @@ export const agentChatTool: ToolDefinition = {
         agentId: agent.id,
         agentName: agent.name,
         operationId: turnId,
+        operationType: 'chat',
         onUpdate: onUpdate,
         signal,
       }, async () => {

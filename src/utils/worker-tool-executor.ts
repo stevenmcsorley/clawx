@@ -290,7 +290,11 @@ export function executeToolWithStream(
               type: 'tool_stdout', 
               toolName, 
               data: result,
-              ...(parentOperationId ? { taskId: parentOperationId } : {})
+              ...(parentOperationId ? { taskId: parentOperationId } : {}),
+              ...(parentOperationId && parentOperationType ? { 
+                parentOperationId, 
+                parentOperationType 
+              } : {})
             });
           } else if (typeof result === 'object') {
             // Try to extract text content
@@ -301,7 +305,11 @@ export function executeToolWithStream(
                   type: 'tool_stdout', 
                   toolName, 
                   data: textContent.text,
-                  ...(parentOperationId ? { taskId: parentOperationId } : {})
+                  ...(parentOperationId ? { taskId: parentOperationId } : {}),
+                  ...(parentOperationId && parentOperationType ? { 
+                    parentOperationId, 
+                    parentOperationType 
+                  } : {})
                 });
               }
             } else if (result.output) {
@@ -309,14 +317,22 @@ export function executeToolWithStream(
                 type: 'tool_stdout', 
                 toolName, 
                 data: String(result.output),
-                ...(parentOperationId ? { taskId: parentOperationId } : {})
+                ...(parentOperationId ? { taskId: parentOperationId } : {}),
+                ...(parentOperationId && parentOperationType ? { 
+                  parentOperationId, 
+                  parentOperationType 
+                } : {})
               });
             } else if (result.text) {
               onEvent({ 
                 type: 'tool_stdout', 
                 toolName, 
                 data: String(result.text),
-                ...(parentOperationId ? { taskId: parentOperationId } : {})
+                ...(parentOperationId ? { taskId: parentOperationId } : {}),
+                ...(parentOperationId && parentOperationType ? { 
+                  parentOperationId, 
+                  parentOperationType 
+                } : {})
               });
             }
           }
@@ -336,7 +352,11 @@ export function executeToolWithStream(
           type: 'tool_finished', 
           toolName, 
           result: executionResult,
-          ...(parentOperationId ? { taskId: parentOperationId } : {})
+          ...(parentOperationId ? { taskId: parentOperationId } : {}),
+          ...(parentOperationId && parentOperationType ? { 
+            parentOperationId, 
+            parentOperationType 
+          } : {})
         });
       }
       resolveResult(executionResult);
@@ -356,7 +376,11 @@ export function executeToolWithStream(
           type: 'tool_finished', 
           toolName, 
           result: errorResult,
-          ...(parentOperationId ? { taskId: parentOperationId } : {})
+          ...(parentOperationId ? { taskId: parentOperationId } : {}),
+          ...(parentOperationId && parentOperationType ? { 
+            parentOperationId, 
+            parentOperationType 
+          } : {})
         });
       }
       resolveResult(errorResult);
