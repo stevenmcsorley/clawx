@@ -143,29 +143,52 @@ export const agentSendTool: ToolDefinition = {
         throw new Error('Current session does not have an active gRPC master server instance');
       }
 
+      let streamedDisplay = '';
+      const pushPartial = () => {
+        onUpdate?.({
+          content: [{ type: 'text', text: streamedDisplay }],
+          details: {
+            task_id: taskId,
+            agent_id: agent.id,
+            agent_name: agent.name,
+            tool,
+            stream: true,
+          },
+        });
+      };
       const prettyOnUpdate = (update: any) => {
         switch (update?.type) {
           case 'task_started':
-            onUpdate?.({ type: 'tool_stdout', streamKey: update.streamKey, data: `\n${update.agentName} starting ${update.tool}\n` });
+            streamedDisplay += `\n${update.agentName} starting ${update.tool}\n`;
+            pushPartial();
             break;
           case 'task_progress':
-            onUpdate?.({ type: 'tool_stdout', streamKey: update.streamKey, data: `[${update.progress}%] ${update.message || ''}\n` });
+            streamedDisplay += `[${update.progress}%] ${update.message || ''}\n`;
+            pushPartial();
             break;
           case 'tool_started':
-            onUpdate?.({ type: 'tool_stdout', streamKey: update.streamKey, data: `\n[tool] ${update.toolName}\n` });
+            streamedDisplay += `\n[tool] ${update.toolName}\n`;
+            pushPartial();
             break;
           case 'tool_stdout':
+            streamedDisplay += update.data.endsWith('\n') ? update.data : `${update.data}\n`;
+            pushPartial();
+            break;
           case 'tool_stderr':
-            onUpdate?.({ type: update.type, streamKey: update.streamKey, data: update.data.endsWith('\n') ? update.data : `${update.data}\n` });
+            streamedDisplay += `[stderr] ${update.data.endsWith('\n') ? update.data : `${update.data}\n`}`;
+            pushPartial();
             break;
           case 'task_completed':
-            onUpdate?.({ type: 'tool_stdout', streamKey: update.streamKey, data: `\n[completed]\n` });
+            streamedDisplay += `\n[completed]\n`;
+            pushPartial();
             break;
           case 'task_failed':
-            onUpdate?.({ type: 'tool_stderr', streamKey: update.streamKey, data: `\n[failed] ${update.error || 'Unknown error'}\n` });
+            streamedDisplay += `\n[failed] ${update.error || 'Unknown error'}\n`;
+            pushPartial();
             break;
           case 'task_cancelled':
-            onUpdate?.({ type: 'tool_stderr', streamKey: update.streamKey, data: `\n[cancelled]\n` });
+            streamedDisplay += `\n[cancelled]\n`;
+            pushPartial();
             break;
         }
       };

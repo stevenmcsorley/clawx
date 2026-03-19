@@ -152,53 +152,58 @@ export const agentChatTool: ToolDefinition = {
 
       let streamedHeaderShown = false;
       let streamedReplyBuffer = '';
+      let streamedDisplay = '';
+      const pushPartial = () => {
+        onUpdate?.({
+          content: [{ type: 'text', text: streamedDisplay }],
+          details: {
+            agent_id: agent.id,
+            agent_name: agent.name,
+            turn_id: turnId,
+            stream: true,
+          },
+        });
+      };
       const prettyOnUpdate = (update: any) => {
         switch (update?.type) {
           case 'chat_start': {
-            if (!streamedHeaderShown && onUpdate) {
+            if (!streamedHeaderShown) {
               streamedHeaderShown = true;
-              onUpdate({
-                type: 'tool_stdout',
-                streamKey: update.streamKey,
-                data: `\n${update.agentName}:\n`,
-              });
+              streamedDisplay += `${update.agentName}:\n`;
+              pushPartial();
             }
             break;
           }
           case 'chat_delta': {
             if (typeof update.delta === 'string') {
               streamedReplyBuffer += update.delta;
-              onUpdate?.({
-                type: 'tool_stdout',
-                streamKey: update.streamKey,
-                data: update.delta,
-              });
+              streamedDisplay += update.delta;
+              pushPartial();
             }
             break;
           }
           case 'chat_end': {
-            onUpdate?.({
-              type: 'tool_stdout',
-              streamKey: update.streamKey,
-              data: `\n`,
-            });
+            streamedDisplay += `\n`;
+            pushPartial();
             break;
           }
           case 'tool_started': {
-            onUpdate?.({
-              type: 'tool_stdout',
-              streamKey: update.streamKey,
-              data: `\n[${update.agentName} is using tool: ${update.toolName}]\n`,
-            });
+            streamedDisplay += `\n[${update.agentName} is using tool: ${update.toolName}]\n`;
+            pushPartial();
             break;
           }
-          case 'tool_stdout':
+          case 'tool_stdout': {
+            if (typeof update.data === 'string' && update.data) {
+              streamedDisplay += update.data.endsWith('\n') ? update.data : `${update.data}\n`;
+              pushPartial();
+            }
+            break;
+          }
           case 'tool_stderr': {
-            onUpdate?.({
-              type: update.type,
-              streamKey: update.streamKey,
-              data: update.data,
-            });
+            if (typeof update.data === 'string' && update.data) {
+              streamedDisplay += `[stderr] ${update.data.endsWith('\n') ? update.data : `${update.data}\n`}`;
+              pushPartial();
+            }
             break;
           }
         }

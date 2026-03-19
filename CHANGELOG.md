@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.23] - 2025-01-15
+
+### TUI-Compatible Partial Streaming for Agent Chat/Tasks
+- **Adjusted live tool updates to match pi-coding-agent TUI expectations**: `agent_chat` and `agent_send` now emit partial tool result objects (`content`/`details`) instead of custom ad-hoc event payloads
+- This should allow the interactive tool execution component to render incremental transcript/task output above the existing `Working...` animation instead of waiting for final completion
+- Preserves the readable transcript/task formatting introduced in `0.4.22`, but now in the library-compatible partial-update shape
+
+### Technical Changes
+- Reworked `onUpdate(...)` payloads in `src/tools/agentChat.ts`
+- Reworked `onUpdate(...)` payloads in `src/tools/agentSend.ts`
+- Kept spinner/status behavior intact while improving partial output rendering compatibility
+
 ## [0.4.22] - 2025-01-15
 
 ### Streaming UX Improvements for Agent Chat and Tasks
