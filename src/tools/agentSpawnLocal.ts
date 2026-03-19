@@ -181,7 +181,13 @@ export const agentSpawnLocalTool: ToolDefinition = {
       
       // Agents support all tools that the agent server can execute
       // This includes coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run
-      const agentSupportedTools = ['read', 'write', 'edit', 'bash', 'grep', 'find', 'ls', 'search_files', 'git_status', 'git_diff', 'ssh_run'];
+      // PLUS agent communication tools for real-time collaboration
+      const agentSupportedTools = [
+        'read', 'write', 'edit', 'bash', 
+        'grep', 'find', 'ls', 'search_files', 
+        'git_status', 'git_diff', 'ssh_run',
+        'agent_chat_direct', 'agent_ws_chat'
+      ];
       const effectiveAllowedTools = allowedTools.length > 0 
         ? allowedTools.filter((tool: string) => agentSupportedTools.includes(tool))
         : agentSupportedTools;
