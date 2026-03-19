@@ -101,8 +101,10 @@ export const agentResultTool: ToolDefinition = {
         output += `No result data available.\n`;
       }
       
-      // If we don't have result but agent is reachable, try to fetch it
-      if (!task.result && agent?.endpoint) {
+      const usesGrpcTransport = task.payload?.context?.__transport === 'grpc';
+
+      // If we don't have result but agent is reachable, try to fetch it for HTTP-era tasks
+      if (!usesGrpcTransport && !task.result && agent?.endpoint) {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);

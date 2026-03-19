@@ -128,7 +128,7 @@ export const agentSendTool: ToolDefinition = {
         id: taskId,
         agentId: agent.id,
         type: 'execute',
-        payload: { tool, params: taskParams, context },
+        payload: { tool, params: taskParams, context: { ...(context || {}), __transport: 'grpc' } },
         status: 'pending',
         created: Date.now(),
       };

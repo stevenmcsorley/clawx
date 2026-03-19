@@ -49,7 +49,9 @@ function handleEvent(
     case 'agent_message_start':
       onUpdate({
         type: 'chat_start',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         persona: (rest as any).persona,
         operationId,
       });
@@ -58,7 +60,9 @@ function handleEvent(
     case 'agent_message_delta':
       onUpdate({
         type: 'chat_delta',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         delta: (rest as any).delta,
         operationId,
       });
@@ -67,7 +71,9 @@ function handleEvent(
     case 'agent_message_end':
       onUpdate({
         type: 'chat_end',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         finalMessage: (rest as any).finalMessage,
         operationId,
       });
@@ -76,7 +82,9 @@ function handleEvent(
     case 'task_started':
       onUpdate({
         type: 'task_started',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         tool: (rest as any).tool,
         params: (rest as any).params,
         operationId,
@@ -86,7 +94,9 @@ function handleEvent(
     case 'task_progress':
       onUpdate({
         type: 'task_progress',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         progress: (rest as any).progress,
         message: (rest as any).message,
         operationId,
@@ -96,7 +106,9 @@ function handleEvent(
     case 'tool_started':
       onUpdate({
         type: 'tool_started',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         toolName: (rest as any).toolName,
         operationId,
       });
@@ -105,7 +117,9 @@ function handleEvent(
     case 'tool_stdout':
       onUpdate({
         type: 'tool_stdout',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         data: (rest as any).data,
         operationId,
       });
@@ -114,7 +128,9 @@ function handleEvent(
     case 'tool_stderr':
       onUpdate({
         type: 'tool_stderr',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         data: (rest as any).data,
         operationId,
       });
@@ -123,7 +139,9 @@ function handleEvent(
     case 'tool_finished':
       onUpdate({
         type: 'tool_finished',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         result: (rest as any).result,
         operationId,
       });
@@ -132,7 +150,9 @@ function handleEvent(
     case 'task_completed':
       onUpdate({
         type: 'task_completed',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         result: (rest as any).result,
         operationId,
       });
@@ -141,7 +161,9 @@ function handleEvent(
     case 'task_failed':
       onUpdate({
         type: 'task_failed',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         error: (rest as any).error,
         operationId,
       });
@@ -150,7 +172,9 @@ function handleEvent(
     case 'task_cancelled':
       onUpdate({
         type: 'task_cancelled',
+        agentId: event.agentId,
         agentName: event.agentName,
+        streamKey: `${event.agentId}:${operationId}`,
         operationId,
       });
       break;

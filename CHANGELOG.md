@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.13] - 2025-01-15
+
+### Multi-Agent Streaming and Lifecycle Hardening
+- **Cleaner multi-agent stream identity**: all master-side chat/task/tool updates now carry `agentId`, `agentName`, and stable `streamKey` metadata for better concurrent rendering
+- **Status/result truth improved for gRPC tasks**: `agent_status` and `agent_result` now trust registry state for gRPC-native tasks instead of falling back to stale HTTP-era task endpoints
+- **Reduced send/status/result ambiguity**: gRPC tasks are tagged in stored task context so tools can follow the correct runtime truth path
+
+### Technical Changes
+- Added stream identity metadata in `src/utils/grpc-streaming-tool-helper.ts`
+- Marked gRPC-originated tasks in `src/tools/agentSend.ts`
+- Updated `src/tools/agentStatus.ts` and `src/tools/agentResult.ts` to avoid HTTP polling/fetch for gRPC-native tasks
+
 ## [0.4.12] - 2025-01-15
 
 ### Canonical gRPC Master↔Worker Routing

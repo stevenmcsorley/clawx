@@ -65,29 +65,33 @@ export const agentStatusTool: ToolDefinition = {
         };
       }
       
-      // Query agent for actual task status
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        const response = await fetch(`${agent.endpoint}/task/${taskId}/status`, {
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
-          const agentStatus: any = await response.json();
+      const usesGrpcTransport = task.payload?.context?.__transport === 'grpc';
+
+      // Query agent for actual task status only for HTTP-era tasks
+      if (!usesGrpcTransport) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const response = await fetch(`${agent.endpoint}/task/${taskId}/status`, {
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
           
-          // Update registry with latest status
-          task.status = agentStatus.status;
-          task.started = agentStatus.started;
-          task.completed = agentStatus.completed;
-          task.error = agentStatus.error;
-          registry.updateTask(taskId, task);
-          registry.save();
+          if (response.ok) {
+            const agentStatus: any = await response.json();
+            
+            // Update registry with latest status
+            task.status = agentStatus.status;
+            task.started = agentStatus.started;
+            task.completed = agentStatus.completed;
+            task.error = agentStatus.error;
+            registry.updateTask(taskId, task);
+            registry.save();
+          }
+        } catch (error) {
+          // Agent might be offline, use registry status
+          console.warn(`Could not query agent for task status: ${error}`);
         }
-      } catch (error) {
-        // Agent might be offline, use registry status
-        console.warn(`Could not query agent for task status: ${error}`);
       }
       
       let output = `## Task Status: ${taskId}\n\n`;
@@ -111,7 +115,7 @@ export const agentStatusTool: ToolDefinition = {
       }
       
       // If task is pending/running, try to get status from agent
-      if ((task.status === 'pending' || task.status === 'running') && agent?.endpoint) {
+      if (!usesGrpcTransport && (task.status === 'pending' || task.status === 'running') && agent?.endpoint) {
         try {
           const response = await fetch(`${agent.endpoint}/task/${taskId}/status`);
           if (response.ok) {
