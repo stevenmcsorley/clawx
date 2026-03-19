@@ -163,9 +163,9 @@ export class GrpcServer extends EventEmitter {
       const capabilities = payload.capabilities || [];
       const endpoint = payload.endpoint || `http://localhost:${this.options.port + 1}`;
       
-      // Check if agent already registered
+      // Check if agent already registered (reconnection is normal)
       if (this.agents.has(agentId)) {
-        log.warn(`[gRPC] Agent ${agentId} already registered, updating connection`);
+        log.debug(`[gRPC] Agent ${agentId} reconnected, updating connection`);
         const existingAgent = this.agents.get(agentId)!;
         existingAgent.call = call;
         existingAgent.lastSeen = Date.now();

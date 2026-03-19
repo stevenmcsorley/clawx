@@ -1,14 +1,15 @@
 /**
- * Agent Chat Tool
+ * Agent Chat Tool with gRPC Streaming
  * 
  * Send a conversational turn from master to one worker and return the worker reply
+ * Uses gRPC for live streaming of response
  */
 
 import { ToolDefinition } from '../types/extension.js';
 import { log } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
-import { withWorkerStreaming } from '../utils/streaming-tool-helper.js';
 import type { ChatRequest, ChatResponse } from '../types/persona.js';
+import { withGrpcWorkerStreaming } from '../utils/grpc-streaming-tool-helper.js';
 
 export const agentChatTool: ToolDefinition = {
   name: 'agent_chat',
@@ -48,119 +49,110 @@ export const agentChatTool: ToolDefinition = {
     log.debug('agent_chat params:', params);
     
     // Normalize parameter names
-    const normalizedParams = {
-      agent_id: params.agent_id || params.agentId,
-      agent_name: params.agent_name || params.agentName,
-      message: params.message,
-      mode: params.mode || 'discussion',
-      context: params.context || {},
-    };
+    const agentId = params.agent_id;
+    const agentName = params.agent_name;
+    const message = params.message;
+    const mode = params.mode || 'discussion';
+    const conversationContext = params.context || {};
     
-    const registry = new AgentRegistryManager();
-    
-    // Find agent by ID or name
-    let agent;
-    if (normalizedParams.agent_id) {
-      agent = registry.getAgent(normalizedParams.agent_id);
-    } else if (normalizedParams.agent_name) {
-      agent = registry.getAgentByName(normalizedParams.agent_name);
-    } else {
+    // Determine which agent to chat with
+    let identifier = agentId || agentName;
+    if (!identifier) {
       return {
         content: [{
           type: 'text',
           text: '❌ Please specify either agent_id or agent_name',
         }],
-        details: { error: 'Missing agent identifier' },
+        details: { error: 'Agent identifier required' },
         isError: true,
       };
     }
     
-    if (!agent) {
-      const identifier = normalizedParams.agent_id || normalizedParams.agent_name;
-      return {
-        content: [{
-          type: 'text',
-          text: `❌ Agent not found: ${identifier}`,
-        }],
-        details: { error: 'Agent not found', identifier },
-        isError: true,
-      };
-    }
-    
-    if (!agent.endpoint) {
-      return {
-        content: [{
-          type: 'text',
-          text: `❌ Agent "${agent.name}" has no endpoint (status: ${agent.status})`,
-        }],
-        details: { 
-          error: 'Agent has no endpoint',
-          agent_id: agent.id,
-          agent_name: agent.name,
-          status: agent.status,
-        },
-        isError: true,
-      };
-    }
-    
-    // Check if agent is alive
     try {
-      const healthResponse = await fetch(`${agent.endpoint}/health`, {
-        signal: signal || AbortSignal.timeout(5000),
-      });
+      const registry = new AgentRegistryManager();
+      const agent = agentId 
+        ? registry.getAgent(agentId)
+        : registry.getAgentByName(agentName!);
       
-      if (!healthResponse.ok) {
+      if (!agent) {
         return {
           content: [{
             type: 'text',
-            text: `❌ Agent "${agent.name}" is not responding (health check failed)`,
+            text: `❌ Agent not found: ${identifier}`,
+          }],
+          details: { error: 'Agent not found', identifier },
+          isError: true,
+        };
+      }
+      
+      if (!agent.endpoint) {
+        return {
+          content: [{
+            type: 'text',
+            text: `❌ Agent "${agent.name}" has no endpoint (status: ${agent.status})`,
           }],
           details: { 
-            error: 'Agent health check failed',
+            error: 'Agent has no endpoint',
             agent_id: agent.id,
             agent_name: agent.name,
-            endpoint: agent.endpoint,
             status: agent.status,
           },
           isError: true,
         };
       }
-    } catch (error) {
-      return {
-        content: [{
-          type: 'text',
-          text: `❌ Cannot connect to agent "${agent.name}" at ${agent.endpoint}`,
-        }],
-        details: { 
-          error: 'Agent connection failed',
-          agent_id: agent.id,
-          agent_name: agent.name,
-          endpoint: agent.endpoint,
-          status: agent.status,
-          connection_error: error instanceof Error ? error.message : String(error),
-        },
-        isError: true,
-      };
-    }
-    
-    // Prepare chat request
-    const chatRequest: ChatRequest = {
-      speaker: 'master',
-      target: agent.id,
-      message: normalizedParams.message,
-      context: normalizedParams.context,
-      mode: normalizedParams.mode,
-    };
-    
-    log.info(`Sending chat to agent "${agent.name}" (${agent.id}): ${normalizedParams.message.substring(0, 100)}...`);
-    
-    try {
-      // Generate a turn ID for streaming
-      const turnId = `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       
-      // Use streaming helper
-      const streamingResult = await withWorkerStreaming({
-        endpoint: agent.endpoint,
+      // Check if agent is alive
+      try {
+        const healthResponse = await fetch(`${agent.endpoint}/health`, {
+          signal: signal || AbortSignal.timeout(5000),
+        });
+        
+        if (!healthResponse.ok) {
+          return {
+            content: [{
+              type: 'text',
+              text: `❌ Agent "${agent.name}" is not responding (health check failed)`,
+            }],
+            details: { 
+              error: 'Agent health check failed',
+              agent_id: agent.id,
+              agent_name: agent.name,
+              endpoint: agent.endpoint,
+            },
+            isError: true,
+          };
+        }
+      } catch (healthError) {
+        return {
+          content: [{
+            type: 'text',
+            text: `❌ Agent "${agent.name}" is not reachable at ${agent.endpoint}`,
+          }],
+          details: { 
+            error: 'Agent unreachable',
+            agent_id: agent.id,
+            agent_name: agent.name,
+            endpoint: agent.endpoint,
+            health_error: healthError instanceof Error ? healthError.message : String(healthError),
+          },
+          isError: true,
+        };
+      }
+      
+      // Generate a turn ID for this conversation
+      const turnId = `chat_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      
+      // Build chat request
+      const chatRequest: ChatRequest = {
+        speaker: 'master',
+        target: agent.id,
+        message,
+        context: conversationContext,
+        mode,
+      };
+      
+      // Use gRPC streaming helper
+      const streamingResult = await withGrpcWorkerStreaming({
         agentId: agent.id,
         agentName: agent.name,
         operationId: turnId,
@@ -174,7 +166,10 @@ export const agentChatTool: ToolDefinition = {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(chatRequest),
+          body: JSON.stringify({
+            ...chatRequest,
+            turnId, // Pass our turn ID for gRPC routing
+          }),
           signal: signal || AbortSignal.timeout(30000), // 30 second timeout for chat
         });
         
@@ -200,62 +195,39 @@ export const agentChatTool: ToolDefinition = {
         return result;
       });
       
-      const result = streamingResult.finalResult;
+      const { finalResult, events } = streamingResult;
       
-      // Build final output summary
-      const personaName = result.persona?.name || agent.name;
-      const personaRole = result.persona?.role || 'Agent';
-      
-      let output = `\n---\n`;
-      output += `💬 Conversation with ${personaName} (${personaRole})\n\n`;
-      output += `**You**: ${normalizedParams.message}\n\n`;
-      output += `**${personaName}**: ${result.response.reply}\n\n`;
-      
-      if (result.response.notes) {
-        output += `---\n`;
-        output += `**Notes**: ${JSON.stringify(result.response.notes, null, 2)}\n`;
-      }
-      
-      if (result.response.next_actions && result.response.next_actions.length > 0) {
-        output += `**Suggested next actions**: ${result.response.next_actions.join(', ')}\n`;
-      }
-      
-      output += `\n---\n`;
-      output += `Turn ID: ${result.turnId}\n`;
-      output += `Mode: ${normalizedParams.mode}\n`;
-      output += `Agent: ${agent.name} (${agent.id})\n`;
+      // Format response for display
+      const reply = finalResult.response.reply || 'No reply received';
+      const personaName = finalResult.persona?.name || agent.name;
+      const personaRole = finalResult.persona?.role || 'Agent';
       
       return {
         content: [{
           type: 'text',
-          text: output,
+          text: `💬 ${personaName} (${personaRole}): ${reply}`,
         }],
         details: {
-          success: true,
-          turn_id: result.turnId,
           agent_id: agent.id,
           agent_name: agent.name,
-          persona_name: personaName,
-          persona_role: personaRole,
-          response: result.response,
-          mode: normalizedParams.mode,
-          events_received: streamingResult.events.length,
+          turn_id: finalResult.turnId,
+          persona: finalResult.persona,
+          response: finalResult.response,
+          events_count: events.length,
         },
       };
       
     } catch (error) {
-      log.error('Chat request failed:', error);
+      log.error('agent_chat failed:', error);
+      
       return {
         content: [{
           type: 'text',
-          text: `❌ Chat request failed: ${error instanceof Error ? error.message : String(error)}`,
+          text: `❌ Chat failed: ${error instanceof Error ? error.message : String(error)}`,
         }],
         details: { 
-          error: 'Chat request failed',
-          agent_id: agent.id,
-          agent_name: agent.name,
-          endpoint: agent.endpoint,
-          chat_error: error instanceof Error ? error.message : String(error),
+          error: 'Chat failed',
+          error_details: error instanceof Error ? error.message : String(error),
         },
         isError: true,
       };

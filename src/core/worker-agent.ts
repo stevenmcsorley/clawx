@@ -48,7 +48,7 @@ export class WorkerAgent {
   
   async connect(): Promise<void> {
     if (this.grpcClient) {
-      log.warn(`Worker ${this.options.agentId} already connected`);
+      log.debug(`Worker ${this.options.agentId} already connected`);
       return;
     }
     

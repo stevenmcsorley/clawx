@@ -294,9 +294,19 @@ export function executeToolWithStream(
           if (toolExecute.length >= 5) {
             // Create a dummy AbortController for tools that expect an AbortSignal
             const abortController = new AbortController();
-            result = await toolExecute(toolCallId, params, abortController.signal, undefined, context);
+            result = await toolExecute(toolCallId, params, abortController.signal, onEvent, context);
           } else {
-            result = await toolExecute(toolCallId, params, context);
+            // Tool has fewer than 5 parameters - call with appropriate arity
+            if (toolExecute.length === 2) {
+              // execute(params, ctx)
+              result = await toolExecute(params, context);
+            } else if (toolExecute.length === 3) {
+              // execute(toolCallId, params, ctx)
+              result = await toolExecute(toolCallId, params, context);
+            } else {
+              // execute(toolCallId, params) or other
+              result = await toolExecute(toolCallId, params);
+            }
           }
         }
       } else {
@@ -304,9 +314,19 @@ export function executeToolWithStream(
         if (toolExecute.length >= 5) {
           // Create a dummy AbortController for tools that expect an AbortSignal
           const abortController = new AbortController();
-          result = await toolExecute(toolCallId, params, abortController.signal, undefined, context);
+          result = await toolExecute(toolCallId, params, abortController.signal, onEvent, context);
         } else {
-          result = await toolExecute(toolCallId, params, context);
+          // Tool has fewer than 5 parameters - call with appropriate arity
+          if (toolExecute.length === 2) {
+            // execute(params, ctx)
+            result = await toolExecute(params, context);
+          } else if (toolExecute.length === 3) {
+            // execute(toolCallId, params, ctx)
+            result = await toolExecute(toolCallId, params, context);
+          } else {
+            // execute(toolCallId, params) or other
+            result = await toolExecute(toolCallId, params);
+          }
         }
         
         // Try to capture output from other tools too

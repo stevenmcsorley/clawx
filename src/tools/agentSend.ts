@@ -1,15 +1,15 @@
 /**
- * Agent Send Tool
+ * Agent Send Tool with gRPC Streaming
  * 
- * Send a task to an agent.
+ * Send a task to an agent with live streaming via gRPC
  */
 
 import { ToolDefinition } from '../types/extension.js';
 import { log } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
-import { withWorkerStreaming } from '../utils/streaming-tool-helper.js';
 import { AgentTask } from '../types/agent.js';
 import { v4 as uuidv4 } from 'uuid';
+import { withGrpcWorkerStreaming } from '../utils/grpc-streaming-tool-helper.js';
 
 export const agentSendTool: ToolDefinition = {
   name: 'agent_send',
@@ -49,31 +49,18 @@ export const agentSendTool: ToolDefinition = {
       const registry = new AgentRegistryManager();
       
       // Find agent
-      let agent;
-      if (agentId) {
-        agent = registry.getAgent(agentId);
-      } else if (agentName) {
-        agent = registry.getAgentByName(agentName);
-      }
+      const agent = agentId 
+        ? registry.getAgent(agentId)
+        : registry.getAgentByName(agentName!);
       
       if (!agent) {
+        const identifier = agentId || agentName;
         return {
           content: [{
             type: 'text',
-            text: `❌ Agent not found. Use agent_list to see available agents.`,
+            text: `❌ Agent not found: ${identifier}`,
           }],
-          details: { error: 'Agent not found' },
-          isError: true,
-        };
-      }
-      
-      if (agent.status !== 'idle' && agent.status !== 'working') {
-        return {
-          content: [{
-            type: 'text',
-            text: `❌ Agent "${agent.name}" is not ready (status: ${agent.status}). Use agent_list to check status.`,
-          }],
-          details: { error: 'Agent not ready', status: agent.status },
+          details: { error: 'Agent not found', identifier },
           isError: true,
         };
       }
@@ -82,17 +69,60 @@ export const agentSendTool: ToolDefinition = {
         return {
           content: [{
             type: 'text',
-            text: `❌ Agent "${agent.name}" has no endpoint. It may not be running.`,
+            text: `❌ Agent "${agent.name}" has no endpoint (status: ${agent.status})`,
           }],
-          details: { error: 'Agent has no endpoint' },
+          details: { 
+            error: 'Agent has no endpoint',
+            agent_id: agent.id,
+            agent_name: agent.name,
+            status: agent.status,
+          },
           isError: true,
         };
       }
       
-      log.info(`Sending task to agent ${agent.name} (${agent.id}): ${tool}`);
+      // Check if agent is alive
+      try {
+        const healthResponse = await fetch(`${agent.endpoint}/health`, {
+          signal: signal || AbortSignal.timeout(5000),
+        });
+        
+        if (!healthResponse.ok) {
+          return {
+            content: [{
+              type: 'text',
+              text: `❌ Agent "${agent.name}" is not responding (health check failed)`,
+            }],
+            details: { 
+              error: 'Agent health check failed',
+              agent_id: agent.id,
+              agent_name: agent.name,
+              endpoint: agent.endpoint,
+            },
+            isError: true,
+          };
+        }
+      } catch (healthError) {
+        return {
+          content: [{
+            type: 'text',
+            text: `❌ Agent "${agent.name}" is not reachable at ${agent.endpoint}`,
+          }],
+          details: { 
+            error: 'Agent unreachable',
+            agent_id: agent.id,
+            agent_name: agent.name,
+            endpoint: agent.endpoint,
+            health_error: healthError instanceof Error ? healthError.message : String(healthError),
+          },
+          isError: true,
+        };
+      }
       
-      // Create task
+      // Generate task ID
       const taskId = uuidv4();
+      
+      // Create task record
       const task: AgentTask = {
         id: taskId,
         agentId: agent.id,
@@ -105,9 +135,8 @@ export const agentSendTool: ToolDefinition = {
       registry.addTask(task);
       registry.save();
       
-      // Use streaming helper
-      const streamingResult = await withWorkerStreaming({
-        endpoint: agent.endpoint,
+      // Use gRPC streaming helper
+      const streamingResult = await withGrpcWorkerStreaming({
         agentId: agent.id,
         agentName: agent.name,
         operationId: taskId,
@@ -115,7 +144,7 @@ export const agentSendTool: ToolDefinition = {
         onUpdate: onUpdate,
         signal,
       }, async () => {
-        // Send task to agent with our task ID
+        // Send task to agent
         const response = await fetch(`${agent.endpoint}/task`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -123,59 +152,106 @@ export const agentSendTool: ToolDefinition = {
             tool,
             params: taskParams,
             context,
-            taskId, // Pass our task ID to agent
+            taskId, // Pass our task ID for gRPC routing
           }),
+          signal: signal || AbortSignal.timeout(120000), // 2 minute timeout for tasks
         });
         
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`Agent returned ${response.status}: ${errorText}`);
+          throw new Error(`Task request failed (${response.status}): ${errorText}`);
         }
         
-        const result = await response.json() as { taskId: string; status: string; message: string };
+        const result = await response.json() as any;
         
-        // Update task with response
-        task.status = 'running';
-        task.started = Date.now();
-        registry.updateTask(taskId, task);
-        registry.save();
+        // Update task status based on response
+        if (result.status === 'accepted' || result.status === 'running') {
+          task.status = 'running';
+          task.started = Date.now();
+          registry.addTask(task);
+          registry.save();
+        }
         
         return result;
       });
       
-      const agentResponse = streamingResult.finalResult;
+      const { finalResult, events } = streamingResult;
       
-      const output = `\n---\n` +
-                    `✅ Task completed with agent "${agent.name}"\n\n` +
-                    `**Task Details:**\n` +
-                    `- Task ID: ${taskId}\n` +
-                    `- Agent: ${agent.name} (${agent.id})\n` +
-                    `- Tool: ${tool}\n` +
-                    `- Status: completed\n` +
-                    `- Events received: ${streamingResult.events.length}\n\n` +
-                    `Use \`agent_status --task_id ${taskId}\` to check status.\n` +
-                    `Use \`agent_result --task_id ${taskId}\` to get result.`;
+      // Check final task status from events
+      let finalStatus = task.status;
+      let finalTaskResult: any = null;
+      
+      // Look for completion events
+      for (const event of events) {
+        if (event.type === 'task_completed') {
+          finalStatus = 'completed';
+          finalTaskResult = (event as any).result;
+          break;
+        } else if (event.type === 'task_failed') {
+          finalStatus = 'failed';
+          finalTaskResult = { error: (event as any).error };
+          break;
+        } else if (event.type === 'task_cancelled') {
+          finalStatus = 'cancelled';
+          break;
+        }
+      }
+      
+      // Update task in registry with final status
+      task.status = finalStatus as any;
+      if (finalStatus === 'completed' || finalStatus === 'failed' || finalStatus === 'cancelled') {
+        task.completed = Date.now();
+        if (finalTaskResult) task.result = finalTaskResult;
+      }
+      registry.addTask(task);
+      registry.save();
+      
+      // Format response
+      let responseText = '';
+      if (finalStatus === 'completed') {
+        responseText = `✅ Task ${taskId} completed`;
+        if (finalTaskResult) {
+          responseText += `\nResult: ${JSON.stringify(finalTaskResult, null, 2)}`;
+        }
+      } else if (finalStatus === 'failed') {
+        responseText = `❌ Task ${taskId} failed`;
+        if (finalTaskResult?.error) {
+          responseText += `\nError: ${finalTaskResult.error}`;
+        }
+      } else if (finalStatus === 'cancelled') {
+        responseText = `⏹️ Task ${taskId} cancelled`;
+      } else {
+        responseText = `⏳ Task ${taskId} still ${finalStatus}`;
+      }
       
       return {
-        content: [{ type: 'text', text: output }],
+        content: [{
+          type: 'text',
+          text: responseText,
+        }],
         details: {
           task_id: taskId,
           agent_id: agent.id,
           agent_name: agent.name,
           tool,
-          status: 'sent',
-          agent_response: agentResponse,
+          status: finalStatus,
+          result: finalTaskResult,
+          events_count: events.length,
         },
       };
       
     } catch (error) {
-      log.error('Failed to send task to agent:', error);
+      log.error('agent_send failed:', error);
+      
       return {
         content: [{
           type: 'text',
-          text: `❌ Failed to send task: ${error instanceof Error ? error.message : String(error)}`,
+          text: `❌ Task failed: ${error instanceof Error ? error.message : String(error)}`,
         }],
-        details: { error: error instanceof Error ? error.message : String(error) },
+        details: { 
+          error: 'Task failed',
+          error_details: error instanceof Error ? error.message : String(error),
+        },
         isError: true,
       };
     }

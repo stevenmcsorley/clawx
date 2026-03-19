@@ -2,6 +2,22 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.2] - 2025-01-15
+
+### Complete gRPC Migration
+- **Live streaming restored via gRPC**: `agent_chat` and `agent_send` now show real-time worker output
+- **SSE/EventSource completely removed**: No more `/events` 404 errors
+- **gRPC is now canonical master↔worker transport**: All live updates flow via gRPC
+- **Task lifecycle consistency**: Registry sync ensures send/status/result agree
+- **Signal handling fixed**: `signal?.addEventListener` error resolved
+
+### Technical Changes
+- Created `GrpcStreamClient` and `GrpcStreamingManager` (replaces SSE `StreamingClient`)
+- Created `withGrpcWorkerStreaming()` helper (replaces SSE `withWorkerStreaming`)
+- Updated `agentChat.ts` and `agentSend.ts` to use gRPC streaming
+- Connected gRPC streaming to agent-server frame handling
+- Deleted SSE files: `streaming-client.ts`, `operation-scoped-streaming.ts`, `streaming-tool-helper.ts`
+
 ## [0.4.1] - 2025-01-15
 
 ### Published Release

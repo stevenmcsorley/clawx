@@ -11,6 +11,8 @@ import { log } from '../utils/logger.js';
 import { AgentConfig, AgentIdentity, AgentTask } from '../types/agent.js';
 import { v4 as uuidv4 } from 'uuid';
 import { GrpcServer } from './grpc/grpc-server.js';
+import { AgentRegistryManager } from './agent-registry.js';
+import { connectGrpcStreamingToServer } from '../utils/grpc-streaming-tool-helper.js';
 import { createSearchFilesTool } from '../tools/searchFiles.js';
 import { createGitStatusTool } from '../tools/gitStatus.js';
 import { createGitDiffTool } from '../tools/gitDiff.js';
@@ -50,6 +52,40 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
 
   const server = createServer(app);
   const tasks = new Map<string, AgentTask>();
+  const registry = new AgentRegistryManager();
+  
+  // Helper to sync task to registry
+  function syncTaskToRegistry(taskId: string) {
+    const task = tasks.get(taskId);
+    if (task) {
+      registry.addTask(task);
+      registry.save();
+    }
+  }
+  
+  // Helper to update task status from gRPC frames
+  function updateTaskStatus(taskId: string, status: 'completed' | 'failed' | 'cancelled', result?: any, error?: string) {
+    const task = tasks.get(taskId);
+    if (task) {
+      task.status = status;
+      task.completed = Date.now();
+      if (result !== undefined) task.result = result;
+      if (error !== undefined) task.error = error;
+      syncTaskToRegistry(taskId);
+    } else {
+      log.warn(`Task ${taskId} not found in local task map`);
+      // Try to update registry directly
+      const registryTask = registry.getTask(taskId);
+      if (registryTask) {
+        registryTask.status = status;
+        registryTask.completed = Date.now();
+        if (result !== undefined) registryTask.result = result;
+        if (error !== undefined) registryTask.error = error;
+        registry.addTask(registryTask);
+        registry.save();
+      }
+    }
+  }
   
   // Start gRPC server for live communication
   let grpcServer: GrpcServer | undefined;
@@ -76,6 +112,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
       await grpcServer.start();
       log.info(`✅ Agent gRPC server started on port ${grpcPort}`);
+      
+      // Connect gRPC streaming to server
+      connectGrpcStreamingToServer(handleGrpcFrame);
     } catch (error) {
       log.error(`❌ Failed to start gRPC server on port ${grpcPort}:`, error);
     }
@@ -91,11 +130,13 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       case 'task_completed':
         // Task completed by worker
         log.info(`Task ${parentOperationId} completed by worker ${fromAgentId}`);
+        updateTaskStatus(parentOperationId, 'completed', payload?.result);
         break;
         
       case 'task_failed':
         // Task failed by worker
         log.error(`Task ${parentOperationId} failed by worker ${fromAgentId}: ${payload?.error}`);
+        updateTaskStatus(parentOperationId, 'failed', undefined, payload?.error);
         break;
         
       case 'task_progress':
@@ -123,6 +164,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     
     task.status = 'running';
     task.started = Date.now();
+    syncTaskToRegistry(taskId);
     
     // Set up timeout
     const timeoutMs = 2 * 60 * 1000; // 2 minutes default timeout (shorter for agents)
@@ -210,6 +252,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       task.status = 'completed';
       task.completed = Date.now();
       task.result = result;
+      syncTaskToRegistry(taskId);
       
       log.info(`Task ${taskId} completed successfully`);
       
@@ -217,6 +260,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       task.status = 'failed';
       task.completed = Date.now();
       task.error = error instanceof Error ? error.message : String(error);
+      syncTaskToRegistry(taskId);
       
       log.error(`Task ${taskId} failed:`, error);
     }
@@ -281,6 +325,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         };
         
         tasks.set(taskId, task);
+        syncTaskToRegistry(taskId);
         
         return res.json({
           taskId,
@@ -311,6 +356,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       };
       
       tasks.set(taskId, task);
+      syncTaskToRegistry(taskId);
       
       // Execute task in background (legacy HTTP path)
       executeTask(taskId, tool, params, context).catch(error => {
@@ -320,6 +366,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
           storedTask.status = 'failed';
           storedTask.completed = Date.now();
           storedTask.error = error.message;
+          syncTaskToRegistry(taskId);
         }
       });
       
@@ -371,6 +418,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     
     task.status = 'cancelled';
     task.completed = Date.now();
+    syncTaskToRegistry(taskId);
     
     res.json({
       taskId,
