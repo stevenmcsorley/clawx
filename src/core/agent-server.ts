@@ -34,6 +34,8 @@ import {
 import { generateModelChatResponse, updateMemoryFromConversation } from '../utils/worker-model-caller.js';
 import { getWorkerTools, executeToolCalls, executeToolWithStream } from '../utils/worker-tool-executor.js';
 import { EventStream, createSSEHandler } from '../utils/streaming-events.js';
+import { createAgentChatDirectTool } from '../tools/agentChatDirect.js';
+import { createAgentWebSocketChatTool } from '../tools/agentWebSocketChat.js';
 import type { Persona, Memory, ChatRequest, ChatResponse, ConversationTurn } from '../types/persona.js';
 
 export interface AgentServer {
@@ -132,8 +134,14 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
             // SSH targets from config (empty for now)
             toolDefinition = createSshRunTool({});
             break;
+          case 'agent_chat_direct':
+            toolDefinition = createAgentChatDirectTool(cwd);
+            break;
+          case 'agent_ws_chat':
+            toolDefinition = createAgentWebSocketChatTool(cwd);
+            break;
           default:
-            const error = new Error(`Tool not supported by agent: ${tool}. Supported tools: coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run`);
+            const error = new Error(`Tool not supported by agent: ${tool}. Supported tools: coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run, agent_chat_direct, agent_ws_chat`);
             eventStream.sendTaskFailed(taskId, error.message);
             throw error;
         }

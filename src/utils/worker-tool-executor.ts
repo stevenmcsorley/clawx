@@ -46,8 +46,11 @@ export function getWorkerTools(workspace: string, allowedTools: string[] = []) {
   const cwd = workspace;
   
   // Always include basic tools if allowed or if no restrictions
-  const canUseTool = (toolName: string) => 
-    allowedTools.length === 0 || allowedTools.includes(toolName);
+  const canUseTool = (toolName: string) => {
+    const canUse = allowedTools.length === 0 || allowedTools.includes(toolName);
+    log.debug(`canUseTool(${toolName}): allowedTools=${JSON.stringify(allowedTools)}, result=${canUse}`);
+    return canUse;
+  };
   
   // pi-coding-agent's built-in coding tools: read, write, edit, bash
   // Include them if allowed or if no restrictions
@@ -90,11 +93,27 @@ export function getWorkerTools(workspace: string, allowedTools: string[] = []) {
   
   // Agent communication tools (for worker-to-worker chat)
   if (canUseTool('agent_chat_direct')) {
-    tools.push(createAgentChatDirectTool(cwd));
+    log.debug('Adding agent_chat_direct tool');
+    try {
+      tools.push(createAgentChatDirectTool(cwd));
+      log.debug('✅ agent_chat_direct tool added successfully');
+    } catch (error) {
+      log.error('❌ Failed to add agent_chat_direct tool:', error);
+    }
+  } else {
+    log.debug('NOT adding agent_chat_direct tool - not allowed');
   }
   
   if (canUseTool('agent_ws_chat')) {
-    tools.push(createAgentWebSocketChatTool(cwd));
+    log.debug('Adding agent_ws_chat tool');
+    try {
+      tools.push(createAgentWebSocketChatTool(cwd));
+      log.debug('✅ agent_ws_chat tool added successfully');
+    } catch (error) {
+      log.error('❌ Failed to add agent_ws_chat tool:', error);
+    }
+  } else {
+    log.debug('NOT adding agent_ws_chat tool - not allowed');
   }
   
   log.info(`Worker has ${tools.length} available tools: ${tools.map(t => t.name).join(', ')}`);
