@@ -106,7 +106,9 @@ export const agentResultTool: ToolDefinition = {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
-          const response = await fetch(`${agent.endpoint}/task/${taskId}/result`, {
+          // Use agent's task ID if available
+          const agentTaskId = (task as any).agentTaskId || taskId;
+          const response = await fetch(`${agent.endpoint}/task/${agentTaskId}/result`, {
             signal: controller.signal,
           });
           clearTimeout(timeoutId);

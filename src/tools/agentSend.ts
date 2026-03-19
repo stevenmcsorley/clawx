@@ -131,11 +131,13 @@ export const agentSendTool: ToolDefinition = {
           throw new Error(`Agent returned ${response.status}: ${errorText}`);
         }
         
-        const result = await response.json();
+        const result = await response.json() as { taskId: string; status: string; message: string };
         
         // Update task with response
         task.status = 'running';
         task.started = Date.now();
+        // Store agent's task ID for future queries
+        (task as any).agentTaskId = result.taskId;
         registry.updateTask(taskId, task);
         registry.save();
         
