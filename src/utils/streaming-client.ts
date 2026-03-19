@@ -7,6 +7,7 @@
 import { EventEmitter } from 'events';
 import { log } from './logger.js';
 import type { StreamEvent } from './streaming-events.js';
+import { EventSource } from 'eventsource';
 
 export interface StreamClientOptions {
   endpoint: string;
@@ -91,7 +92,7 @@ export class StreamingClient extends EventEmitter {
         log.debug(`Connected to agent event stream: ${this.agentName}`);
       };
       
-      this.eventSource.onmessage = (event) => {
+      this.eventSource.onmessage = (event: MessageEvent) => {
         try {
           const streamEvent: StreamEvent = JSON.parse(event.data);
           this.emit('event', streamEvent);
@@ -100,7 +101,7 @@ export class StreamingClient extends EventEmitter {
         }
       };
       
-      this.eventSource.onerror = (error) => {
+      this.eventSource.onerror = (error: Event) => {
         log.error(`Event stream error for agent ${this.agentName}:`, error);
         this.isConnected = false;
         this.emit('disconnected', { agentId: this.agentId, agentName: this.agentName, error });
