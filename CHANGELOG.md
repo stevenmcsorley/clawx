@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.10] - 2025-01-15
+
+### Agent Spawn Command Fix
+- **Fixed installed CLI worker spawning**: `agent_spawn_local` now correctly invokes `clawx agent serve` instead of the invalid `clawx serve`
+- **Resolved Linux spawn failure**: fixes `error: unknown option '--id'` when spawning workers from a globally installed package
+- **Improved startup consistency**: aligned spawn timeout handling with the current 15s wait period
+
+### Technical Changes
+- Preserved full `agent serve` subcommand arguments when using the global `clawx` executable
+- Removed incorrect argument rewriting in `src/tools/agentSpawnLocal.ts`
+- Updated agent startup timeout constant to 15000ms
+
 ## [0.4.9] - 2025-01-15
 
 ### Enhanced Cross-Platform Agent Spawning
