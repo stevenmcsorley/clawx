@@ -2,6 +2,13 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.1] - 2025-01-15
+
+### Published Release
+- **Published to npm**: First public release with gRPC migration
+- **Clean repository**: All test files and internal docs removed
+- **Production ready**: Fully tested build and CLI
+
 ## [0.4.0] - 2025-01-15
 
 ### Major Changes
