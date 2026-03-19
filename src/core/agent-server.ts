@@ -10,6 +10,7 @@ import { createServer, Server } from 'http';
 import { log } from '../utils/logger.js';
 import { AgentConfig, AgentIdentity, AgentTask } from '../types/agent.js';
 import { v4 as uuidv4 } from 'uuid';
+import { AgentWebSocketServer } from './agent-websocket.js';
 import { createSearchFilesTool } from '../tools/searchFiles.js';
 import { createGitStatusTool } from '../tools/gitStatus.js';
 import { createGitDiffTool } from '../tools/gitDiff.js';
@@ -37,6 +38,7 @@ import type { Persona, Memory, ChatRequest, ChatResponse, ConversationTurn } fro
 
 export interface AgentServer {
   port: number;
+  wsPort?: number;
   app: express.Application;
   close: () => void;
 }
@@ -48,6 +50,21 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
   const server = createServer(app);
   const tasks = new Map<string, AgentTask>();
   const eventStream = new EventStream(config.id);
+  
+  // Start WebSocket server on next available port
+  let wsServer: AgentWebSocketServer | undefined;
+  let wsPort: number | undefined;
+  
+  try {
+    // Use port + 1000 for WebSocket (e.g., HTTP 43301 → WS 44301)
+    wsPort = config.port + 1000;
+    log.info(`Attempting to start WebSocket server on port ${wsPort}...`);
+    wsServer = new AgentWebSocketServer(wsPort);
+    log.info(`✅ Agent WebSocket server started on port ${wsPort}`);
+  } catch (error) {
+    log.error(`❌ Failed to start WebSocket server on port ${wsPort}:`, error);
+    log.warn(`Agent chat will be HTTP-only.`);
+  }
   
   /** Execute a task with real tool with timeout and streaming */
   async function executeTask(taskId: string, tool: string, params: any, context: any): Promise<void> {
@@ -263,6 +280,8 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       agentId: config.id,
       agentName: config.name,
       timestamp: Date.now(),
+      wsPort,
+      wsEnabled: !!wsServer,
     });
   });
   
@@ -640,10 +659,14 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
       resolve({
         port: actualPort,
+        wsPort,
         app,
         close: () => {
           eventStream.destroy();
           server.close();
+          if (wsServer) {
+            wsServer.close();
+          }
           log.info('Agent server stopped');
         },
       });

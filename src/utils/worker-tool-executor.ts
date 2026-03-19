@@ -10,6 +10,8 @@ import { createSearchFilesTool } from '../tools/searchFiles.js';
 import { createGitStatusTool } from '../tools/gitStatus.js';
 import { createGitDiffTool } from '../tools/gitDiff.js';
 import { createSshRunTool } from '../tools/sshRun.js';
+import { createAgentChatDirectTool } from '../tools/agentChatDirect.js';
+import { createAgentWebSocketChatTool } from '../tools/agentWebSocketChat.js';
 import {
   createCodingTools,
   createGrepTool,
@@ -84,6 +86,15 @@ export function getWorkerTools(workspace: string, allowedTools: string[] = []) {
   
   if (canUseTool('ssh_run')) {
     tools.push(createSshRunTool({})); // SSH targets would come from config
+  }
+  
+  // Agent communication tools (for worker-to-worker chat)
+  if (canUseTool('agent_chat_direct')) {
+    tools.push(createAgentChatDirectTool(cwd));
+  }
+  
+  if (canUseTool('agent_ws_chat')) {
+    tools.push(createAgentWebSocketChatTool(cwd));
   }
   
   log.info(`Worker has ${tools.length} available tools: ${tools.map(t => t.name).join(', ')}`);
