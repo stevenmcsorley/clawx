@@ -195,13 +195,11 @@ export async function withGrpcWorkerStreaming(
   
   // Event handler that filters by operationId
   const eventHandler = (event: StreamEvent) => {
-    // Filter events by operationId (from parentOperationId)
     const eventOpId = (event as any).parentOperationId;
     if (eventOpId !== operationId) {
       return;
     }
     
-    // Add agent info to event for display
     const eventWithAgentInfo = {
       ...event,
       agentId,
@@ -212,10 +210,8 @@ export async function withGrpcWorkerStreaming(
     handleEvent(eventWithAgentInfo, onUpdate, operationId);
   };
   
-  // Subscribe to agent via gRPC
   const client = streamingManager.subscribeToAgent(agentId, agentName, eventHandler);
   
-  // Set up abort signal
   const abortHandler = () => {
     streamingManager.unsubscribeFromAgent(agentId, eventHandler);
   };
@@ -225,7 +221,6 @@ export async function withGrpcWorkerStreaming(
   }
   
   try {
-    // Execute the operation that triggers gRPC streaming
     const finalResult = await operation();
 
     const isTerminalEvent = (event: StreamEvent) => {
@@ -252,28 +247,29 @@ export async function withGrpcWorkerStreaming(
     return { finalResult, events };
     
   } finally {
-    // Clean up
     if (signal) {
       signal.removeEventListener('abort', abortHandler);
     }
     streamingManager.unsubscribeFromAgent(agentId, eventHandler);
+    void client;
   }
 }
 
 /**
- * Connect gRPC streaming manager to GrpcServer frame events
- * This should be called by the master agent-server
+ * Forward a gRPC frame into the master-side streaming manager.
  */
-export function connectGrpcStreamingToServer(onFrameCallback: (frame: any) => void): () => void {
+export function forwardGrpcStreamFrame(frame: any): void {
   const streamingManager = getGrpcStreamingManager();
-  
-  // Create wrapper that forwards frames to streaming manager
-  const frameHandler = (frame: any) => {
-    streamingManager.handleGrpcFrame(frame);
-  };
-  
-  // Return cleanup function
+  streamingManager.handleGrpcFrame(frame);
+}
+
+/**
+ * Connect gRPC streaming manager to GrpcServer frame events.
+ * Kept for compatibility with existing startup wiring.
+ */
+export function connectGrpcStreamingToServer(_onFrameCallback: (frame: any) => void): () => void {
+  getGrpcStreamingManager();
   return () => {
-    streamingManager.cleanup();
+    getGrpcStreamingManager().cleanup();
   };
 }

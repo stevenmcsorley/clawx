@@ -12,7 +12,7 @@ import { AgentConfig, AgentIdentity, AgentTask } from '../types/agent.js';
 import { v4 as uuidv4 } from 'uuid';
 import { GrpcServer } from './grpc/grpc-server.js';
 import { AgentRegistryManager } from './agent-registry.js';
-import { connectGrpcStreamingToServer } from '../utils/grpc-streaming-tool-helper.js';
+import { connectGrpcStreamingToServer, forwardGrpcStreamFrame } from '../utils/grpc-streaming-tool-helper.js';
 import { createSearchFilesTool } from '../tools/searchFiles.js';
 import { createGitStatusTool } from '../tools/gitStatus.js';
 import { createGitDiffTool } from '../tools/gitDiff.js';
@@ -153,6 +153,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
   function handleGrpcFrame(frame: any) {
     const { type, fromAgentId, toAgentId, parentOperationId, parentOperationType, payload } = frame;
     
+    forwardGrpcStreamFrame(frame);
     log.debug(`[gRPC] Received ${type} from ${fromAgentId} to ${toAgentId}`);
     
     // Handle different frame types

@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.19] - 2025-01-15
+
+### Master Stream Subscription Wiring Fix
+- **Fixed master-side gRPC stream subscription delivery**: incoming worker frames are now explicitly forwarded into the master streaming manager from `src/core/agent-server.ts`
+- **Fixes silent stream loss** where worker chat replies and task terminal events were reaching the master process but never reaching `agent_chat` / `agent_send` subscribers
+- **Resolves installed-runtime symptoms** where `agent_chat` returned `No reply received` and `agent_send` remained stuck in `running` despite healthy agents
+
+### Technical Changes
+- Added `forwardGrpcStreamFrame()` in `src/utils/grpc-streaming-tool-helper.ts`
+- Updated `src/core/agent-server.ts` to forward every received gRPC frame into the streaming manager before normal task-status handling
+- Simplified compatibility wiring for `connectGrpcStreamingToServer()` so startup still initializes the shared streaming manager
+
 ## [0.4.18] - 2025-01-15
 
 ### Worker→Master gRPC Stream Routing Fix
