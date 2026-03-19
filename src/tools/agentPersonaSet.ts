@@ -135,6 +135,14 @@ export const agentPersonaSetTool: ToolDefinition = {
         isError: true,
       };
     }
+
+    // Recover missing workspace metadata if needed
+    if (!agent.workspace) {
+      const registryWorkspace = registry.getAgentWorkspace(agent.id);
+      agent.workspace = registryWorkspace;
+      registry.upsertAgent(agent);
+      registry.save();
+    }
     
     // Load existing persona or create default
     const existingPersona = loadPersona(agent.workspace);

@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.17] - 2025-01-15
+
+### Installed Registry/Workspace Recovery Fixes
+- **Fixed worker workspace loss on installed runtimes**: gRPC registration now reloads the live registry from disk before merging worker state, so spawned workers keep their known workspace metadata
+- **Recovered persona save path for workers**: `agent_persona_set` now restores a missing worker workspace from the registry path convention when metadata is blank
+- **Reduces duplicate/misleading worker entries** caused by stale in-memory registry snapshots during worker registration
+
+### Technical Changes
+- Switched gRPC registration/disconnect handlers in `src/core/agent-server.ts` to use a fresh `AgentRegistryManager` per callback
+- Preserved/fallback-filled worker workspace using `getAgentWorkspace(agent.id)` during registration merge
+- Added missing-workspace recovery in `src/tools/agentPersonaSet.ts`
+
 ## [0.4.16] - 2025-01-15
 
 ### Installed Runtime gRPC Master Fixes

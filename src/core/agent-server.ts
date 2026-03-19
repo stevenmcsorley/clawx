@@ -110,26 +110,28 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         port: grpcPort,
         onAgentRegistered: (agent) => {
           log.info(`[gRPC] Agent registered: ${agent.name} (${agent.id})`);
-          const existing = registry.getAgent(agent.id);
-          registry.upsertAgent({
+          const liveRegistry = new AgentRegistryManager();
+          const existing = liveRegistry.getAgent(agent.id);
+          liveRegistry.upsertAgent({
             ...existing,
             ...agent,
             type: existing?.type || 'local',
             status: 'idle',
-            workspace: existing?.workspace || agent.workspace || '',
+            workspace: existing?.workspace || agent.workspace || liveRegistry.getAgentWorkspace(agent.id),
             created: existing?.created || Date.now(),
             lastHeartbeat: Date.now(),
           });
-          registry.save();
+          liveRegistry.save();
         },
         onAgentDisconnected: (agentId) => {
           log.info(`[gRPC] Agent disconnected: ${agentId}`);
-          const existing = registry.getAgent(agentId);
+          const liveRegistry = new AgentRegistryManager();
+          const existing = liveRegistry.getAgent(agentId);
           if (existing) {
             existing.status = 'offline';
             existing.lastHeartbeat = Date.now();
-            registry.upsertAgent(existing);
-            registry.save();
+            liveRegistry.upsertAgent(existing);
+            liveRegistry.save();
           }
         },
         onFrame: (frame) => {
