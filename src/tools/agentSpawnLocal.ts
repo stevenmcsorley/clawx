@@ -281,16 +281,12 @@ export const agentSpawnLocalTool: ToolDefinition = {
         }
         
         if (clawxFound) {
-          // 'clawx' command is available - use it instead
+          // 'clawx' command is available - use it directly.
+          // Keep full args as `agent serve ...` because the CLI subcommand is `clawx agent serve`.
           nodePath = 'clawx';
           scriptPath = ''; // No script path needed when using 'clawx' command
           useClawxCommand = true;
-          
-          // When using 'clawx' command, args should start with 'serve' not 'agent serve'
-          if (args[0] === 'agent' && args[1] === 'serve') {
-            args = args.slice(1); // Remove 'agent', keep 'serve' and rest
-          }
-          log.debug(`Using global 'clawx' command`);
+          log.debug(`Using global 'clawx' command with full subcommand args`);
         } else {
           log.debug(`'clawx' command not found in PATH`);
         }
@@ -454,7 +450,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       // Wait for agent to start and verify health
       log.info(`Waiting for agent ${finalName} to start...`);
       let isHealthy = false;
-      const maxWaitTime = 10000; // 10 seconds
+      const maxWaitTime = 15000; // 15 seconds
       const startTime = Date.now();
       
       while (Date.now() - startTime < maxWaitTime) {
