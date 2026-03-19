@@ -6,7 +6,56 @@
 
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
-import { log } from '../utils/logger.js';
+
+function appendResultContent(output: string, value: any): string {
+  if (!value) {
+    return output;
+  }
+
+  if (value.content && Array.isArray(value.content)) {
+    for (const content of value.content) {
+      if (content.type === 'text') {
+        output += `${content.text}\n`;
+      } else if (content.type === 'code') {
+        output += `\`\`\`${content.language || ''}\n${content.code}\n\`\`\`\n`;
+      }
+    }
+    return output;
+  }
+
+  if (typeof value.output === 'string' && value.output.trim()) {
+    output += `${value.output}\n`;
+    return output;
+  }
+
+  if (value.result) {
+    return appendResultContent(output, value.result);
+  }
+
+  if (typeof value === 'string') {
+    output += `${value}\n`;
+    return output;
+  }
+
+  output += `${JSON.stringify(value, null, 2)}\n`;
+  return output;
+}
+
+function getResultDetails(value: any): any {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  if (value.details && Object.keys(value.details).length > 0) {
+    return value.details;
+  }
+
+  if (value.result) {
+    return getResultDetails(value.result);
+  }
+
+  return null;
+}
 
 export const agentResultTool: ToolDefinition = {
   name: 'agent_result',
@@ -81,21 +130,12 @@ export const agentResultTool: ToolDefinition = {
       output += `\n**Result:**\n`;
       
       if (task.result) {
-        // Format result content
-        if (task.result.content && Array.isArray(task.result.content)) {
-          for (const content of task.result.content) {
-            if (content.type === 'text') {
-              output += `${content.text}\n`;
-            } else if (content.type === 'code') {
-              output += `\`\`\`${content.language || ''}\n${content.code}\n\`\`\`\n`;
-            }
-          }
-        }
-        
-        // Add details if available
-        if (task.result.details && Object.keys(task.result.details).length > 0) {
+        output = appendResultContent(output, task.result);
+
+        const resultDetails = getResultDetails(task.result);
+        if (resultDetails && Object.keys(resultDetails).length > 0) {
           output += `\n**Details:**\n`;
-          output += JSON.stringify(task.result.details, null, 2);
+          output += JSON.stringify(resultDetails, null, 2);
         }
       } else {
         output += `No result data available.\n`;

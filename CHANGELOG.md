@@ -2,6 +2,13 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.20] - 2025-01-15
+
+### Task Result Rendering Fix
+- **Fixed `agent_result` blank output** for gRPC-completed tasks whose stored result is wrapped in nested `result` / `output` payloads
+- `agent_result` now recursively unwraps common task result shapes and prints text output, nested tool content, or JSON fallback instead of showing an empty result section
+- Preserves existing details rendering when nested detail payloads are present
+
 ## [0.4.19] - 2025-01-15
 
 ### Master Stream Subscription Wiring Fix
