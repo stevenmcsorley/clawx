@@ -248,11 +248,32 @@ export const agentSpawnLocalTool: ToolDefinition = {
       log.info(`Spawning agent process...`);
       
       // Actually spawn the agent process
-      const agentProcess = spawn(nodePath, [scriptPath, ...args], {
-        cwd: workspace,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: true,
-      });
+      let agentProcess;
+      
+      if (process.platform === 'win32') {
+        // On Windows: use cmd.exe explicitly to avoid WSL bash
+        // Build the full command with proper quoting
+        const cmdArgs = [scriptPath, ...args].map(arg => 
+          arg.includes(' ') ? `"${arg}"` : arg
+        ).join(' ');
+        
+        const fullCommand = `"${nodePath}" ${cmdArgs}`;
+        log.debug(`Spawning on Windows with command: ${fullCommand}`);
+        
+        agentProcess = spawn('cmd.exe', ['/c', fullCommand], {
+          cwd: workspace,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          shell: false, // Don't use shell, we're using cmd.exe directly
+          windowsHide: true, // Hide the terminal window
+        });
+      } else {
+        // On Unix-like systems
+        agentProcess = spawn(nodePath, [scriptPath, ...args], {
+          cwd: workspace,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          detached: true,
+        });
+      }
       
       // Store process info
       const processInfo = {

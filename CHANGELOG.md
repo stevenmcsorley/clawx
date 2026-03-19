@@ -2,6 +2,21 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.4] - 2025-01-15
+
+### Agent Stability & Windows Fixes
+- **Fixed Windows agent spawning**: Now uses `cmd.exe` instead of WSL bash, preventing terminal issues
+- **Improved process management**: Better cleanup of orphaned agent processes
+- **Added agent cleanup tool**: `agent_cleanup_processes` to clean stale registry entries
+- **Reduced agent disconnections**: Fixed detached process handling on Windows
+- **Enhanced output formatting**: Cleaner display of agent responses
+
+### Technical Changes
+- Rewrote Windows spawn logic in `agentSpawnLocal.ts` to use `cmd.exe /c`
+- Added `agentCleanupProcesses.ts` tool for managing stale agents
+- Improved process tracking and cleanup mechanisms
+- Fixed shell usage to prevent WSL interference on Windows
+
 ## [0.4.3] - 2025-01-15
 
 ### Critical Bug Fix
