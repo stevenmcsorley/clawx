@@ -248,6 +248,7 @@ export const agentSendTool: ToolDefinition = {
       // Check final task status from events
       let finalStatus = task.status;
       let finalTaskResult: any = null;
+      const usedTransport = finalResult?.transport || 'grpc';
       
       // Look for completion events
       for (const event of events) {
@@ -265,6 +266,34 @@ export const agentSendTool: ToolDefinition = {
         }
       }
       
+      if ((finalStatus === 'pending' || finalStatus === 'running') && usedTransport === 'http' && agent.endpoint) {
+        const waitUntil = Date.now() + 30000;
+        while (Date.now() < waitUntil && !signal?.aborted) {
+          try {
+            const statusResponse = await fetch(`${agent.endpoint}/task/${taskId}/status`, {
+              signal: signal || AbortSignal.timeout(5000),
+            });
+            if (statusResponse.ok) {
+              const statusJson: any = await statusResponse.json();
+              finalStatus = statusJson.status || finalStatus;
+              if (finalStatus === 'completed' || finalStatus === 'failed' || finalStatus === 'cancelled') {
+                const resultResponse = await fetch(`${agent.endpoint}/task/${taskId}/result`, {
+                  signal: signal || AbortSignal.timeout(5000),
+                });
+                if (resultResponse.ok) {
+                  const resultJson: any = await resultResponse.json();
+                  finalTaskResult = resultJson.result;
+                }
+                break;
+              }
+            }
+          } catch {
+            // keep polling until timeout
+          }
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
       // Update task in registry with final status
       task.status = finalStatus as any;
       if (finalStatus === 'completed' || finalStatus === 'failed' || finalStatus === 'cancelled') {

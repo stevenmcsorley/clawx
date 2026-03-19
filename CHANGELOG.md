@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.26] - 2025-01-15
+
+### HTTP Fallback Task Completion Tracking
+- **Fixed `agent_send` hanging in `running` after HTTP fallback dispatch** by polling the worker's `/task/:id/status` and `/task/:id/result` endpoints when direct gRPC task delivery is unavailable
+- This restores end-to-end completion/result reporting for fallback-delivered tasks instead of leaving them indefinitely pending in the master view
+- Keeps gRPC as the primary path while making fallback behavior operationally usable
+
+### Technical Changes
+- Updated `src/tools/agentSend.ts` to detect HTTP fallback transport and poll the worker for terminal task state/result
+- Task registry updates now reflect HTTP-fallback completion instead of remaining stuck in `running`
+
 ## [0.4.25] - 2025-01-15
 
 ### Worker Persona Refresh on Chat Turns
