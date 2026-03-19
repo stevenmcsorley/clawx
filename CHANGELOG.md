@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.31] - 2025-01-15
+
+### Foundational gRPC Client Stream Stability Fix
+- **Removed the incorrect 10-second deadline** from the long-lived worker↔master bidirectional gRPC stream in `GrpcClient`
+- **Hardened incoming frame decoding** so Buffer / Uint8Array payloads are normalized before frame handling, addressing runtime logs like `Unknown frame type: Buffer`
+- This targets worker disconnect/reconnect churn and unstable task/chat behavior caused by a poisoned or prematurely expiring gRPC stream
+
+### Technical Changes
+- Updated `src/core/grpc/grpc-client.ts` to stop applying a short deadline to persistent bidi streams
+- Added more robust incoming frame normalization and malformed-frame dropping in the gRPC client data handler
+
 ## [0.4.30] - 2025-01-15
 
 ### Windows Local Worker Persistence Fix

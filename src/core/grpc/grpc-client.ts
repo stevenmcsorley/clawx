@@ -57,10 +57,10 @@ export class GrpcClient extends EventEmitter {
         (frame: any) => Buffer.from(JSON.stringify(frame)),
         (data: any) => {
           if (data instanceof Buffer) return JSON.parse(data.toString());
+          if (data instanceof Uint8Array) return JSON.parse(Buffer.from(data).toString());
           return data;
         },
-        new grpc.Metadata(),
-        { deadline: Date.now() + 10000 }
+        new grpc.Metadata()
       );
       
       if (!this.call) {
@@ -84,7 +84,21 @@ export class GrpcClient extends EventEmitter {
     
     this.call.on('data', (data: any) => {
       try {
-        const frame = data instanceof Buffer ? JSON.parse(data.toString()) : data;
+        let frame: any = data;
+
+        if (data instanceof Buffer) {
+          frame = JSON.parse(data.toString());
+        } else if (data instanceof Uint8Array) {
+          frame = JSON.parse(Buffer.from(data).toString());
+        } else if (data && typeof data === 'object' && Buffer.isBuffer((data as any).type)) {
+          frame = JSON.parse((data as any).type.toString());
+        }
+
+        if (!frame || typeof frame !== 'object' || typeof frame.type !== 'string') {
+          log.warn('[gRPC Client] Dropping malformed frame:', frame);
+          return;
+        }
+
         this.handleFrame(frame as GrpcAgentFrame);
       } catch (error) {
         log.error('[gRPC Client] Failed to parse frame:', error);
