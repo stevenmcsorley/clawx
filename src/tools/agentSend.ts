@@ -45,6 +45,11 @@ export const agentSendTool: ToolDefinition = {
     const agentName = params.agent_name;
     const tool = params.tool;
     const taskParams = params.params || {};
+    const sanitizedContext = {
+      cwd: context?.cwd,
+      workerWorkspace: context?.workerWorkspace,
+      masterWorkspace: context?.masterWorkspace,
+    };
     
     try {
       const registry = new AgentRegistryManager();
@@ -128,7 +133,7 @@ export const agentSendTool: ToolDefinition = {
         id: taskId,
         agentId: agent.id,
         type: 'execute',
-        payload: { tool, params: taskParams, context: { ...(context || {}), __transport: 'grpc' } },
+        payload: { tool, params: taskParams, context: { ...sanitizedContext, __transport: 'grpc' } },
         status: 'pending',
         created: Date.now(),
       };
@@ -210,7 +215,7 @@ export const agentSendTool: ToolDefinition = {
         signal,
       }, async () => {
         let transport: 'grpc' | 'http' = 'grpc';
-        const sent = grpcServer.sendTask(masterConfig.id, agent.id, taskId, tool, taskParams, context);
+        const sent = grpcServer.sendTask(masterConfig.id, agent.id, taskId, tool, taskParams, sanitizedContext);
         if (!sent) {
           log.warn(`gRPC sendTask to ${agent.name} failed, falling back to HTTP /task compatibility path`);
           const response = await fetch(`${agent.endpoint}/task`, {
@@ -220,7 +225,7 @@ export const agentSendTool: ToolDefinition = {
             body: JSON.stringify({
               tool,
               params: taskParams,
-              context: { ...(context || {}), __transport: 'grpc' },
+              context: { ...sanitizedContext, __transport: 'http' },
               taskId,
             }),
           });

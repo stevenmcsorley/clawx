@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.32] - 2025-01-15
+
+### Minimal Context gRPC Task Dispatch
+- **Fixed oversized gRPC task dispatch payloads** by sending only a sanitized minimal execution context to workers (`cwd`, `workerWorkspace`, `masterWorkspace`) instead of the full interactive tool/session context
+- Addresses real installed-runtime failures like `RESOURCE_EXHAUSTED: Received message larger than max` when delegating even simple tasks from large active sessions or repositories
+- Keeps Clawx scalable for large applications by treating gRPC as a lean control plane while workers operate on the codebase locally from disk
+
+### Technical Changes
+- Updated `src/tools/agentSend.ts` to sanitize task execution context before gRPC dispatch
+- Updated HTTP fallback task context to use the same minimal context shape
+- Prevents trivial delegated tasks from inheriting huge live-session payloads
+
 ## [0.4.31] - 2025-01-15
 
 ### Foundational gRPC Client Stream Stability Fix
