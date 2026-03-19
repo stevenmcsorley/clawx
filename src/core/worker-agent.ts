@@ -115,10 +115,6 @@ export class WorkerAgent {
         this.handleTaskCancelled(frame);
         break;
         
-      case 'tool_started':
-        this.handleToolStarted(frame);
-        break;
-        
       default:
         log.debug(`Worker ${this.options.agentId} ignoring frame type: ${type}`);
     }
@@ -354,23 +350,6 @@ export class WorkerAgent {
       }
     } finally {
       this.activeTaskControllers.delete(parentOperationId);
-    }
-  }
-  
-  private handleToolStarted(frame: any) {
-    const { parentOperationId, fromAgentId, payload } = frame;
-    const { toolName, params } = payload || {};
-    
-    log.info(`Worker ${this.options.agentId} starting tool ${toolName} for task ${parentOperationId}`);
-    
-    // Send tool output simulation
-    if (this.grpcClient) {
-      this.grpcClient.sendToolStdout(parentOperationId, fromAgentId, `Starting ${toolName} with params: ${JSON.stringify(params)}`);
-      
-      setTimeout(() => {
-        this.grpcClient!.sendToolStdout(parentOperationId, fromAgentId, `Tool ${toolName} executing...`);
-        this.grpcClient!.sendToolFinished(parentOperationId, fromAgentId, { success: true, output: 'Simulated tool execution' });
-      }, 500);
     }
   }
   

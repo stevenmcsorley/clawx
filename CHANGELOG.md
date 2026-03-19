@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.28] - 2025-01-15
+
+### Direct gRPC Task Lifecycle Fix
+- **Removed bogus inbound `tool_started` worker handling** that simulated tool execution when the worker should only begin real task execution from `task_started`
+- This eliminates a leftover fake execution path that could corrupt direct gRPC task lifecycle behavior and interfere with proper terminal completion
+- Worker task execution is now anchored to the real `task_started` → execute tool → emit tool/task result frames flow
+
+### Technical Changes
+- Updated `src/core/worker-agent.ts` to stop reacting to inbound `tool_started` frames
+- Removed obsolete `handleToolStarted()` simulation code from the worker
+
 ## [0.4.27] - 2025-01-15
 
 ### Correct Task Transport Tagging for HTTP Fallback
