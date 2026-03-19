@@ -322,7 +322,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
   // Task submission
   app.post('/task', async (req: Request, res: Response) => {
     try {
-      const { tool, params, context } = req.body;
+      const { tool, params, context, taskId: requestedTaskId } = req.body;
       
       if (!tool) {
         return res.status(400).json({ error: 'tool name required' });
@@ -335,7 +335,8 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         });
       }
       
-      const taskId = uuidv4();
+      // Use requested task ID if provided, otherwise generate one
+      const taskId = requestedTaskId || uuidv4();
       const task: AgentTask = {
         id: taskId,
         agentId: config.id,

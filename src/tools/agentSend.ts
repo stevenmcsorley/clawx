@@ -115,7 +115,7 @@ export const agentSendTool: ToolDefinition = {
         onUpdate: onUpdate,
         signal,
       }, async () => {
-        // Send task to agent
+        // Send task to agent with our task ID
         const response = await fetch(`${agent.endpoint}/task`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -123,6 +123,7 @@ export const agentSendTool: ToolDefinition = {
             tool,
             params: taskParams,
             context,
+            taskId, // Pass our task ID to agent
           }),
         });
         
@@ -136,8 +137,6 @@ export const agentSendTool: ToolDefinition = {
         // Update task with response
         task.status = 'running';
         task.started = Date.now();
-        // Store agent's task ID for future queries
-        (task as any).agentTaskId = result.taskId;
         registry.updateTask(taskId, task);
         registry.save();
         

@@ -69,9 +69,7 @@ export const agentStatusTool: ToolDefinition = {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
-        // Use agent's task ID if available, otherwise use our task ID
-        const agentTaskId = (task as any).agentTaskId || taskId;
-        const response = await fetch(`${agent.endpoint}/task/${agentTaskId}/status`, {
+        const response = await fetch(`${agent.endpoint}/task/${taskId}/status`, {
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
