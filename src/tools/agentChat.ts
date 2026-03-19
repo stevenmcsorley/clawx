@@ -187,7 +187,7 @@ export const agentChatTool: ToolDefinition = {
       const deltas = events.filter(e => e.type === 'agent_message_delta').map((e: any) => e.delta || '');
       const endEvent = [...events].reverse().find((e: any) => e.type === 'agent_message_end') as any;
       const startEvent = events.find((e: any) => e.type === 'agent_message_start') as any;
-      const reply = endEvent?.finalMessage || deltas.join('') || finalResult.response.reply || 'No reply received';
+      const reply = endEvent?.finalMessage || deltas.join('') || finalResult.response?.reply || finalResult.reply || 'No reply received';
       const personaName = startEvent?.persona?.name || finalResult.persona?.name || agent.name;
       const personaRole = startEvent?.persona?.role || finalResult.persona?.role || 'Agent';
       

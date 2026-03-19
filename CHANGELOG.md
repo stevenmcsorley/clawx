@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.21] - 2025-01-15
+
+### Chat Fallback Streaming Fix
+- **Fixed intermittent `agent_chat` "No reply received" failures** when the worker model path fell back after an upstream model/stream error
+- Worker chat fallback responses now emit `agent_message_start`, `agent_message_delta`, and `agent_message_end` frames so the master always receives a terminal chat event
+- `agent_chat` now also accepts a fallback `finalResult.reply` path when streamed end events are absent
+
+### Impact
+- Restores reliable chat completion semantics even when the model call degrades to the fallback reply path
+- Improves live chat streaming continuity instead of silently waiting and then dumping `No reply received`
+
 ## [0.4.20] - 2025-01-15
 
 ### Task Result Rendering Fix
