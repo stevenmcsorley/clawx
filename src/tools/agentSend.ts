@@ -143,6 +143,33 @@ export const agentSendTool: ToolDefinition = {
         throw new Error('Current session does not have an active gRPC master server instance');
       }
 
+      const prettyOnUpdate = (update: any) => {
+        switch (update?.type) {
+          case 'task_started':
+            onUpdate?.({ type: 'tool_stdout', streamKey: update.streamKey, data: `\n${update.agentName} starting ${update.tool}\n` });
+            break;
+          case 'task_progress':
+            onUpdate?.({ type: 'tool_stdout', streamKey: update.streamKey, data: `[${update.progress}%] ${update.message || ''}\n` });
+            break;
+          case 'tool_started':
+            onUpdate?.({ type: 'tool_stdout', streamKey: update.streamKey, data: `\n[tool] ${update.toolName}\n` });
+            break;
+          case 'tool_stdout':
+          case 'tool_stderr':
+            onUpdate?.({ type: update.type, streamKey: update.streamKey, data: update.data.endsWith('\n') ? update.data : `${update.data}\n` });
+            break;
+          case 'task_completed':
+            onUpdate?.({ type: 'tool_stdout', streamKey: update.streamKey, data: `\n[completed]\n` });
+            break;
+          case 'task_failed':
+            onUpdate?.({ type: 'tool_stderr', streamKey: update.streamKey, data: `\n[failed] ${update.error || 'Unknown error'}\n` });
+            break;
+          case 'task_cancelled':
+            onUpdate?.({ type: 'tool_stderr', streamKey: update.streamKey, data: `\n[cancelled]\n` });
+            break;
+        }
+      };
+
       // Use gRPC streaming helper
       const abortHandler = () => {
         grpcServer.cancelTask(masterConfig.id, agent.id, taskId, 'Aborted by master');
@@ -156,7 +183,7 @@ export const agentSendTool: ToolDefinition = {
         agentName: agent.name,
         operationId: taskId,
         operationType: 'task',
-        onUpdate: onUpdate,
+        onUpdate: prettyOnUpdate,
         signal,
       }, async () => {
         const sent = grpcServer.sendTask(masterConfig.id, agent.id, taskId, tool, taskParams, context);

@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.22] - 2025-01-15
+
+### Streaming UX Improvements for Agent Chat and Tasks
+- **Improved live agent chat presentation**: `agent_chat` now converts internal gRPC chat events into readable streaming output with speaker headers and incremental text deltas
+- **Improved live task presentation**: `agent_send` now streams task progress, tool starts, stdout/stderr, and terminal states as cleaner terminal-style text instead of exposing raw event structure
+- **Better multi-agent readability**: agent interactions should now look more like a conversation/transcript and less like JSON protocol traffic in the TUI
+
+### Technical Changes
+- Added pretty streaming event adaptation in `src/tools/agentChat.ts`
+- Added pretty streaming event adaptation in `src/tools/agentSend.ts`
+- Preserved final tool return values while making in-flight updates more human-readable
+
 ## [0.4.21] - 2025-01-15
 
 ### Chat Fallback Streaming Fix

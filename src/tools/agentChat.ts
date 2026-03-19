@@ -150,13 +150,67 @@ export const agentChatTool: ToolDefinition = {
         throw new Error('Current session does not have an active gRPC master server instance');
       }
 
+      let streamedHeaderShown = false;
+      let streamedReplyBuffer = '';
+      const prettyOnUpdate = (update: any) => {
+        switch (update?.type) {
+          case 'chat_start': {
+            if (!streamedHeaderShown && onUpdate) {
+              streamedHeaderShown = true;
+              onUpdate({
+                type: 'tool_stdout',
+                streamKey: update.streamKey,
+                data: `\n${update.agentName}:\n`,
+              });
+            }
+            break;
+          }
+          case 'chat_delta': {
+            if (typeof update.delta === 'string') {
+              streamedReplyBuffer += update.delta;
+              onUpdate?.({
+                type: 'tool_stdout',
+                streamKey: update.streamKey,
+                data: update.delta,
+              });
+            }
+            break;
+          }
+          case 'chat_end': {
+            onUpdate?.({
+              type: 'tool_stdout',
+              streamKey: update.streamKey,
+              data: `\n`,
+            });
+            break;
+          }
+          case 'tool_started': {
+            onUpdate?.({
+              type: 'tool_stdout',
+              streamKey: update.streamKey,
+              data: `\n[${update.agentName} is using tool: ${update.toolName}]\n`,
+            });
+            break;
+          }
+          case 'tool_stdout':
+          case 'tool_stderr': {
+            onUpdate?.({
+              type: update.type,
+              streamKey: update.streamKey,
+              data: update.data,
+            });
+            break;
+          }
+        }
+      };
+
       // Use gRPC streaming helper
       const streamingResult = await withGrpcWorkerStreaming({
         agentId: agent.id,
         agentName: agent.name,
         operationId: turnId,
         operationType: 'chat',
-        onUpdate: onUpdate,
+        onUpdate: prettyOnUpdate,
         signal,
       }, async () => {
         const sent = grpcServer.sendChat(masterConfig.id, agent.id, message, turnId, {
@@ -187,7 +241,7 @@ export const agentChatTool: ToolDefinition = {
       const deltas = events.filter(e => e.type === 'agent_message_delta').map((e: any) => e.delta || '');
       const endEvent = [...events].reverse().find((e: any) => e.type === 'agent_message_end') as any;
       const startEvent = events.find((e: any) => e.type === 'agent_message_start') as any;
-      const reply = endEvent?.finalMessage || deltas.join('') || finalResult.response?.reply || finalResult.reply || 'No reply received';
+      const reply = endEvent?.finalMessage || deltas.join('') || streamedReplyBuffer || finalResult.response?.reply || finalResult.reply || 'No reply received';
       const personaName = startEvent?.persona?.name || finalResult.persona?.name || agent.name;
       const personaRole = startEvent?.persona?.role || finalResult.persona?.role || 'Agent';
       
