@@ -236,15 +236,9 @@ export const agentSpawnLocalTool: ToolDefinition = {
       }
       
       // Build command to start agent
-      // When running via CLI, process.argv[1] should be the CLI entry point
-      const nodePath = process.argv[0];
-      const scriptPath = process.argv[1];
-      
-      log.debug(`Spawning agent with: ${nodePath} ${scriptPath}`);
-      log.debug(`Current directory: ${process.cwd()}`);
-      log.debug(`Platform: ${process.platform}`);
-      
-      const args = [
+      // Try to use the global 'clawx' command if available
+      // Build args first
+      let args = [
         'agent', 'serve',
         '--id', agentId,
         '--name', finalName,
@@ -252,6 +246,32 @@ export const agentSpawnLocalTool: ToolDefinition = {
         '--master', masterEndpoint,
         '--workspace', workspace,
       ];
+      
+      // This avoids path quoting issues with node.exe and script paths
+      let nodePath = process.argv[0];
+      let scriptPath = process.argv[1];
+      
+      // Check if 'clawx' command is available in PATH
+      try {
+        const { execSync } = await import('child_process');
+        execSync('where clawx', { stdio: 'ignore' });
+        // 'clawx' command is available - use it instead
+        nodePath = 'clawx';
+        scriptPath = ''; // No script path needed when using 'clawx' command
+        // When using 'clawx' command, args should start with 'serve' not 'agent serve'
+        // So we need to adjust the args array
+        if (args[0] === 'agent' && args[1] === 'serve') {
+          args = args.slice(1); // Remove 'agent', keep 'serve' and rest
+        }
+        log.debug(`Using global 'clawx' command, adjusted args: ${args.join(' ')}`);
+      } catch (error) {
+        // 'clawx' not in PATH, use node + script path
+        log.debug(`'clawx' command not found in PATH, using node + script`);
+      }
+      
+      log.debug(`Spawning agent with: ${nodePath} ${scriptPath} ${args.join(' ')}`);
+      log.debug(`Current directory: ${process.cwd()}`);
+      log.debug(`Platform: ${process.platform}`);
       
       // Add gRPC endpoint if master has one
       if (masterEndpoint) {
@@ -278,18 +298,37 @@ export const agentSpawnLocalTool: ToolDefinition = {
       let agentProcess;
       
       if (process.platform === 'win32') {
-        // On Windows: use shell for better compatibility
-        log.debug(`Spawning on Windows: ${nodePath} ${scriptPath} ${args.join(' ')}`);
+        // On Windows: build a properly quoted command string
+        const quoteForWindowsCmd = (arg: string): string => {
+          if (arg && arg.includes(' ')) {
+            return `"${arg}"`;
+          }
+          return arg || '';
+        };
         
-        agentProcess = spawn(nodePath, [scriptPath, ...args], {
+        // Build command parts, filtering out empty scriptPath
+        const cmdParts = [nodePath];
+        if (scriptPath) {
+          cmdParts.push(scriptPath);
+        }
+        cmdParts.push(...args);
+        
+        const quotedParts = cmdParts.map(quoteForWindowsCmd).filter(p => p !== '');
+        const fullCommand = quotedParts.join(' ');
+        
+        log.debug(`Windows command: ${fullCommand}`);
+        
+        // Use spawn with the full command string
+        agentProcess = spawn(fullCommand, {
           cwd: workspace,
           stdio: ['ignore', 'pipe', 'pipe'],
-          shell: true, // Use shell for Windows compatibility
-          windowsHide: true, // Hide the terminal window
+          shell: true, // Use cmd.exe shell
+          windowsHide: true,
         });
       } else {
         // On Unix-like systems
-        agentProcess = spawn(nodePath, [scriptPath, ...args], {
+        const spawnArgs = scriptPath ? [scriptPath, ...args] : args;
+        agentProcess = spawn(nodePath, spawnArgs, {
           cwd: workspace,
           stdio: ['ignore', 'pipe', 'pipe'],
           detached: true,

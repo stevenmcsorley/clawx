@@ -2,6 +2,20 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.8] - 2025-01-15
+
+### Windows Path Quoting Fix
+- **Fixed Windows path quoting issue**: Resolved `'C:\Program' is not recognized` error for paths with spaces
+- **Smart command detection**: Now tries to use global `clawx` command if available in PATH
+- **Improved Windows compatibility**: Better handling of command construction for cmd.exe
+- **Enhanced debugging**: More detailed logging of command construction process
+
+### Technical Changes
+- Added detection and use of global `clawx` command to avoid path quoting issues
+- Fixed Windows command construction with proper quoting for paths containing spaces
+- Improved argument handling when using `clawx` vs `node + script` approaches
+- Added detailed command debugging for spawn failures
+
 ## [0.4.7] - 2025-01-15
 
 ### Critical ES Module Fix
