@@ -214,6 +214,27 @@ export const agentSpawnLocalTool: ToolDefinition = {
       log.info(`Workspace: ${workspace}`);
       log.info(`Master: ${masterEndpoint}`);
       
+      // Verify master is reachable before spawning agent
+      try {
+        log.info(`Verifying master endpoint: ${masterEndpoint}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const masterHealth = await fetch(`${masterEndpoint}/health`, { 
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!masterHealth.ok) {
+          throw new Error(`Master health check failed with status: ${masterHealth.status}`);
+        }
+        log.info(`Master is reachable and healthy`);
+      } catch (error) {
+        log.warn(`Master health check failed: ${error instanceof Error ? error.message : String(error)}`);
+        log.warn(`Agent may fail to register with master`);
+      }
+      
       // Build command to start agent
       // Use the same entry point that started this process
       const nodePath = process.argv[0];

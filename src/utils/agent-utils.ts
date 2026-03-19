@@ -175,13 +175,26 @@ export async function checkAgentHealth(endpoint: string, timeoutMs = 5000): Prom
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
-    const response = await fetch(`${endpoint}/health`, {
+    const healthUrl = `${endpoint}/health`;
+    log.debug(`Checking agent health at: ${healthUrl}`);
+    
+    const response = await fetch(healthUrl, {
       signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+      },
     });
     
     clearTimeout(timeoutId);
-    return response.ok;
+    
+    if (!response.ok) {
+      log.debug(`Health check failed with status: ${response.status} ${response.statusText}`);
+      return false;
+    }
+    
+    return true;
   } catch (error) {
+    log.debug(`Health check error: ${error instanceof Error ? error.message : String(error)}`);
     return false;
   }
 }

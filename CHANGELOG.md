@@ -2,6 +2,22 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.6] - 2025-01-15
+
+### Enhanced Agent Spawning & Debugging
+- **Improved health check debugging**: Added detailed logging for agent health checks
+- **Master endpoint verification**: Now checks master reachability before spawning agents
+- **Better error reporting**: Clearer error messages with process output
+- **Fixed fetch timeout**: Proper AbortController usage for timeout handling
+- **Enhanced spawn reliability**: Additional validation and debugging
+
+### Technical Changes
+- Added master endpoint verification in `agentSpawnLocal.ts`
+- Enhanced `checkAgentHealth` with detailed logging
+- Fixed fetch timeout implementation with AbortController
+- Added process output capture for debugging spawn failures
+- Improved error messages with actionable information
+
 ## [0.4.5] - 2025-01-15
 
 ### Critical Agent Spawning Fix
