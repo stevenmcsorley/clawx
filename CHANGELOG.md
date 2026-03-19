@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.3] - 2025-01-15
+
+### Critical Bug Fix
+- **Fixed `signal?.addEventListener is not a function` error**: Tools now execute correctly
+- **Simplified tool execution**: Always call with all 5 parameters, ensuring proper parameter alignment
+- **Robust AbortSignal handling**: Tools expecting signals always receive valid AbortSignal
+
+### Technical Fix
+- Rewrote `worker-tool-executor.ts` to always call tools with `(toolCallId, params, signal, onEvent, context)`
+- Removed complex arity checking that could mis-match parameters
+- JavaScript ignores extra parameters, ensuring compatibility with all tool signatures
+
 ## [0.4.2] - 2025-01-15
 
 ### Complete gRPC Migration
