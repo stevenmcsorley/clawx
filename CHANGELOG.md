@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.27] - 2025-01-15
+
+### Correct Task Transport Tagging for HTTP Fallback
+- **Fixed HTTP fallback tasks still being tagged as gRPC** in the master registry
+- This prevented status/result paths from treating fallback-delivered tasks as HTTP-backed work, which could leave them stuck in `running` even after fallback polling logic was added
+- `agent_send` now updates task transport metadata to `http` when direct gRPC delivery fails and fallback dispatch is used
+
+### Technical Changes
+- Updated `src/tools/agentSend.ts` so fallback-dispatched tasks are recorded with `__transport: 'http'`
+- Allows downstream status/result logic to follow the correct truth path for fallback-delivered tasks
+
 ## [0.4.26] - 2025-01-15
 
 ### HTTP Fallback Task Completion Tracking

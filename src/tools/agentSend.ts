@@ -230,6 +230,7 @@ export const agentSendTool: ToolDefinition = {
           }
 
           transport = 'http';
+          task.payload.context = { ...(task.payload.context || {}), __transport: 'http' };
         }
 
         task.status = 'running';
