@@ -62,6 +62,15 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       registry.save();
     }
   }
+
+  function getDefaultExecutionContext(context?: any) {
+    return {
+      ...(context || {}),
+      cwd: context?.cwd || config.masterWorkspace || config.workspace,
+      workerWorkspace: config.workspace,
+      masterWorkspace: config.masterWorkspace || config.workspace,
+    };
+  }
   
   // Helper to update task status from gRPC frames
   function updateTaskStatus(taskId: string, status: 'completed' | 'failed' | 'cancelled', result?: any, error?: string) {
@@ -100,9 +109,27 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         port: grpcPort,
         onAgentRegistered: (agent) => {
           log.info(`[gRPC] Agent registered: ${agent.name} (${agent.id})`);
+          const existing = registry.getAgent(agent.id);
+          registry.upsertAgent({
+            ...existing,
+            ...agent,
+            type: 'local',
+            status: 'idle',
+            workspace: existing?.workspace || '',
+            created: existing?.created || Date.now(),
+            lastHeartbeat: Date.now(),
+          });
+          registry.save();
         },
         onAgentDisconnected: (agentId) => {
           log.info(`[gRPC] Agent disconnected: ${agentId}`);
+          const existing = registry.getAgent(agentId);
+          if (existing) {
+            existing.status = 'offline';
+            existing.lastHeartbeat = Date.now();
+            registry.upsertAgent(existing);
+            registry.save();
+          }
         },
         onFrame: (frame) => {
           // Handle incoming gRPC frames
@@ -294,6 +321,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
   app.post('/task', async (req: Request, res: Response) => {
     try {
       const { tool, params, context, taskId: requestedTaskId, targetAgentId } = req.body;
+      const effectiveContext = getDefaultExecutionContext(context);
       
       if (!tool) {
         return res.status(400).json({ error: 'tool name required' });
@@ -307,7 +335,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         log.info(`Routing task ${taskId} to worker ${targetAgentId} via gRPC: ${tool}`);
         
         // Send task via gRPC
-        const sent = grpcServer.sendTask(targetAgentId, taskId, tool, params, context);
+        const sent = grpcServer.sendTask(config.id, targetAgentId, taskId, tool, params, effectiveContext);
         
         if (!sent) {
           return res.status(404).json({ error: `Worker ${targetAgentId} not connected via gRPC` });
@@ -318,7 +346,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
           id: taskId,
           agentId: targetAgentId,
           type: 'execute',
-          payload: { tool, params, context },
+          payload: { tool, params, context: effectiveContext },
           status: 'running',
           created: Date.now(),
           started: Date.now(),
@@ -350,7 +378,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         id: taskId,
         agentId: config.id,
         type: 'execute',
-        payload: { tool, params, context },
+        payload: { tool, params, context: effectiveContext },
         status: 'pending',
         created: Date.now(),
       };
@@ -359,7 +387,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       syncTaskToRegistry(taskId);
       
       // Execute task in background (legacy HTTP path)
-      executeTask(taskId, tool, params, context).catch(error => {
+      executeTask(taskId, tool, params, effectiveContext).catch(error => {
         log.error(`Task ${taskId} execution failed:`, error);
         const storedTask = tasks.get(taskId);
         if (storedTask) {
@@ -403,6 +431,24 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     });
   });
   
+  // Task result
+  app.get('/task/:id/result', (req: Request, res: Response) => {
+    const taskId = req.params.id as string;
+    const task = tasks.get(taskId);
+
+    if (!task) {
+      return res.status(404).json({ error: `Task ${taskId} not found` });
+    }
+
+    res.json({
+      taskId,
+      status: task.status,
+      result: task.result,
+      error: task.error,
+      completed: task.completed,
+    });
+  });
+
   // Cancel task
   app.post('/task/:id/cancel', (req: Request, res: Response) => {
     const taskId = req.params.id as string;
@@ -486,6 +532,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     
     try {
       const { speaker, target, message, context, mode = 'discussion' } = req.body as ChatRequest;
+      const requestTurnId = (req.body as any).turnId as string | undefined;
+      const turnIdToUse = requestTurnId || turnId;
+      const effectiveContext = getDefaultExecutionContext(context);
       
       if (!speaker || !target || !message) {
         return res.status(400).json({ error: 'speaker, target, and message required' });
@@ -496,7 +545,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         log.info(`Routing chat via gRPC from ${speaker} to ${target}`);
         
         // Send chat message via gRPC
-        const sent = grpcServer.sendChat(speaker, target, message, turnId);
+        const sent = grpcServer.sendChat(speaker, target, message, turnIdToUse);
         
         if (!sent) {
           return res.status(404).json({ error: `Agent ${target} not connected via gRPC` });
@@ -504,7 +553,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         
         // Return immediate acknowledgment
         const response = {
-          turnId,
+          turnId: turnIdToUse,
           speaker: config.id,
           target: speaker,
           message: `Chat routed to ${target} via gRPC`,
@@ -525,11 +574,11 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
       // Create conversation turn
       const turn: ConversationTurn = {
-        id: turnId,
+        id: turnIdToUse,
         speaker,
         target,
         message,
-        context,
+        context: effectiveContext,
         mode,
         timestamp: Date.now(),
       };
@@ -549,7 +598,48 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         memory,
         turn,
         config.workspace,
-        availableTools
+        availableTools,
+        (event) => {
+          if (!grpcServer || speaker === config.id) return;
+          switch (event.type) {
+            case 'agent_message_start':
+              grpcServer.sendFrame({
+                id: `msg_start_${turnIdToUse}`,
+                type: 'agent_message_start',
+                timestamp: Date.now(),
+                fromAgentId: config.id,
+                toAgentId: speaker,
+                parentOperationId: turnIdToUse,
+                parentOperationType: 'chat',
+                payload: { turnId: turnIdToUse, persona: event.persona },
+              });
+              break;
+            case 'agent_message_delta':
+              grpcServer.sendFrame({
+                id: `msg_delta_${turnIdToUse}_${Date.now()}`,
+                type: 'agent_message_delta',
+                timestamp: Date.now(),
+                fromAgentId: config.id,
+                toAgentId: speaker,
+                parentOperationId: turnIdToUse,
+                parentOperationType: 'chat',
+                payload: { turnId: turnIdToUse, delta: event.delta },
+              });
+              break;
+            case 'agent_message_end':
+              grpcServer.sendFrame({
+                id: `msg_end_${turnIdToUse}`,
+                type: 'agent_message_end',
+                timestamp: Date.now(),
+                fromAgentId: config.id,
+                toAgentId: speaker,
+                parentOperationId: turnIdToUse,
+                parentOperationType: 'chat',
+                payload: { turnId: turnIdToUse, finalMessage: event.finalMessage },
+              });
+              break;
+          }
+        }
       );
       
       let finalReply = reply;
@@ -564,8 +654,60 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
           
           // Execute tool
           const stream = executeToolWithStream(name, args, config.workspace, config.allowedTools, turn.context, (event) => {
-            // Tool events could be sent via gRPC if we had proper client
-          }, turnId, 'chat');
+            if (!grpcServer || speaker === config.id) {
+              return;
+            }
+            switch (event.type) {
+              case 'tool_started':
+                grpcServer.sendFrame({
+                  id: `tool_start_${turnIdToUse}_${Date.now()}`,
+                  type: 'tool_started',
+                  timestamp: Date.now(),
+                  fromAgentId: config.id,
+                  toAgentId: speaker,
+                  parentOperationId: turnIdToUse,
+                  parentOperationType: 'chat',
+                  payload: { tool: event.toolName, toolName: event.toolName, params: event.params },
+                });
+                break;
+              case 'tool_stdout':
+                grpcServer.sendFrame({
+                  id: `tool_stdout_${turnIdToUse}_${Date.now()}`,
+                  type: 'tool_stdout',
+                  timestamp: Date.now(),
+                  fromAgentId: config.id,
+                  toAgentId: speaker,
+                  parentOperationId: turnIdToUse,
+                  parentOperationType: 'chat',
+                  payload: { data: event.data },
+                });
+                break;
+              case 'tool_stderr':
+                grpcServer.sendFrame({
+                  id: `tool_stderr_${turnIdToUse}_${Date.now()}`,
+                  type: 'tool_stderr',
+                  timestamp: Date.now(),
+                  fromAgentId: config.id,
+                  toAgentId: speaker,
+                  parentOperationId: turnIdToUse,
+                  parentOperationType: 'chat',
+                  payload: { data: event.data },
+                });
+                break;
+              case 'tool_finished':
+                grpcServer.sendFrame({
+                  id: `tool_finished_${turnIdToUse}_${Date.now()}`,
+                  type: 'tool_finished',
+                  timestamp: Date.now(),
+                  fromAgentId: config.id,
+                  toAgentId: speaker,
+                  parentOperationId: turnIdToUse,
+                  parentOperationType: 'chat',
+                  payload: { result: event.result },
+                });
+                break;
+            }
+          }, turnIdToUse, 'chat');
           const result = await stream.result;
           
           if (result.success) {
@@ -613,7 +755,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
       res.json({
         success: true,
-        turnId,
+        turnId: turnIdToUse,
         response: {
           reply: finalReply,
           notes: {

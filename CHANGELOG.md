@@ -2,6 +2,26 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.11] - 2025-01-15
+
+### Multi-Agent Runtime Integration Fixes
+- **Real worker chat streaming**: local worker `/chat` now emits live chat deltas and tool events back to the master over gRPC with stable per-agent identity
+- **Worker task context improved**: spawned workers now inherit the master's workspace as default execution context so they operate in the same project by default
+- **Task lifecycle consistency improved**: registry task writes now replace by task ID instead of appending duplicates
+- **Worker endpoint truth improved**: gRPC worker registration now reports the actual worker HTTP endpoint
+- **Offline agent truth improved**: disconnected/unhealthy workers are marked offline in registry instead of appearing falsely available
+- **Task result endpoint restored**: `/task/:id/result` is now available for result fetch fallback
+- **gRPC task routing fix**: corrected master→worker task frame construction for routed gRPC tasks
+
+### Technical Changes
+- Added `masterWorkspace` propagation through worker spawn and CLI serve paths
+- Wired `generateModelChatResponse(..., onEvent)` into gRPC chat streaming in `src/core/agent-server.ts`
+- Added gRPC forwarding for chat-triggered tool events
+- Changed `AgentRegistryManager.addTask()` to upsert by task ID
+- Fixed `GrpcServer.sendTask()` argument ordering and context packaging
+- Added `/task/:id/result` endpoint to `src/core/agent-server.ts`
+- Marked disconnected gRPC workers offline in registry and health-based listing
+
 ## [0.4.10] - 2025-01-15
 
 ### Agent Spawn Command Fix

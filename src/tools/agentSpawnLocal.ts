@@ -198,6 +198,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       }
       
       // Create agent config
+      const masterWorkspace = agentMaster.getConfig()?.workspace || process.cwd();
       const config = {
         id: agentId,
         name: finalName,
@@ -205,6 +206,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
         workspace,
         masterEndpoint,
         allowedTools: effectiveAllowedTools,
+        masterWorkspace,
       };
       
       const configPath = join(workspace, 'agent-config.json');
@@ -246,6 +248,10 @@ export const agentSpawnLocalTool: ToolDefinition = {
         '--master', masterEndpoint,
         '--workspace', workspace,
       ];
+
+      if (masterWorkspace) {
+        args.push('--master-workspace', masterWorkspace);
+      }
       
       // Determine the best way to spawn the agent
       // Priority 1: Use 'clawx' command if available (for global installs)

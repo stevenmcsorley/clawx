@@ -347,8 +347,11 @@ export class GrpcServer extends EventEmitter {
     return this.sendFrame(frame);
   }
   
-  sendTask(toAgentId: string, taskId: string, tool: string, params: any, context?: any): boolean {
-    const frame = GrpcFrames.createTaskStarted(taskId, toAgentId, tool, params, context);
+  sendTask(fromAgentId: string, toAgentId: string, taskId: string, tool: string, params: any, context?: any): boolean {
+    const frame = GrpcFrames.createTaskStarted(taskId, fromAgentId, toAgentId, tool, {
+      ...params,
+      __context: context,
+    });
     return this.sendFrame(frame);
   }
   

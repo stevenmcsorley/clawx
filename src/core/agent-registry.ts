@@ -146,9 +146,14 @@ export class AgentRegistryManager {
     return this.registry.tasks.filter(task => task.agentId === agentId);
   }
 
-  /** Add task */
+  /** Add or replace task by ID */
   addTask(task: AgentTask): void {
-    this.registry.tasks.push(task);
+    const index = this.registry.tasks.findIndex(t => t.id === task.id);
+    if (index >= 0) {
+      this.registry.tasks[index] = task;
+    } else {
+      this.registry.tasks.push(task);
+    }
     this.dirty = true;
   }
 

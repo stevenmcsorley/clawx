@@ -18,6 +18,7 @@ export interface WorkerAgentOptions {
   masterGrpcEndpoint: string; // grpc://localhost:port
   allowedTools: string[];
   persona?: Persona;
+  httpEndpoint?: string;
 }
 
 export class WorkerAgent {
@@ -59,7 +60,7 @@ export class WorkerAgent {
       agentName: this.options.agentName,
       persona: this.persona || undefined,
       capabilities: this.options.allowedTools,
-      endpoint: `http://localhost:${process.env.PORT || '0'}`, // Worker's HTTP endpoint
+      endpoint: this.options.httpEndpoint || `http://localhost:${process.env.PORT || '0'}`,
       serverAddress: this.options.masterGrpcEndpoint,
       reconnectDelay: 5000,
       heartbeatInterval: 30000,
@@ -139,7 +140,12 @@ export class WorkerAgent {
   
   private async handleTaskStarted(frame: any) {
     const { parentOperationId, fromAgentId, payload } = frame;
-    const { tool, params, context } = payload || {};
+    const { tool, params } = payload || {};
+    const context = params?.__context || payload?.context || {};
+    const actualParams = params?.__context ? { ...params } : (params || {});
+    if (actualParams.__context) {
+      delete actualParams.__context;
+    }
     
     log.info(`Worker ${this.options.agentId} starting task ${parentOperationId}: ${tool}`);
     
@@ -161,7 +167,7 @@ export class WorkerAgent {
       // Execute tool with streaming
       const stream = executeToolWithStream(
         tool,
-        params,
+        actualParams,
         this.options.workspace,
         this.options.allowedTools,
         context,

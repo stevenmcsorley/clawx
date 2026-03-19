@@ -56,9 +56,19 @@ export const agentListTool: ToolDefinition = {
       let output = `## Registered Agents (${agents.length})\n\n`;
       
       for (const agent of agents) {
+        let effectiveStatus = agent.status;
+        if (params.check_health !== false && agent.endpoint) {
+          const healthy = await checkAgentHealth(agent.endpoint, 2000);
+          if (!healthy && agent.status !== 'offline') {
+            effectiveStatus = 'offline';
+            agent.status = 'offline';
+            agent.lastHeartbeat = Date.now();
+            registry.upsertAgent(agent);
+          }
+        }
         output += `### ${agent.name} (${agent.type})\n`;
         output += `- **ID**: ${agent.id}\n`;
-        output += `- **Status**: ${agent.status}\n`;
+        output += `- **Status**: ${effectiveStatus}\n`;
         
         if (agent.endpoint) {
           output += `- **Endpoint**: ${agent.endpoint}\n`;
@@ -109,6 +119,8 @@ export const agentListTool: ToolDefinition = {
         output += '\n';
       }
       
+      registry.save();
+
       // Add registry info
       const tasks = registry.getTasks();
       const pending = tasks.filter(t => t.status === 'pending' || t.status === 'running').length;

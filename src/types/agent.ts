@@ -129,6 +129,9 @@ export interface AgentConfig {
   
   /** Master endpoint for registration */
   masterEndpoint: string;
+
+  /** Master workspace to use as default execution context for worker tasks/chat */
+  masterWorkspace?: string;
   
   /** Port to listen on (0 = auto) */
   port: number;

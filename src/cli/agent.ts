@@ -33,6 +33,7 @@ export function createAgentCommand(): Command {
     .option('--master <url>', 'Master HTTP endpoint for registration (legacy)')
     .option('--grpc-master <url>', 'Master gRPC endpoint for live communication (grpc://host:port)')
     .option('--workspace <path>', 'Workspace directory')
+    .option('--master-workspace <path>', 'Master workspace directory to mirror for worker task context')
     .action(async (options) => {
       try {
         await serveAgent(options);
@@ -96,6 +97,7 @@ async function serveAgent(options: any): Promise<void> {
     name: agentName,
     port,
     workspace,
+    masterWorkspace: options.masterWorkspace || '',
     masterEndpoint: options.master || '', // Will be set after server starts
     allowedTools: options.allowedTools ? options.allowedTools.split(',') : [],
   };
@@ -129,6 +131,7 @@ async function serveAgent(options: any): Promise<void> {
       workspace,
       masterGrpcEndpoint: options.grpcMaster,
       allowedTools: config.allowedTools,
+      httpEndpoint: actualEndpoint,
     });
     
     try {
