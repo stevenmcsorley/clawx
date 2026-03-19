@@ -138,12 +138,12 @@ export const agentSendTool: ToolDefinition = {
       
       const masterServer = agentMaster.getServer();
       const masterConfig = agentMaster.getConfig();
-      if (!masterServer?.grpcPort || !masterConfig) {
-        throw new Error('Current session is not serving as a gRPC-capable master');
+      const grpcServer = masterServer?.grpcServer as any;
+      if (!masterServer?.grpcPort || !masterConfig || !grpcServer?.sendTask) {
+        throw new Error('Current session does not have an active gRPC master server instance');
       }
 
       // Use gRPC streaming helper
-      const grpcServer = (masterServer as any);
       const abortHandler = () => {
         grpcServer.cancelTask(masterConfig.id, agent.id, taskId, 'Aborted by master');
       };

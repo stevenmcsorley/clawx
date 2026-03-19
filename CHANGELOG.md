@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.16] - 2025-01-15
+
+### Installed Runtime gRPC Master Fixes
+- **Fixed published `agent_chat` and `agent_send` regression**: master tools now use the actual embedded `grpcServer` instance instead of the HTTP server wrapper object
+- **Improved worker registry truth**: gRPC worker registration now preserves known workspace data instead of overwriting it with empty workspace values
+- **Fixes installed Linux runtime failures** such as `grpcServer.sendChat is not a function`, `grpcServer.sendTask is not a function`, and persona save failures caused by empty worker workspace metadata
+
+### Technical Changes
+- Exposed `grpcServer` on the `AgentServer` returned by `startAgentServer()`
+- Updated `src/tools/agentChat.ts` and `src/tools/agentSend.ts` to use `masterServer.grpcServer`
+- Updated gRPC registration merge logic in `src/core/agent-server.ts` to preserve existing worker workspace/type data
+
 ## [0.4.15] - 2025-01-15
 
 ### pi-coding-agent 0.60 Upgrade Compatibility

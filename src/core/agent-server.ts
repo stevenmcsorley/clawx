@@ -43,6 +43,7 @@ export interface AgentServer {
   port: number;
   grpcPort?: number;
   app: express.Application;
+  grpcServer?: GrpcServer;
   close: () => void;
 }
 
@@ -113,9 +114,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
           registry.upsertAgent({
             ...existing,
             ...agent,
-            type: 'local',
+            type: existing?.type || 'local',
             status: 'idle',
-            workspace: existing?.workspace || '',
+            workspace: existing?.workspace || agent.workspace || '',
             created: existing?.created || Date.now(),
             lastHeartbeat: Date.now(),
           });
@@ -810,6 +811,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         port: actualPort,
         grpcPort,
         app,
+        grpcServer,
         close: () => {
           if (grpcServer) {
             grpcServer.stop();
