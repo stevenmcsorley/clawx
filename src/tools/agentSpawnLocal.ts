@@ -247,29 +247,80 @@ export const agentSpawnLocalTool: ToolDefinition = {
         '--workspace', workspace,
       ];
       
-      // This avoids path quoting issues with node.exe and script paths
+      // Determine the best way to spawn the agent
+      // Priority 1: Use 'clawx' command if available (for global installs)
+      // Priority 2: Use node + the current script path (for development)
+      // Priority 3: Use node and try to find the CLI entry point
+      
       let nodePath = process.argv[0];
       let scriptPath = process.argv[1];
+      let useClawxCommand = false;
       
-      // Check if 'clawx' command is available in PATH
+      // Check if 'clawx' command is available in PATH (cross-platform)
       try {
         const { execSync } = await import('child_process');
-        execSync('where clawx', { stdio: 'ignore' });
-        // 'clawx' command is available - use it instead
-        nodePath = 'clawx';
-        scriptPath = ''; // No script path needed when using 'clawx' command
-        // When using 'clawx' command, args should start with 'serve' not 'agent serve'
-        // So we need to adjust the args array
-        if (args[0] === 'agent' && args[1] === 'serve') {
-          args = args.slice(1); // Remove 'agent', keep 'serve' and rest
+        // Try different commands to find clawx
+        let clawxFound = false;
+        try {
+          if (process.platform === 'win32') {
+            execSync('where clawx', { stdio: 'ignore' });
+          } else {
+            execSync('which clawx', { stdio: 'ignore' });
+          }
+          clawxFound = true;
+        } catch (error) {
+          // Also try command -v for Unix-like systems
+          if (process.platform !== 'win32') {
+            try {
+              execSync('command -v clawx', { stdio: 'ignore' });
+              clawxFound = true;
+            } catch (error2) {
+              // Not found
+            }
+          }
         }
-        log.debug(`Using global 'clawx' command, adjusted args: ${args.join(' ')}`);
+        
+        if (clawxFound) {
+          // 'clawx' command is available - use it instead
+          nodePath = 'clawx';
+          scriptPath = ''; // No script path needed when using 'clawx' command
+          useClawxCommand = true;
+          
+          // When using 'clawx' command, args should start with 'serve' not 'agent serve'
+          if (args[0] === 'agent' && args[1] === 'serve') {
+            args = args.slice(1); // Remove 'agent', keep 'serve' and rest
+          }
+          log.debug(`Using global 'clawx' command`);
+        } else {
+          log.debug(`'clawx' command not found in PATH`);
+        }
       } catch (error) {
-        // 'clawx' not in PATH, use node + script path
-        log.debug(`'clawx' command not found in PATH, using node + script`);
+        log.debug(`Error checking for 'clawx' command: ${error}`);
       }
       
-      log.debug(`Spawning agent with: ${nodePath} ${scriptPath} ${args.join(' ')}`);
+      // If not using clawx command, check if we have a valid script path
+      if (!useClawxCommand) {
+        // Check if scriptPath looks like a CLI entry point
+        // CLI entry points are usually: bin/clawx.js, dist/cli/main.js, or similar
+        const isCliEntryPoint = scriptPath && (
+          scriptPath.includes('clawx.js') ||
+          scriptPath.includes('cli/main.js') ||
+          scriptPath.includes('cli/main.cjs') ||
+          scriptPath.endsWith('.js') || scriptPath.endsWith('.cjs')
+        );
+        
+        if (!isCliEntryPoint) {
+          // scriptPath doesn't look like a CLI entry point
+          // Try to find the CLI entry point relative to current file
+          log.warn(`Script path doesn't look like CLI entry point: ${scriptPath}`);
+          log.warn(`Agent spawning may fail. For best results:`);
+          log.warn(`1. Install globally: npm install -g @halfagiraf/clawx`);
+          log.warn(`2. Or ensure you're running via: node bin/clawx.js or npm start`);
+        }
+      }
+      
+      log.debug(`Spawning agent with: ${nodePath} ${scriptPath ? scriptPath + ' ' : ''}${args.join(' ')}`);
+      log.debug(`Using clawx command: ${useClawxCommand}`);
       log.debug(`Current directory: ${process.cwd()}`);
       log.debug(`Platform: ${process.platform}`);
       
@@ -299,24 +350,38 @@ export const agentSpawnLocalTool: ToolDefinition = {
       
       if (process.platform === 'win32') {
         // On Windows: build a properly quoted command string
-        const quoteForWindowsCmd = (arg: string): string => {
-          if (arg && arg.includes(' ')) {
+        // Always quote nodePath if it contains spaces (common on Windows)
+        const quoteIfNeeded = (arg: string): string => {
+          if (!arg) return '';
+          // Always quote if it contains spaces, or if it's a path that might have spaces
+          if (arg.includes(' ') || arg.includes('\\') || arg.includes(':')) {
             return `"${arg}"`;
           }
-          return arg || '';
+          return arg;
         };
         
-        // Build command parts, filtering out empty scriptPath
-        const cmdParts = [nodePath];
+        // Build command parts
+        const cmdParts: string[] = [];
+        
+        // Always include nodePath (or 'clawx')
+        cmdParts.push(quoteIfNeeded(nodePath));
+        
+        // Include scriptPath if not empty
         if (scriptPath) {
-          cmdParts.push(scriptPath);
+          cmdParts.push(quoteIfNeeded(scriptPath));
         }
-        cmdParts.push(...args);
         
-        const quotedParts = cmdParts.map(quoteForWindowsCmd).filter(p => p !== '');
-        const fullCommand = quotedParts.join(' ');
+        // Include args (some args might need quoting too)
+        for (const arg of args) {
+          cmdParts.push(quoteIfNeeded(arg));
+        }
         
-        log.debug(`Windows command: ${fullCommand}`);
+        // Filter out empty parts and join
+        const filteredParts = cmdParts.filter(p => p !== '');
+        const fullCommand = filteredParts.join(' ');
+        
+        log.debug(`Windows command parts: ${JSON.stringify(filteredParts)}`);
+        log.debug(`Windows full command: ${fullCommand}`);
         
         // Use spawn with the full command string
         agentProcess = spawn(fullCommand, {
@@ -328,6 +393,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       } else {
         // On Unix-like systems
         const spawnArgs = scriptPath ? [scriptPath, ...args] : args;
+        log.debug(`Unix spawn: ${nodePath} ${spawnArgs.join(' ')}`);
         agentProcess = spawn(nodePath, spawnArgs, {
           cwd: workspace,
           stdio: ['ignore', 'pipe', 'pipe'],

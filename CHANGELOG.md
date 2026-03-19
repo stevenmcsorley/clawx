@@ -2,6 +2,20 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.9] - 2025-01-15
+
+### Enhanced Cross-Platform Agent Spawning
+- **Improved cross-platform command detection**: Better `clawx` command finding on Windows and Unix
+- **Enhanced path quoting**: More robust quoting for Windows paths with spaces and special characters
+- **Better user guidance**: Clear warnings when CLI entry point can't be determined
+- **Detailed debugging**: Enhanced logging of command construction process
+
+### Technical Changes
+- Added cross-platform `clawx` command detection (where/which/command -v)
+- Improved Windows path quoting logic for paths with spaces, backslashes, colons
+- Added user guidance for installation and proper usage
+- Enhanced debugging with command parts and full command logging
+
 ## [0.4.8] - 2025-01-15
 
 ### Windows Path Quoting Fix
