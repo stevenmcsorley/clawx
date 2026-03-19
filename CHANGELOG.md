@@ -2,6 +2,21 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.14] - 2025-01-15
+
+### gRPC Task Control Hardening
+- **Added direct gRPC task cancellation**: master-side aborts can now emit `task_cancelled` to workers over gRPC
+- **Worker task cancellation handling**: workers now track active task abort controllers and stop task execution when cancellation frames arrive
+- **Improved transport alignment**: task control is now better matched to the gRPC-native send path instead of depending only on legacy HTTP cancel routes
+
+### Technical Changes
+- Added `createTaskCancelled()` in `src/core/grpc/protocol.ts`
+- Added `sendTaskCancelled()` in `src/core/grpc/grpc-client.ts`
+- Added `cancelTask()` in `src/core/grpc/grpc-server.ts`
+- Added active task abort-controller tracking in `src/core/worker-agent.ts`
+- Extended `executeToolWithStream()` in `src/utils/worker-tool-executor.ts` to accept external abort signals
+- Wired master abort handling into `src/tools/agentSend.ts`
+
 ## [0.4.13] - 2025-01-15
 
 ### Multi-Agent Streaming and Lifecycle Hardening

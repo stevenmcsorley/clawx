@@ -143,6 +143,14 @@ export const agentSendTool: ToolDefinition = {
       }
 
       // Use gRPC streaming helper
+      const grpcServer = (masterServer as any);
+      const abortHandler = () => {
+        grpcServer.cancelTask(masterConfig.id, agent.id, taskId, 'Aborted by master');
+      };
+      if (signal) {
+        signal.addEventListener('abort', abortHandler, { once: true });
+      }
+
       const streamingResult = await withGrpcWorkerStreaming({
         agentId: agent.id,
         agentName: agent.name,
@@ -151,7 +159,6 @@ export const agentSendTool: ToolDefinition = {
         onUpdate: onUpdate,
         signal,
       }, async () => {
-        const grpcServer = (masterServer as any);
         const sent = grpcServer.sendTask(masterConfig.id, agent.id, taskId, tool, taskParams, context);
         if (!sent) {
           throw new Error(`Failed to send task to ${agent.name} over gRPC`);
@@ -166,6 +173,9 @@ export const agentSendTool: ToolDefinition = {
       });
       
       const { finalResult, events } = streamingResult;
+      if (signal) {
+        signal.removeEventListener('abort', abortHandler);
+      }
       
       // Check final task status from events
       let finalStatus = task.status;

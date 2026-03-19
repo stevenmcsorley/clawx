@@ -26,6 +26,7 @@ export class WorkerAgent {
   private persona: Persona | null = null;
   private memory: Memory | null = null;
   private isConnected = false;
+  private activeTaskControllers = new Map<string, AbortController>();
   
   constructor(private options: WorkerAgentOptions) {
     this.loadPersonaAndMemory();
@@ -108,6 +109,10 @@ export class WorkerAgent {
         
       case 'task_started':
         this.handleTaskStarted(frame);
+        break;
+
+      case 'task_cancelled':
+        this.handleTaskCancelled(frame);
         break;
         
       case 'tool_started':
@@ -231,6 +236,22 @@ export class WorkerAgent {
     }
   }
   
+  private handleTaskCancelled(frame: any) {
+    const { parentOperationId, fromAgentId, payload } = frame;
+    const taskId = parentOperationId;
+    const reason = payload?.reason || 'Cancelled by master';
+
+    const controller = this.activeTaskControllers.get(taskId);
+    if (controller) {
+      controller.abort();
+      this.activeTaskControllers.delete(taskId);
+    }
+
+    if (this.grpcClient) {
+      this.grpcClient.sendTaskCancelled(taskId, fromAgentId, reason);
+    }
+  }
+
   private async handleTaskStarted(frame: any) {
     const { parentOperationId, fromAgentId, payload } = frame;
     const { tool, params } = payload || {};
@@ -250,6 +271,9 @@ export class WorkerAgent {
     // Send task started acknowledgment
     this.grpcClient.sendTaskProgress(parentOperationId, fromAgentId, 0, `Starting ${tool}...`);
     
+    const taskAbortController = new AbortController();
+    this.activeTaskControllers.set(parentOperationId, taskAbortController);
+
     try {
       // Execute the actual tool using the existing execution path
       const { executeToolWithStream } = await import('../utils/worker-tool-executor.js');
@@ -279,7 +303,8 @@ export class WorkerAgent {
           }
         },
         parentOperationId,
-        'task'
+        'task',
+        taskAbortController.signal
       );
       
       // Send progress updates
@@ -287,6 +312,11 @@ export class WorkerAgent {
       
       // Wait for tool completion
       const result = await stream.result;
+
+      if (taskAbortController.signal.aborted) {
+        this.grpcClient.sendTaskCancelled(parentOperationId, fromAgentId, 'Cancelled by master');
+        return;
+      }
       
       this.grpcClient.sendTaskProgress(parentOperationId, fromAgentId, 100, `Task ${parentOperationId} completed`);
       
@@ -303,9 +333,15 @@ export class WorkerAgent {
       log.error(`Worker ${this.options.agentId} failed task ${parentOperationId}:`, error);
       
       if (this.grpcClient) {
-        this.grpcClient.sendTaskFailed(parentOperationId, fromAgentId, 
-          error instanceof Error ? error.message : String(error));
+        if (taskAbortController.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
+          this.grpcClient.sendTaskCancelled(parentOperationId, fromAgentId, 'Cancelled by master');
+        } else {
+          this.grpcClient.sendTaskFailed(parentOperationId, fromAgentId, 
+            error instanceof Error ? error.message : String(error));
+        }
       }
+    } finally {
+      this.activeTaskControllers.delete(parentOperationId);
     }
   }
   

@@ -123,7 +123,8 @@ export function executeToolWithStream(
   context?: any,
   onEvent?: (event: any) => void,
   parentOperationId?: string,  // taskId or turnId for chat tool calls
-  parentOperationType?: 'task' | 'chat'  // Type of parent operation
+  parentOperationType?: 'task' | 'chat',  // Type of parent operation
+  externalSignal?: AbortSignal
 ): ToolExecutionStream {
   const events: ToolExecutionEvent[] = [];
   let resolveResult: (result: ToolExecutionResult) => void;
@@ -292,7 +293,8 @@ export function executeToolWithStream(
           log.error('Streaming bash failed, falling back:', error);
           // Fall back to original - always call with all 5 parameters
           const abortController = new AbortController();
-          result = await toolExecute(toolCallId, params, abortController.signal, onEvent, context);
+          const signal = externalSignal || abortController.signal;
+          result = await toolExecute(toolCallId, params, signal, onEvent, context);
         }
       } else {
         // Regular execution for other tools
@@ -301,7 +303,8 @@ export function executeToolWithStream(
         // Always call with all 5 parameters - JavaScript ignores extra parameters
         // This ensures tools that expect signal/onEvent get them
         const abortController = new AbortController();
-        result = await toolExecute(toolCallId, params, abortController.signal, onEvent, context);
+        const signal = externalSignal || abortController.signal;
+        result = await toolExecute(toolCallId, params, signal, onEvent, context);
         log.debug(`Tool ${toolName} executed successfully`);
         
         // Try to capture output from other tools too

@@ -354,6 +354,11 @@ export class GrpcServer extends EventEmitter {
     });
     return this.sendFrame(frame);
   }
+
+  cancelTask(fromAgentId: string, toAgentId: string, taskId: string, reason?: string): boolean {
+    const frame = GrpcFrames.createTaskCancelled(taskId, fromAgentId, toAgentId, reason);
+    return this.sendFrame(frame);
+  }
   
   broadcast(fromAgentId: string, message: string): number {
     const frame = GrpcFrames.createChatMessage(fromAgentId, 'broadcast', message);

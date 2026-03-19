@@ -403,6 +403,16 @@ export class GrpcClient extends EventEmitter {
     );
     return this.sendFrame(frame);
   }
+
+  sendTaskCancelled(taskId: string, toAgentId: string, reason?: string): boolean {
+    const frame = GrpcFrames.createTaskCancelled(
+      taskId,
+      this.options.agentId,
+      toAgentId,
+      reason
+    );
+    return this.sendFrame(frame);
+  }
   
   disconnect() {
     this.connected = false;

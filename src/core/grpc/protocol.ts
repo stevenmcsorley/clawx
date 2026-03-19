@@ -116,6 +116,11 @@ export interface TaskFailedPayload {
   error: string;
 }
 
+export interface TaskCancelledPayload {
+  taskId: string;
+  reason?: string;
+}
+
 export interface ChatMessagePayload {
   message: string;
   conversationId?: string;
@@ -349,6 +354,22 @@ export const GrpcFrames = {
         taskId,
         error,
       } as TaskFailedPayload,
+    };
+  },
+
+  createTaskCancelled(taskId: string, fromAgentId: string, toAgentId: string, reason?: string): GrpcAgentFrame {
+    return {
+      id: `task_cancel_${taskId}`,
+      type: 'task_cancelled',
+      timestamp: Date.now(),
+      fromAgentId,
+      toAgentId,
+      parentOperationId: taskId,
+      parentOperationType: 'task',
+      payload: {
+        taskId,
+        reason,
+      } as TaskCancelledPayload,
     };
   },
   
