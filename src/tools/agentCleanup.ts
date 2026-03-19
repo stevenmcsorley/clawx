@@ -109,20 +109,11 @@ export const agentCleanupTool: ToolDefinition = {
         output += `Use \`--force true\` to remove them, or run cleanup again.\n`;
       }
       
-      // Clean up old tasks
-      const tasks = registry.getTasks();
-      const now = Date.now();
-      const oldTasks = tasks.filter(task => 
-        (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') &&
-        now - (task.completed || task.created) > 24 * 60 * 60 * 1000 // 24 hours
-      );
-      
-      if (oldTasks.length > 0) {
-        for (const task of oldTasks) {
-          registry.removeTask(task.id);
-        }
+      // Clean up old tasks and stale running tasks tied to dead/offline agents
+      const cleanedTasks = registry.cleanupOldTasks(24 * 60 * 60 * 1000, cleanupThresholdMinutes * 60 * 1000);
+      if (cleanedTasks > 0) {
         registry.save();
-        output += `**Cleaned ${oldTasks.length} old tasks.**\n`;
+        output += `**Cleaned ${cleanedTasks} old/stale tasks.**\n`;
       }
       
       output += `\n**Summary:**\n`;
@@ -131,7 +122,7 @@ export const agentCleanupTool: ToolDefinition = {
       output += `- Dead agents: ${deadAgents.length}\n`;
       output += `- Cleaned stale: ${cleanedStale}\n`;
       output += `- Cleaned dead: ${cleanedDead}\n`;
-      output += `- Cleaned old tasks: ${oldTasks.length}\n`;
+      output += `- Cleaned old tasks: ${cleanedTasks}\n`;
       
       return {
         content: [{ type: 'text', text: output }],
@@ -141,7 +132,7 @@ export const agentCleanupTool: ToolDefinition = {
           dead_agents: deadAgents.length,
           cleaned_stale: cleanedStale,
           cleaned_dead: cleanedDead,
-          cleaned_tasks: oldTasks.length,
+          cleaned_tasks: cleanedTasks,
         },
       };
       

@@ -180,19 +180,28 @@ export class AgentRegistryManager {
     return false;
   }
 
-  /** Clean up old tasks (older than maxAge ms) */
-  cleanupOldTasks(maxAge: number = 24 * 60 * 60 * 1000): number {
+  /** Clean up old tasks, including stale pending/running tasks whose agents are gone/offline */
+  cleanupOldTasks(maxAge: number = 24 * 60 * 60 * 1000, staleRunningAge: number = 30 * 60 * 1000): number {
     const cutoff = Date.now() - maxAge;
+    const runningCutoff = Date.now() - staleRunningAge;
     const initialLength = this.registry.tasks.length;
     
     this.registry.tasks = this.registry.tasks.filter(task => {
-      // Keep pending/running tasks
       if (task.status === 'pending' || task.status === 'running') {
+        const age = task.started || task.created;
+        const agent = this.getAgent(task.agentId);
+        const agentMissing = !agent;
+        const agentOffline = agent?.status === 'offline';
+        const staleRunning = age < runningCutoff;
+
+        if ((agentMissing || agentOffline) && staleRunning) {
+          return false;
+        }
         return true;
       }
       
       // Remove old completed/failed/cancelled tasks
-      return task.completed && task.completed > cutoff;
+      return !!(task.completed && task.completed > cutoff);
     });
     
     const removed = initialLength - this.registry.tasks.length;

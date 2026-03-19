@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.29] - 2025-01-15
+
+### Stale Task Cleanup Improvements
+- **Improved `agent_cleanup`** so it now removes stale pending/running tasks tied to missing or offline agents once they exceed the cleanup threshold
+- This helps keep the registry truthful during heavy restart/spawn testing instead of accumulating forever-running task residue from dead workers
+- Makes iterative debugging and installed-runtime validation less noisy and less dependent on manual registry cleanup
+
+### Technical Changes
+- Added stale running/pending task cleanup logic to `src/core/agent-registry.ts`
+- Updated `src/tools/agentCleanup.ts` to use the registry cleanup helper for both old terminal tasks and stale running tasks
+
 ## [0.4.28] - 2025-01-15
 
 ### Direct gRPC Task Lifecycle Fix
