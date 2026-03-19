@@ -77,6 +77,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       const cwd = context?.cwd || config.workspace;
       
       // Check if tool is allowed
+      // Empty allowedTools array means all tools are allowed
       if (config.allowedTools.length > 0 && !config.allowedTools.includes(tool)) {
         const error = new Error(`Tool "${tool}" not allowed. Allowed: ${config.allowedTools.join(', ')}`);
         eventStream.sendTaskFailed(taskId, error.message);

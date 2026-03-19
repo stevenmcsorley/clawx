@@ -179,8 +179,9 @@ export const agentSpawnLocalTool: ToolDefinition = {
         log.debug(`Auto-selected worker port: ${actualPort}`);
       }
       
-      // Agents only support basic tools for now
-      const agentSupportedTools = ['search_files', 'git_status', 'git_diff', 'ssh_run'];
+      // Agents support all tools that the agent server can execute
+      // This includes coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run
+      const agentSupportedTools = ['read', 'write', 'edit', 'bash', 'grep', 'find', 'ls', 'search_files', 'git_status', 'git_diff', 'ssh_run'];
       const effectiveAllowedTools = allowedTools.length > 0 
         ? allowedTools.filter((tool: string) => agentSupportedTools.includes(tool))
         : agentSupportedTools;
