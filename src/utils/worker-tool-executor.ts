@@ -290,44 +290,19 @@ export function executeToolWithStream(
           }
         } catch (error) {
           log.error('Streaming bash failed, falling back:', error);
-          // Fall back to original
-          if (toolExecute.length >= 5) {
-            // Create a dummy AbortController for tools that expect an AbortSignal
-            const abortController = new AbortController();
-            result = await toolExecute(toolCallId, params, abortController.signal, onEvent, context);
-          } else {
-            // Tool has fewer than 5 parameters - call with appropriate arity
-            if (toolExecute.length === 2) {
-              // execute(params, ctx)
-              result = await toolExecute(params, context);
-            } else if (toolExecute.length === 3) {
-              // execute(toolCallId, params, ctx)
-              result = await toolExecute(toolCallId, params, context);
-            } else {
-              // execute(toolCallId, params) or other
-              result = await toolExecute(toolCallId, params);
-            }
-          }
+          // Fall back to original - always call with all 5 parameters
+          const abortController = new AbortController();
+          result = await toolExecute(toolCallId, params, abortController.signal, onEvent, context);
         }
       } else {
         // Regular execution for other tools
-        if (toolExecute.length >= 5) {
-          // Create a dummy AbortController for tools that expect an AbortSignal
-          const abortController = new AbortController();
-          result = await toolExecute(toolCallId, params, abortController.signal, onEvent, context);
-        } else {
-          // Tool has fewer than 5 parameters - call with appropriate arity
-          if (toolExecute.length === 2) {
-            // execute(params, ctx)
-            result = await toolExecute(params, context);
-          } else if (toolExecute.length === 3) {
-            // execute(toolCallId, params, ctx)
-            result = await toolExecute(toolCallId, params, context);
-          } else {
-            // execute(toolCallId, params) or other
-            result = await toolExecute(toolCallId, params);
-          }
-        }
+        log.debug(`Tool ${toolName} has ${toolExecute.length} parameters`);
+        
+        // Always call with all 5 parameters - JavaScript ignores extra parameters
+        // This ensures tools that expect signal/onEvent get them
+        const abortController = new AbortController();
+        result = await toolExecute(toolCallId, params, abortController.signal, onEvent, context);
+        log.debug(`Tool ${toolName} executed successfully`);
         
         // Try to capture output from other tools too
         if (onEvent && result) {
