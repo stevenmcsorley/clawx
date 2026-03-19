@@ -209,9 +209,27 @@ export const agentSendTool: ToolDefinition = {
         onUpdate: prettyOnUpdate,
         signal,
       }, async () => {
+        let transport: 'grpc' | 'http' = 'grpc';
         const sent = grpcServer.sendTask(masterConfig.id, agent.id, taskId, tool, taskParams, context);
         if (!sent) {
-          throw new Error(`Failed to send task to ${agent.name} over gRPC`);
+          log.warn(`gRPC sendTask to ${agent.name} failed, falling back to HTTP /task compatibility path`);
+          const response = await fetch(`${agent.endpoint}/task`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: signal || AbortSignal.timeout(15000),
+            body: JSON.stringify({
+              tool,
+              params: taskParams,
+              context: { ...(context || {}), __transport: 'grpc' },
+              taskId,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to send task to ${agent.name} over gRPC or HTTP`);
+          }
+
+          transport = 'http';
         }
 
         task.status = 'running';
@@ -219,7 +237,7 @@ export const agentSendTool: ToolDefinition = {
         registry.addTask(task);
         registry.save();
 
-        return { status: 'accepted', transport: 'grpc', taskId };
+        return { status: 'accepted', transport, taskId };
       });
       
       const { finalResult, events } = streamingResult;

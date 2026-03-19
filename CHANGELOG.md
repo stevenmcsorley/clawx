@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.24] - 2025-01-15
+
+### Agent Task Send Reliability Fallback
+- **Fixed intermittent `agent_send` delivery failures** where `grpcServer.sendTask(...)` could return false even though the worker was healthy and reachable
+- `agent_send` now falls back to the worker's existing HTTP `/task` compatibility path when direct gRPC task dispatch is unavailable in the current session
+- Preserves registry/task tracking and streamed event handling while keeping task delivery reliable during gRPC connection edge cases
+
+### Technical Changes
+- Added HTTP compatibility fallback in `src/tools/agentSend.ts` when direct gRPC task dispatch fails
+- Retains gRPC as the primary/canonical path while using HTTP only as a delivery fallback
+
 ## [0.4.23] - 2025-01-15
 
 ### TUI-Compatible Partial Streaming for Agent Chat/Tasks
