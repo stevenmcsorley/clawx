@@ -135,9 +135,21 @@ export class WorkerAgent {
     log.info(`Worker ${this.options.agentId} received chat from ${fromAgentId}: ${message.substring(0, 100)}...`);
 
     try {
-      const { createDefaultPersona, createDefaultMemory, logConversationTurn, saveMemory } = await import('../utils/persona-utils.js');
+      const { createDefaultPersona, createDefaultMemory, logConversationTurn, saveMemory, loadPersona, loadMemory } = await import('../utils/persona-utils.js');
       const { generateModelChatResponse, updateMemoryFromConversation } = await import('../utils/worker-model-caller.js');
       const { getWorkerTools, executeToolWithStream } = await import('../utils/worker-tool-executor.js');
+
+      try {
+        this.persona = loadPersona(this.options.workspace);
+      } catch {
+        // keep existing in-memory persona/default fallback
+      }
+
+      try {
+        this.memory = loadMemory(this.options.workspace);
+      } catch {
+        // keep existing in-memory memory/default fallback
+      }
 
       const persona = this.persona || createDefaultPersona(this.options.agentId, this.options.agentName);
       const memory = this.memory || createDefaultMemory();

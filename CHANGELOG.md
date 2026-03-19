@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.25] - 2025-01-15
+
+### Worker Persona Refresh on Chat Turns
+- **Fixed stale/default persona behavior in worker chat** by reloading `persona.json` and `memory.json` from the worker workspace at the start of each incoming chat turn
+- This improves correctness after `agent_persona_set`, so live workers can pick up updated personas without requiring a respawn
+- Addresses cases where workers replied as generic task assistants even though persona files had been updated successfully
+
+### Technical Changes
+- Updated `src/core/worker-agent.ts` to refresh persona and memory from disk inside `handleChatMessage()` before generating the response
+- Preserves existing in-memory fallback behavior when no persisted persona/memory exists
+
 ## [0.4.24] - 2025-01-15
 
 ### Agent Task Send Reliability Fallback
