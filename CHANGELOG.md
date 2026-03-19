@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.18] - 2025-01-15
+
+### Worker→Master gRPC Stream Routing Fix
+- **Fixed live chat/task streamback routing**: workers now send chat deltas, task progress, tool output, completions, failures, and cancellations to `server` instead of trying to address the master agent ID as if it were a connected gRPC client
+- **Fixes installed runtime warnings** like `[gRPC] Agent <master-id> not found` and restores master visibility into worker chat/task stream events
+- **Unblocks real worker replies** for `agent_chat` and real terminal updates for `agent_send`
+
+### Technical Changes
+- Updated worker gRPC reply/progress paths in `src/core/worker-agent.ts` to route streamback frames to `server`
+- Preserved operation scoping so master-side stream subscriptions still match events by worker + operation ID
+
 ## [0.4.17] - 2025-01-15
 
 ### Installed Registry/Workspace Recovery Fixes

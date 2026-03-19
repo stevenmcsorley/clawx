@@ -164,10 +164,10 @@ export class WorkerAgent {
         (event) => {
           switch (event.type) {
             case 'agent_message_start':
-              this.grpcClient!.sendAgentMessageStart(turnId, fromAgentId, event.persona);
+              this.grpcClient!.sendAgentMessageStart(turnId, 'server', event.persona);
               break;
             case 'agent_message_delta':
-              this.grpcClient!.sendAgentMessageDelta(turnId, fromAgentId, event.delta);
+              this.grpcClient!.sendAgentMessageDelta(turnId, 'server', event.delta);
               break;
             case 'agent_message_end':
               break;
@@ -189,16 +189,16 @@ export class WorkerAgent {
             (event) => {
               switch (event.type) {
                 case 'tool_started':
-                  this.grpcClient!.sendToolStarted(turnId, fromAgentId, event.toolName, event.params, 'chat');
+                  this.grpcClient!.sendToolStarted(turnId, 'server', event.toolName, event.params, 'chat');
                   break;
                 case 'tool_stdout':
-                  this.grpcClient!.sendToolStdout(turnId, fromAgentId, event.data, 'chat');
+                  this.grpcClient!.sendToolStdout(turnId, 'server', event.data, 'chat');
                   break;
                 case 'tool_stderr':
-                  this.grpcClient!.sendToolStderr(turnId, fromAgentId, event.data, 'chat');
+                  this.grpcClient!.sendToolStderr(turnId, 'server', event.data, 'chat');
                   break;
                 case 'tool_finished':
-                  this.grpcClient!.sendToolFinished(turnId, fromAgentId, event.result, 'chat');
+                  this.grpcClient!.sendToolFinished(turnId, 'server', event.result, 'chat');
                   break;
               }
             },
@@ -229,10 +229,10 @@ export class WorkerAgent {
         timestamp: Date.now(),
       });
 
-      this.grpcClient.sendAgentMessageEnd(turnId, fromAgentId, finalReply);
+      this.grpcClient.sendAgentMessageEnd(turnId, 'server', finalReply);
     } catch (error) {
       log.error(`Worker ${this.options.agentId} failed chat ${parentOperationId}:`, error);
-      this.grpcClient.sendAgentMessageEnd(parentOperationId || `chat_${Date.now()}`, fromAgentId, `Chat failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.grpcClient.sendAgentMessageEnd(parentOperationId || `chat_${Date.now()}`, 'server', `Chat failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   
@@ -248,7 +248,7 @@ export class WorkerAgent {
     }
 
     if (this.grpcClient) {
-      this.grpcClient.sendTaskCancelled(taskId, fromAgentId, reason);
+      this.grpcClient.sendTaskCancelled(taskId, 'server', reason);
     }
   }
 
@@ -269,7 +269,7 @@ export class WorkerAgent {
     }
     
     // Send task started acknowledgment
-    this.grpcClient.sendTaskProgress(parentOperationId, fromAgentId, 0, `Starting ${tool}...`);
+    this.grpcClient.sendTaskProgress(parentOperationId, 'server', 0, `Starting ${tool}...`);
     
     const taskAbortController = new AbortController();
     this.activeTaskControllers.set(parentOperationId, taskAbortController);
@@ -279,7 +279,7 @@ export class WorkerAgent {
       const { executeToolWithStream } = await import('../utils/worker-tool-executor.js');
       
       // Send tool started event
-      this.grpcClient.sendToolStarted(parentOperationId, fromAgentId, tool, params, 'task');
+      this.grpcClient.sendToolStarted(parentOperationId, 'server', tool, params, 'task');
       
       // Execute tool with streaming
       const stream = executeToolWithStream(
@@ -292,13 +292,13 @@ export class WorkerAgent {
           // Forward tool events via gRPC
           switch (event.type) {
             case 'tool_stdout':
-              this.grpcClient!.sendToolStdout(parentOperationId, fromAgentId, event.data);
+              this.grpcClient!.sendToolStdout(parentOperationId, 'server', event.data);
               break;
             case 'tool_stderr':
-              this.grpcClient!.sendToolStderr(parentOperationId, fromAgentId, event.data);
+              this.grpcClient!.sendToolStderr(parentOperationId, 'server', event.data);
               break;
             case 'tool_finished':
-              this.grpcClient!.sendToolFinished(parentOperationId, fromAgentId, event.result);
+              this.grpcClient!.sendToolFinished(parentOperationId, 'server', event.result);
               break;
           }
         },
@@ -308,20 +308,20 @@ export class WorkerAgent {
       );
       
       // Send progress updates
-      this.grpcClient.sendTaskProgress(parentOperationId, fromAgentId, 25, `Executing ${tool}...`);
+      this.grpcClient.sendTaskProgress(parentOperationId, 'server', 25, `Executing ${tool}...`);
       
       // Wait for tool completion
       const result = await stream.result;
 
       if (taskAbortController.signal.aborted) {
-        this.grpcClient.sendTaskCancelled(parentOperationId, fromAgentId, 'Cancelled by master');
+        this.grpcClient.sendTaskCancelled(parentOperationId, 'server', 'Cancelled by master');
         return;
       }
       
-      this.grpcClient.sendTaskProgress(parentOperationId, fromAgentId, 100, `Task ${parentOperationId} completed`);
+      this.grpcClient.sendTaskProgress(parentOperationId, 'server', 100, `Task ${parentOperationId} completed`);
       
       // Send task completion
-      this.grpcClient.sendTaskCompleted(parentOperationId, fromAgentId, {
+      this.grpcClient.sendTaskCompleted(parentOperationId, 'server', {
         success: result.success,
         message: `Task ${parentOperationId} completed`,
         result: result
@@ -334,9 +334,9 @@ export class WorkerAgent {
       
       if (this.grpcClient) {
         if (taskAbortController.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
-          this.grpcClient.sendTaskCancelled(parentOperationId, fromAgentId, 'Cancelled by master');
+          this.grpcClient.sendTaskCancelled(parentOperationId, 'server', 'Cancelled by master');
         } else {
-          this.grpcClient.sendTaskFailed(parentOperationId, fromAgentId, 
+          this.grpcClient.sendTaskFailed(parentOperationId, 'server', 
             error instanceof Error ? error.message : String(error));
         }
       }
