@@ -2,6 +2,20 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.7] - 2025-01-15
+
+### Critical ES Module Fix
+- **Fixed `require is not defined` error**: Removed CommonJS `require.main` usage in ES module context
+- **Simplified script path resolution**: Now uses `process.argv[1]` for reliable CLI entry point detection
+- **ES module compatibility**: Proper handling of ES module environment without CommonJS assumptions
+- **Improved debugging**: Added platform and directory logging for spawn debugging
+
+### Technical Changes
+- Removed `require.main` usage that caused ReferenceError in ES modules
+- Simplified script path resolution to use `process.argv[1]`
+- Added platform and current directory logging for debugging
+- Fixed ES module compatibility in `agentSpawnLocal.ts`
+
 ## [0.4.6] - 2025-01-15
 
 ### Enhanced Agent Spawning & Debugging

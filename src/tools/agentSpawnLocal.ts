@@ -236,16 +236,13 @@ export const agentSpawnLocalTool: ToolDefinition = {
       }
       
       // Build command to start agent
-      // Use the same entry point that started this process
+      // When running via CLI, process.argv[1] should be the CLI entry point
       const nodePath = process.argv[0];
-      let scriptPath = process.argv[1];
-      
-      // Try to get the main module filename if available
-      if (require.main && require.main.filename) {
-        scriptPath = require.main.filename;
-      }
+      const scriptPath = process.argv[1];
       
       log.debug(`Spawning agent with: ${nodePath} ${scriptPath}`);
+      log.debug(`Current directory: ${process.cwd()}`);
+      log.debug(`Platform: ${process.platform}`);
       
       const args = [
         'agent', 'serve',
