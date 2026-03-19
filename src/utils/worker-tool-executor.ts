@@ -300,7 +300,9 @@ export function executeToolWithStream(
           log.error('Streaming bash failed, falling back:', error);
           // Fall back to original
           if (toolExecute.length >= 5) {
-            result = await toolExecute(toolCallId, params, undefined, undefined, context);
+            // Create a dummy AbortController for tools that expect an AbortSignal
+            const abortController = new AbortController();
+            result = await toolExecute(toolCallId, params, abortController.signal, undefined, context);
           } else {
             result = await toolExecute(toolCallId, params, context);
           }
@@ -308,7 +310,9 @@ export function executeToolWithStream(
       } else {
         // Regular execution for other tools
         if (toolExecute.length >= 5) {
-          result = await toolExecute(toolCallId, params, undefined, undefined, context);
+          // Create a dummy AbortController for tools that expect an AbortSignal
+          const abortController = new AbortController();
+          result = await toolExecute(toolCallId, params, abortController.signal, undefined, context);
         } else {
           result = await toolExecute(toolCallId, params, context);
         }
