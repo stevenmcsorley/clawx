@@ -14,6 +14,12 @@ import { createSearchFilesTool } from '../tools/searchFiles.js';
 import { createGitStatusTool } from '../tools/gitStatus.js';
 import { createGitDiffTool } from '../tools/gitDiff.js';
 import { createSshRunTool } from '../tools/sshRun.js';
+import {
+  createCodingTools,
+  createGrepTool,
+  createFindTool,
+  createLsTool,
+} from '@mariozechner/pi-coding-agent';
 import { getPlatformSearchCapabilities } from '../utils/search-utils.js';
 import { 
   loadPersona, 
@@ -25,6 +31,8 @@ import {
   createDefaultMemory 
 } from '../utils/persona-utils.js';
 import { generateModelChatResponse, updateMemoryFromConversation } from '../utils/worker-model-caller.js';
+import { getWorkerTools, executeToolCalls, executeToolWithStream } from '../utils/worker-tool-executor.js';
+import { EventStream, createSSEHandler } from '../utils/streaming-events.js';
 import type { Persona, Memory, ChatRequest, ChatResponse, ConversationTurn } from '../types/persona.js';
 
 export interface AgentServer {
@@ -39,8 +47,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
   
   const server = createServer(app);
   const tasks = new Map<string, AgentTask>();
+  const eventStream = new EventStream(config.id);
   
-  /** Execute a task with real tool with timeout */
+  /** Execute a task with real tool with timeout and streaming */
   async function executeTask(taskId: string, tool: string, params: any, context: any): Promise<void> {
     const task = tasks.get(taskId);
     if (!task) return;
@@ -48,11 +57,16 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     task.status = 'running';
     task.started = Date.now();
     
+    // Send task started event
+    eventStream.sendTaskStarted(taskId, tool, params);
+    
     // Set up timeout
     const timeoutMs = 2 * 60 * 1000; // 2 minutes default timeout (shorter for agents)
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
-        reject(new Error(`Task timeout after ${timeoutMs}ms`));
+        const error = new Error(`Task timeout after ${timeoutMs}ms`);
+        eventStream.sendTaskFailed(taskId, error.message);
+        reject(error);
       }, timeoutMs);
     });
     
@@ -62,28 +76,68 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       // Use current directory from context, or workspace as fallback
       const cwd = context?.cwd || config.workspace;
       
-      // Basic tools that agents can execute
-      switch (tool) {
-        case 'search_files':
-          toolDefinition = createSearchFilesTool(cwd);
-          break;
-        case 'git_status':
-          toolDefinition = createGitStatusTool(cwd);
-          break;
-        case 'git_diff':
-          toolDefinition = createGitDiffTool(cwd);
-          break;
-        case 'ssh_run':
-          // SSH targets from config (empty for now)
-          toolDefinition = createSshRunTool({});
-          break;
-        default:
-          throw new Error(`Tool not supported by agent: ${tool}. Agents only support: search_files, git_status, git_diff, ssh_run`);
+      // Check if tool is allowed
+      if (config.allowedTools.length > 0 && !config.allowedTools.includes(tool)) {
+        const error = new Error(`Tool "${tool}" not allowed. Allowed: ${config.allowedTools.join(', ')}`);
+        eventStream.sendTaskFailed(taskId, error.message);
+        throw error;
       }
       
-      // Execute the tool with timeout
+      // Tools that agents can execute (expanded for grounded chat)
+      // First check pi-coding-agent tools
+      const codingTools = createCodingTools(cwd);
+      const codingTool = codingTools.find(t => t.name === tool);
+      if (codingTool) {
+        toolDefinition = codingTool;
+      } else {
+        // Check other tools
+        switch (tool) {
+          case 'grep':
+            toolDefinition = createGrepTool(cwd);
+            break;
+          case 'find':
+            toolDefinition = createFindTool(cwd);
+            break;
+          case 'ls':
+            toolDefinition = createLsTool(cwd);
+            break;
+          case 'search_files':
+            toolDefinition = createSearchFilesTool(cwd);
+            break;
+          case 'git_status':
+            toolDefinition = createGitStatusTool(cwd);
+            break;
+          case 'git_diff':
+            toolDefinition = createGitDiffTool(cwd);
+            break;
+          case 'ssh_run':
+            // SSH targets from config (empty for now)
+            toolDefinition = createSshRunTool({});
+            break;
+          default:
+            const error = new Error(`Tool not supported by agent: ${tool}. Supported tools: coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run`);
+            eventStream.sendTaskFailed(taskId, error.message);
+            throw error;
+        }
+      }
+      
+      // Send tool started event
+      eventStream.sendToolStarted(taskId, tool, params, 'task');
+      
+      // Execute the tool with streaming
+      const stream = executeToolWithStream(tool, params, config.workspace, config.allowedTools, context, (event) => {
+        if (event.type === 'tool_stdout') {
+          eventStream.sendToolStdout(taskId, event.data, 'task');
+        } else if (event.type === 'tool_stderr') {
+          eventStream.sendToolStderr(taskId, event.data, 'task');
+        } else if (event.type === 'tool_finished') {
+          eventStream.sendToolFinished(taskId, event.result, 'task');
+        }
+      }, taskId, 'task');
+      
+      // Wait for result with timeout
       const result = await Promise.race([
-        toolDefinition.execute(taskId, params, context),
+        stream.result,
         timeoutPromise,
       ]);
       
@@ -91,17 +145,25 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       task.status = 'completed';
       task.completed = Date.now();
       task.result = result;
+      
+      // Send task completed event
+      eventStream.sendTaskCompleted(taskId, result);
+      
       log.info(`Task ${taskId} completed successfully`);
       
     } catch (error) {
       task.status = 'failed';
       task.completed = Date.now();
       task.error = error instanceof Error ? error.message : String(error);
+      
+      // Send task failed event
+      eventStream.sendTaskFailed(taskId, task.error);
+      
       log.error(`Task ${taskId} failed:`, error);
     }
   }
   
-  /** Generate chat response using actual model with persona context */
+  /** Generate chat response using actual model with persona context and real tools */
   async function generateChatResponse(
     persona: Persona | null, 
     memory: Memory | null, 
@@ -110,20 +172,51 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     workspace: string
   ): Promise<ChatResponse> {
     try {
-      // Generate response using actual model
-      const { reply, thinking } = await generateModelChatResponse(
+      // Get available tools for grounded execution
+      const availableTools = getWorkerTools(workspace, config.allowedTools);
+      
+      // Generate response using actual model with access to real tools
+      const { reply, thinking, toolCalls } = await generateModelChatResponse(
         persona,
         memory,
         turn,
-        workspace
+        workspace,
+        availableTools
       );
       
+      let finalReply = reply;
+      const executedActions: string[] = [];
+      
+      // Execute any tool calls the model requested
+      if (toolCalls && toolCalls.length > 0) {
+        log.info(`Executing ${toolCalls.length} tool calls from chat response`);
+        
+        const { results, combinedOutput } = await executeToolCalls(
+          toolCalls,
+          workspace,
+          config.allowedTools,
+          turn.context
+        );
+        
+        // Append tool execution results to reply
+        finalReply += combinedOutput;
+        
+        // Track executed actions
+        toolCalls.forEach((tc, i) => {
+          if (results[i]?.success) {
+            executedActions.push(`${tc.name}: success`);
+          } else {
+            executedActions.push(`${tc.name}: failed`);
+          }
+        });
+      }
+      
       // Update memory based on conversation
-      const updatedMemory = updateMemoryFromConversation(memory, persona, turn, reply);
+      const updatedMemory = updateMemoryFromConversation(memory, persona, turn, finalReply);
       saveMemory(workspace, updatedMemory);
       
       return {
-        reply,
+        reply: finalReply,
         notes: {
           persona_applied: !!persona,
           persona_name: persona?.name || 'default',
@@ -131,9 +224,11 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
           response_style: persona?.tone || 'neutral',
           model_used: true,
           thinking_length: thinking?.length || 0,
+          tool_calls_executed: toolCalls?.length || 0,
+          executed_actions: executedActions,
         },
         memory_update: `Conversation with ${turn.speaker}: ${turn.message.substring(0, 50)}...`,
-        next_actions: ['continue_conversation', 'execute_task_if_needed'],
+        next_actions: executedActions.length > 0 ? ['continue_conversation'] : ['continue_conversation', 'suggest_task_if_needed'],
       };
       
     } catch (error) {
@@ -336,6 +431,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     task.completed = Date.now();
     task.error = 'Cancelled by request';
     
+    // Send cancellation event
+    eventStream.sendTaskCancelled(taskId);
+    
     res.json({
       taskId: task.id,
       status: 'cancelled',
@@ -343,8 +441,13 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     });
   });
   
-  // Chat turn - conversational interaction
+  // Event streaming endpoint (SSE)
+  app.get('/events', createSSEHandler(eventStream));
+  
+  // Chat turn - conversational interaction (streaming)
   app.post('/chat', async (req: Request, res: Response) => {
+    const turnId = uuidv4();
+    
     try {
       const { speaker, target, message, context, mode = 'discussion' } = req.body as ChatRequest;
       
@@ -357,7 +460,6 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       const memory = loadMemory(config.workspace) || createDefaultMemory();
       
       // Create conversation turn
-      const turnId = uuidv4();
       const turn: ConversationTurn = {
         id: turnId,
         speaker,
@@ -371,37 +473,130 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       // Log the incoming turn
       logConversationTurn(config.workspace, turn);
       
+      // Send message start event
+      eventStream.sendMessageStart(turnId, {
+        name: persona.name,
+        role: persona.role,
+      });
+      
       // Build persona context for the model
       const personaContext = buildPersonaContext(persona, memory);
       
-      // Generate response using actual model with persona context
-      const response = await generateChatResponse(persona, memory, turn, personaContext, config.workspace);
+      // Get available tools for grounded execution
+      const availableTools = getWorkerTools(config.workspace, config.allowedTools);
       
-      // Update memory if response includes memory update
-      if (response.memory_update) {
-        memory.summary = response.memory_update;
-        memory.recent_context.push(`Conversation with ${speaker}: ${message.substring(0, 100)}...`);
-        memory.updatedAt = Date.now();
-        saveMemory(config.workspace, memory);
+      // Generate response using actual model with access to real tools
+      const { reply, thinking, toolCalls } = await generateModelChatResponse(
+        persona,
+        memory,
+        turn,
+        config.workspace,
+        availableTools,
+        (event) => {
+          // Forward events to the event stream
+          if (event.type === 'agent_message_start') {
+            eventStream.sendMessageStart(event.turnId, event.persona);
+          } else if (event.type === 'agent_message_delta') {
+            eventStream.sendMessageDelta(event.turnId, event.delta);
+          } else if (event.type === 'agent_message_end') {
+            eventStream.sendMessageEnd(event.turnId, event.finalMessage);
+          }
+        }
+      );
+      
+      let finalReply = reply;
+      const executedActions: string[] = [];
+      
+      // Execute any tool calls the model requested
+      if (toolCalls && toolCalls.length > 0) {
+        log.info(`Executing ${toolCalls.length} tool calls from chat response`);
+        
+        for (const toolCall of toolCalls) {
+          const { name, arguments: args } = toolCall;
+          
+          // Send tool started event
+          eventStream.sendToolStarted(turnId, name, args, 'chat');
+          
+          // Execute tool
+          const stream = executeToolWithStream(name, args, config.workspace, config.allowedTools, turn.context, (event) => {
+            if (event.type === 'tool_started') {
+              eventStream.sendToolStarted(turnId, event.toolName, event.params, 'chat');
+            } else if (event.type === 'tool_stdout') {
+              eventStream.sendToolStdout(turnId, event.data, 'chat');
+            } else if (event.type === 'tool_stderr') {
+              eventStream.sendToolStderr(turnId, event.data, 'chat');
+            } else if (event.type === 'tool_finished') {
+              eventStream.sendToolFinished(turnId, event.result, 'chat');
+            }
+          }, turnId, 'chat');  // Pass turnId as parentOperationId and type
+          const result = await stream.result;
+          
+          // Send tool finished event
+          eventStream.sendToolFinished(turnId, result, 'chat');
+          
+          if (result.success) {
+            finalReply += `\n\n**Tool ${name} executed successfully:**\n${result.output}`;
+            executedActions.push(`${name}: success`);
+          } else {
+            finalReply += `\n\n**Tool ${name} failed:** ${result.error}`;
+            executedActions.push(`${name}: failed`);
+          }
+        }
       }
+      
+      // Update memory based on conversation
+      const updatedMemory = updateMemoryFromConversation(memory, persona, turn, finalReply);
+      saveMemory(config.workspace, updatedMemory);
+      
+      // Send message end event
+      eventStream.sendMessageEnd(turnId, finalReply);
       
       // Log the response turn
       const responseTurn: ConversationTurn = {
         id: uuidv4(),
         speaker: config.id,
         target: speaker,
-        message: response.reply,
-        context: response.notes,
+        message: finalReply,
+        context: {
+          persona_applied: !!persona,
+          persona_name: persona?.name || 'default',
+          persona_role: persona?.role || 'Agent',
+          response_style: persona?.tone || 'neutral',
+          model_used: true,
+          tool_calls_executed: toolCalls?.length || 0,
+          executed_actions: executedActions,
+        },
         mode,
         timestamp: Date.now(),
-        notes: response.notes,
+        notes: {
+          persona_applied: !!persona,
+          persona_name: persona?.name || 'default',
+          persona_role: persona?.role || 'Agent',
+          response_style: persona?.tone || 'neutral',
+          model_used: true,
+          tool_calls_executed: toolCalls?.length || 0,
+          executed_actions: executedActions,
+        },
       };
       logConversationTurn(config.workspace, responseTurn);
       
       res.json({
         success: true,
         turnId,
-        response,
+        response: {
+          reply: finalReply,
+          notes: {
+            persona_applied: !!persona,
+            persona_name: persona?.name || 'default',
+            persona_role: persona?.role || 'Agent',
+            response_style: persona?.tone || 'neutral',
+            model_used: true,
+            tool_calls_executed: toolCalls?.length || 0,
+            executed_actions: executedActions,
+          },
+          memory_update: `Conversation with ${speaker}: ${turn.message.substring(0, 50)}...`,
+          next_actions: executedActions.length > 0 ? ['continue_conversation'] : ['continue_conversation', 'suggest_task_if_needed'],
+        },
         persona: {
           name: persona.name,
           role: persona.role,
@@ -410,6 +605,10 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
     } catch (error) {
       log.error('Chat turn failed:', error);
+      
+      // Send error event
+      eventStream.sendMessageEnd(turnId, `Error: ${error instanceof Error ? error.message : String(error)}`);
+      
       res.status(500).json({ 
         error: 'Chat turn failed',
         details: error instanceof Error ? error.message : String(error)
@@ -441,6 +640,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         port: actualPort,
         app,
         close: () => {
+          eventStream.destroy();
           server.close();
           log.info('Agent server stopped');
         },

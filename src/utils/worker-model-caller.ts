@@ -96,7 +96,9 @@ export function buildConversationContext(
   context += `## Instructions\n`;
   context += `Respond as the agent persona described above.\n`;
   context += `Be authentic to the persona's tone, role, and decision style.\n`;
-  context += `If the message suggests a task could be helpful, mention your capabilities.\n`;
+  context += `If you need to execute a real action, use the available tools.\n`;
+  context += `Do not fabricate command outputs or pretend to execute actions without using tools.\n`;
+  context += `If a requested action cannot be performed with available tools, explain why honestly.\n`;
   context += `Keep responses concise but thoughtful.\n`;
   
   return context;
@@ -109,8 +111,10 @@ export async function generateModelChatResponse(
   persona: Persona | null,
   memory: Memory | null,
   turn: ConversationTurn,
-  workspace: string
-): Promise<{ reply: string; thinking?: string }> {
+  workspace: string,
+  availableTools: any[] = [],  // Add tools parameter for grounded execution
+  onEvent?: (event: any) => void  // Event callback for streaming
+): Promise<{ reply: string; thinking?: string; toolCalls?: any[] }> {
   try {
     // Load worker configuration
     // Workers inherit config from master's environment, but can have workspace-specific overrides
@@ -146,7 +150,7 @@ export async function generateModelChatResponse(
           timestamp: Date.now(),
         }
       ],
-      tools: [], // No tools for chat mode
+      tools: availableTools, // Provide real tools for grounded execution
     };
     
     log.info(`Generating chat response for persona: ${persona?.name || 'default'}`);
@@ -163,12 +167,27 @@ export async function generateModelChatResponse(
     // Collect response
     let reply = '';
     let thinking = '';
+    const toolCalls: any[] = [];
+    
+    // Emit start event
+    if (onEvent) {
+      onEvent({ type: 'agent_message_start', turnId: turn.id, persona: persona ? { name: persona.name, role: persona.role } : undefined });
+    }
     
     for await (const event of stream) {
       if (event.type === 'text_delta') {
         reply += event.delta;
+        // Emit delta event
+        if (onEvent) {
+          onEvent({ type: 'agent_message_delta', turnId: turn.id, delta: event.delta });
+        }
       } else if (event.type === 'thinking_delta') {
         thinking += event.delta;
+      } else if (event.type === 'toolcall_start' || event.type === 'toolcall_end') {
+        // Track tool calls for grounded execution
+        if (event.type === 'toolcall_end' && event.toolCall) {
+          toolCalls.push(event.toolCall);
+        }
       } else if (event.type === 'done') {
         // Response complete
         const message = event.message as AssistantMessage;
@@ -181,12 +200,20 @@ export async function generateModelChatResponse(
       }
     }
     
+    // Emit end event
+    if (onEvent) {
+      onEvent({ type: 'agent_message_end', turnId: turn.id, finalMessage: reply });
+    }
+    
     log.info(`Generated response length: ${reply.length} chars`);
     if (thinking) {
       log.debug(`Thinking length: ${thinking.length} chars`);
     }
+    if (toolCalls.length > 0) {
+      log.info(`Model requested ${toolCalls.length} tool calls: ${toolCalls.map(tc => tc.name).join(', ')}`);
+    }
     
-    return { reply, thinking };
+    return { reply, thinking, toolCalls };
     
   } catch (error) {
     log.error('Failed to generate model chat response:', error);

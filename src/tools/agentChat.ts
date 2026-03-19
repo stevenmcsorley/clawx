@@ -7,6 +7,7 @@
 import { ToolDefinition } from '../types/extension.js';
 import { log } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
+import { withWorkerStreaming } from '../utils/streaming-tool-helper.js';
 import type { ChatRequest, ChatResponse } from '../types/persona.js';
 
 export const agentChatTool: ToolDefinition = {
@@ -154,66 +155,58 @@ export const agentChatTool: ToolDefinition = {
     log.info(`Sending chat to agent "${agent.name}" (${agent.id}): ${normalizedParams.message.substring(0, 100)}...`);
     
     try {
-      // Send chat request
-      const response = await fetch(`${agent.endpoint}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(chatRequest),
-        signal: signal || AbortSignal.timeout(30000), // 30 second timeout for chat
+      // Generate a turn ID for streaming
+      const turnId = `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      
+      // Use streaming helper
+      const streamingResult = await withWorkerStreaming({
+        endpoint: agent.endpoint,
+        agentId: agent.id,
+        agentName: agent.name,
+        operationId: turnId,
+        onUpdate: onUpdate,
+        signal,
+      }, async () => {
+        // Send chat request
+        const response = await fetch(`${agent.endpoint}/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(chatRequest),
+          signal: signal || AbortSignal.timeout(30000), // 30 second timeout for chat
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Chat request failed (${response.status}): ${errorText}`);
+        }
+        
+        const result = await response.json() as {
+          success: boolean;
+          turnId: string;
+          response: ChatResponse;
+          persona?: {
+            name: string;
+            role: string;
+          };
+        };
+        
+        if (!result.success) {
+          throw new Error(`Chat failed: ${JSON.stringify(result)}`);
+        }
+        
+        return result;
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        return {
-          content: [{
-            type: 'text',
-            text: `❌ Chat request failed (${response.status}): ${errorText}`,
-          }],
-          details: { 
-            error: 'Chat request failed',
-            status_code: response.status,
-            error_text: errorText,
-            agent_id: agent.id,
-            agent_name: agent.name,
-            endpoint: agent.endpoint,
-          },
-          isError: true,
-        };
-      }
+      const result = streamingResult.finalResult;
       
-      const result = await response.json() as {
-        success: boolean;
-        turnId: string;
-        response: ChatResponse;
-        persona?: {
-          name: string;
-          role: string;
-        };
-      };
-      
-      if (!result.success) {
-        return {
-          content: [{
-            type: 'text',
-            text: `❌ Chat failed: ${JSON.stringify(result)}`,
-          }],
-          details: { 
-            error: 'Chat failed',
-            result,
-            agent_id: agent.id,
-            agent_name: agent.name,
-          },
-          isError: true,
-        };
-      }
-      
-      // Build output
+      // Build final output summary
       const personaName = result.persona?.name || agent.name;
       const personaRole = result.persona?.role || 'Agent';
       
-      let output = `💬 Conversation with ${personaName} (${personaRole})\n\n`;
+      let output = `\n---\n`;
+      output += `💬 Conversation with ${personaName} (${personaRole})\n\n`;
       output += `**You**: ${normalizedParams.message}\n\n`;
       output += `**${personaName}**: ${result.response.reply}\n\n`;
       
@@ -245,6 +238,7 @@ export const agentChatTool: ToolDefinition = {
           persona_role: personaRole,
           response: result.response,
           mode: normalizedParams.mode,
+          events_received: streamingResult.events.length,
         },
       };
       

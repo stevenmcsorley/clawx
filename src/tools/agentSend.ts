@@ -7,6 +7,7 @@
 import { ToolDefinition } from '../types/extension.js';
 import { log } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
+import { withWorkerStreaming } from '../utils/streaming-tool-helper.js';
 import { AgentTask } from '../types/agent.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -104,37 +105,52 @@ export const agentSendTool: ToolDefinition = {
       registry.addTask(task);
       registry.save();
       
-      // Send task to agent
-      const response = await fetch(`${agent.endpoint}/task`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tool,
-          params: taskParams,
-          context,
-        }),
+      // Use streaming helper
+      const streamingResult = await withWorkerStreaming({
+        endpoint: agent.endpoint,
+        agentId: agent.id,
+        agentName: agent.name,
+        operationId: taskId,
+        onUpdate: onUpdate,
+        signal,
+      }, async () => {
+        // Send task to agent
+        const response = await fetch(`${agent.endpoint}/task`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tool,
+            params: taskParams,
+            context,
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Agent returned ${response.status}: ${errorText}`);
+        }
+        
+        const result = await response.json();
+        
+        // Update task with response
+        task.status = 'running';
+        task.started = Date.now();
+        registry.updateTask(taskId, task);
+        registry.save();
+        
+        return result;
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Agent returned ${response.status}: ${errorText}`);
-      }
+      const agentResponse = streamingResult.finalResult;
       
-      const result = await response.json();
-      
-      // Update task with response
-      task.status = 'running';
-      task.started = Date.now();
-      registry.updateTask(taskId, task);
-      registry.save();
-      
-      const output = `✅ Task sent to agent "${agent.name}"\n\n` +
+      const output = `\n---\n` +
+                    `✅ Task completed with agent "${agent.name}"\n\n` +
                     `**Task Details:**\n` +
                     `- Task ID: ${taskId}\n` +
                     `- Agent: ${agent.name} (${agent.id})\n` +
                     `- Tool: ${tool}\n` +
-                    `- Status: running\n` +
-                    `- Agent response: ${JSON.stringify(result, null, 2)}\n\n` +
+                    `- Status: completed\n` +
+                    `- Events received: ${streamingResult.events.length}\n\n` +
                     `Use \`agent_status --task_id ${taskId}\` to check status.\n` +
                     `Use \`agent_result --task_id ${taskId}\` to get result.`;
       
@@ -146,7 +162,7 @@ export const agentSendTool: ToolDefinition = {
           agent_name: agent.name,
           tool,
           status: 'sent',
-          agent_response: result,
+          agent_response: agentResponse,
         },
       };
       
