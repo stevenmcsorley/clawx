@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.15] - 2025-01-15
+
+### pi-coding-agent 0.60 Upgrade Compatibility
+- **Upgraded core pi packages** to `0.60.0` for `@mariozechner/pi-coding-agent`, `@mariozechner/pi-agent-core`, and `@mariozechner/pi-ai`
+- **Added `promptSnippet` compatibility** to Clawx tool wrappers so custom tools and extensions remain visible under pi-coding-agent 0.59+ tool prompting rules
+- **Build verified after upgrade** with current Clawx multi-agent code paths intact
+
+### Technical Changes
+- Added optional `promptSnippet` to Clawx `ToolDefinition`
+- Updated TUI, Scout, Forge, and extension-loader tool wrapping to derive `promptSnippet` from `description`
+- Aligned upstream pi package versions to `0.60.0`
+
 ## [0.4.14] - 2025-01-15
 
 ### gRPC Task Control Hardening

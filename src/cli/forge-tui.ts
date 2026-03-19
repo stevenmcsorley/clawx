@@ -35,11 +35,12 @@ import { createForgeListCapabilitiesTool } from "../tools/forgeListCapabilities.
 /**
  * Convert a tool object to a ToolDefinition for pi-coding-agent.
  */
-function toolToDefinition(tool: { name: string; label: string; description: string; parameters: any; execute: any }): ToolDefinition {
+function toolToDefinition(tool: { name: string; label: string; description: string; promptSnippet?: string; parameters: any; execute: any }): ToolDefinition {
   return {
     name: tool.name,
     label: tool.label,
     description: tool.description,
+    promptSnippet: tool.promptSnippet || tool.description,
     parameters: tool.parameters,
     execute: tool.execute.bind(tool),
   } as unknown as ToolDefinition;

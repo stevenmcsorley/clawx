@@ -68,6 +68,8 @@ export interface ToolDefinition {
   name: string;
   label: string;
   description: string;
+  /** Optional explicit prompt snippet for pi-coding-agent 0.59+ tool visibility */
+  promptSnippet?: string;
   parameters: any;
   execute: (toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, ctx?: any) => Promise<any>;
 }

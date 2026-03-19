@@ -118,6 +118,7 @@ async function loadTool(extensionDir: string, manifest: ExtensionManifest): Prom
       name: rawTool.name,
       label: rawTool.label || manifest.tool.label,
       description: rawTool.description || manifest.tool.description,
+      promptSnippet: rawTool.promptSnippet || rawTool.description || manifest.tool.description,
       parameters: rawTool.parameters || manifest.tool.parameters,
       
       // Wrap execute to match pi-coding-agent's signature:

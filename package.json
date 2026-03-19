@@ -1,6 +1,6 @@
 {
   "name": "@halfagiraf/clawx",
-  "version": "0.4.14",
+  "version": "0.4.15",
   "description": "Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint",
   "type": "module",
   "bin": {
@@ -51,9 +51,12 @@
   ],
   "author": "Steven McSorley",
   "dependencies": {
-    "@mariozechner/pi-agent-core": "^0.58.0",
-    "@mariozechner/pi-ai": "^0.58.0",
-    "@mariozechner/pi-coding-agent": "^0.58.0",
+    "@grpc/grpc-js": "^1.10.0",
+    "@halfagiraf/agent-protocol": "file:agent-protocol",
+    "@halfagiraf/agent-runtime": "file:agent-runtime",
+    "@mariozechner/pi-agent-core": "^0.60.0",
+    "@mariozechner/pi-ai": "^0.60.0",
+    "@mariozechner/pi-coding-agent": "^0.60.0",
     "@sinclair/typebox": "^0.34.0",
     "@swc/core": "^1.15.18",
     "@types/ws": "^8.18.1",
@@ -62,15 +65,12 @@
     "dotenv": "^16.4.0",
     "eventsource": "^4.1.0",
     "express": "^5.2.1",
+    "google-protobuf": "^3.21.0",
     "ora": "^8.1.0",
     "ssh2": "^1.16.0",
     "uuid": "^11.1.0",
     "ws": "^8.19.0",
-    "zod": "^3.24.0",
-    "@grpc/grpc-js": "^1.10.0",
-    "google-protobuf": "^3.21.0",
-    "@halfagiraf/agent-protocol": "file:agent-protocol",
-    "@halfagiraf/agent-runtime": "file:agent-runtime"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
