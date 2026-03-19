@@ -30,7 +30,8 @@ export function createAgentCommand(): Command {
     .option('--id <id>', 'Agent ID (default: auto-generated)')
     .option('--name <name>', 'Agent name (default: "agent-<id>")')
     .option('--port <port>', 'Port to listen on (default: 0 = auto)', '0')
-    .option('--master <url>', 'Master endpoint for registration')
+    .option('--master <url>', 'Master HTTP endpoint for registration (legacy)')
+    .option('--grpc-master <url>', 'Master gRPC endpoint for live communication (grpc://host:port)')
     .option('--workspace <path>', 'Workspace directory')
     .action(async (options) => {
       try {
@@ -115,8 +116,38 @@ async function serveAgent(options: any): Promise<void> {
   // Save updated config
   writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
   
-  // Auto-register with master if master endpoint provided and different from self
-  if (options.master && options.master !== actualEndpoint) {
+  // If gRPC master endpoint provided, connect via gRPC instead of HTTP
+  if (options.grpcMaster) {
+    log.info(`Connecting to master via gRPC: ${options.grpcMaster}`);
+    
+    // Import dynamically to avoid circular dependencies
+    const { WorkerAgent } = await import('../core/worker-agent.js');
+    
+    const workerAgent = new WorkerAgent({
+      agentId,
+      agentName,
+      workspace,
+      masterGrpcEndpoint: options.grpcMaster,
+      allowedTools: config.allowedTools,
+    });
+    
+    try {
+      await workerAgent.connect();
+      log.info(`✅ Worker ${agentName} connected to master via gRPC`);
+      
+      // Keep the worker alive
+      const keepAlive = () => {
+        if (workerAgent.isConnectedToMaster()) {
+          setTimeout(keepAlive, 10000);
+        }
+      };
+      keepAlive();
+      
+    } catch (error) {
+      log.error(`Failed to connect to master via gRPC:`, error);
+    }
+  } else if (options.master && options.master !== actualEndpoint) {
+    // Fallback to HTTP registration if no gRPC endpoint
     try {
       const response = await fetch(`${options.master}/register`, {
         method: 'POST',
@@ -130,7 +161,7 @@ async function serveAgent(options: any): Promise<void> {
       });
       
       if (response.ok) {
-        log.info(`Registered with master: ${options.master}`);
+        log.info(`Registered with master via HTTP: ${options.master}`);
       } else {
         log.warn(`Failed to register with master: ${response.status}`);
       }

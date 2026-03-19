@@ -11,7 +11,7 @@ import { createGitStatusTool } from '../tools/gitStatus.js';
 import { createGitDiffTool } from '../tools/gitDiff.js';
 import { createSshRunTool } from '../tools/sshRun.js';
 import { createAgentChatDirectTool } from '../tools/agentChatDirect.js';
-import { createAgentWebSocketChatTool } from '../tools/agentWebSocketChat.js';
+// WebSocket chat tool removed - replaced by gRPC chat
 import {
   createCodingTools,
   createGrepTool,
@@ -104,17 +104,9 @@ export function getWorkerTools(workspace: string, allowedTools: string[] = []) {
     log.debug('NOT adding agent_chat_direct tool - not allowed');
   }
   
-  if (canUseTool('agent_ws_chat')) {
-    log.debug('Adding agent_ws_chat tool');
-    try {
-      tools.push(createAgentWebSocketChatTool(cwd));
-      log.debug('✅ agent_ws_chat tool added successfully');
-    } catch (error) {
-      log.error('❌ Failed to add agent_ws_chat tool:', error);
-    }
-  } else {
-    log.debug('NOT adding agent_ws_chat tool - not allowed');
-  }
+  // Note: agent_grpc_chat tool requires gRPC server instance
+  // It's added dynamically in agent-server.ts when gRPC server is available
+  // Not added here as a static tool
   
   log.info(`Worker has ${tools.length} available tools: ${tools.map(t => t.name).join(', ')}`);
   return tools;

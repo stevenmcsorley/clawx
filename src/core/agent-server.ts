@@ -1,7 +1,7 @@
 /**
- * Agent HTTP Server
+ * Agent HTTP Server with gRPC Transport
  * 
- * Simple HTTP server for agent communication.
+ * HTTP server for agent communication with gRPC as the live transport.
  * Localhost only, no authentication in v1.
  */
 
@@ -10,7 +10,7 @@ import { createServer, Server } from 'http';
 import { log } from '../utils/logger.js';
 import { AgentConfig, AgentIdentity, AgentTask } from '../types/agent.js';
 import { v4 as uuidv4 } from 'uuid';
-import { AgentWebSocketServer } from './agent-websocket.js';
+import { GrpcServer } from './grpc/grpc-server.js';
 import { createSearchFilesTool } from '../tools/searchFiles.js';
 import { createGitStatusTool } from '../tools/gitStatus.js';
 import { createGitDiffTool } from '../tools/gitDiff.js';
@@ -33,14 +33,13 @@ import {
 } from '../utils/persona-utils.js';
 import { generateModelChatResponse, updateMemoryFromConversation } from '../utils/worker-model-caller.js';
 import { getWorkerTools, executeToolCalls, executeToolWithStream } from '../utils/worker-tool-executor.js';
-import { EventStream, createSSEHandler } from '../utils/streaming-events.js';
 import { createAgentChatDirectTool } from '../tools/agentChatDirect.js';
-import { createAgentWebSocketChatTool } from '../tools/agentWebSocketChat.js';
+import { createAgentGrpcChatTool } from '../tools/agentGrpcChat.js';
 import type { Persona, Memory, ChatRequest, ChatResponse, ConversationTurn } from '../types/persona.js';
 
 export interface AgentServer {
   port: number;
-  wsPort?: number;
+  grpcPort?: number;
   app: express.Application;
   close: () => void;
 }
@@ -48,27 +47,76 @@ export interface AgentServer {
 export async function startAgentServer(config: AgentConfig): Promise<AgentServer> {
   const app = express();
   app.use(express.json({ limit: '10mb' }));
-  
+
   const server = createServer(app);
   const tasks = new Map<string, AgentTask>();
-  const eventStream = new EventStream(config.id);
   
-  // Start WebSocket server on next available port
-  let wsServer: AgentWebSocketServer | undefined;
-  let wsPort: number | undefined;
+  // Start gRPC server for live communication
+  let grpcServer: GrpcServer | undefined;
+  let grpcPort: number | undefined;
   
-  try {
-    // Use port + 1000 for WebSocket (e.g., HTTP 43301 → WS 44301)
-    wsPort = config.port + 1000;
-    log.info(`Attempting to start WebSocket server on port ${wsPort}...`);
-    wsServer = new AgentWebSocketServer(wsPort);
-    log.info(`✅ Agent WebSocket server started on port ${wsPort}`);
-  } catch (error) {
-    log.error(`❌ Failed to start WebSocket server on port ${wsPort}:`, error);
-    log.warn(`Agent chat will be HTTP-only.`);
+  if (config.port !== undefined) {
+    grpcPort = config.port + 2000;
+    log.info(`Starting gRPC server on port ${grpcPort}...`);
+    
+    try {
+      grpcServer = new GrpcServer({
+        port: grpcPort,
+        onAgentRegistered: (agent) => {
+          log.info(`[gRPC] Agent registered: ${agent.name} (${agent.id})`);
+        },
+        onAgentDisconnected: (agentId) => {
+          log.info(`[gRPC] Agent disconnected: ${agentId}`);
+        },
+        onFrame: (frame) => {
+          // Handle incoming gRPC frames
+          handleGrpcFrame(frame);
+        },
+      });
+      
+      await grpcServer.start();
+      log.info(`✅ Agent gRPC server started on port ${grpcPort}`);
+    } catch (error) {
+      log.error(`❌ Failed to start gRPC server on port ${grpcPort}:`, error);
+    }
   }
   
-  /** Execute a task with real tool with timeout and streaming */
+  function handleGrpcFrame(frame: any) {
+    const { type, fromAgentId, toAgentId, parentOperationId, parentOperationType, payload } = frame;
+    
+    log.debug(`[gRPC] Received ${type} from ${fromAgentId} to ${toAgentId}`);
+    
+    // Handle different frame types
+    switch (type) {
+      case 'task_completed':
+        // Task completed by worker
+        log.info(`Task ${parentOperationId} completed by worker ${fromAgentId}`);
+        break;
+        
+      case 'task_failed':
+        // Task failed by worker
+        log.error(`Task ${parentOperationId} failed by worker ${fromAgentId}: ${payload?.error}`);
+        break;
+        
+      case 'task_progress':
+        // Task progress update
+        log.debug(`Task ${parentOperationId} progress: ${payload?.progress}% - ${payload?.message}`);
+        break;
+        
+      case 'tool_stdout':
+      case 'tool_stderr':
+        // Tool output
+        log.debug(`Task ${parentOperationId} tool ${type}: ${payload?.data?.substring(0, 200)}...`);
+        break;
+        
+      case 'chat_message':
+        // Chat message from worker
+        log.info(`Chat from ${fromAgentId}: ${payload?.message?.substring(0, 100)}...`);
+        break;
+    }
+  }
+
+  /** Execute a task with real tool with timeout (gRPC version) */
   async function executeTask(taskId: string, tool: string, params: any, context: any): Promise<void> {
     const task = tasks.get(taskId);
     if (!task) return;
@@ -76,15 +124,11 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     task.status = 'running';
     task.started = Date.now();
     
-    // Send task started event
-    eventStream.sendTaskStarted(taskId, tool, params);
-    
     // Set up timeout
     const timeoutMs = 2 * 60 * 1000; // 2 minutes default timeout (shorter for agents)
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
         const error = new Error(`Task timeout after ${timeoutMs}ms`);
-        eventStream.sendTaskFailed(taskId, error.message);
         reject(error);
       }, timeoutMs);
     });
@@ -99,7 +143,6 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       // Empty allowedTools array means all tools are allowed
       if (config.allowedTools.length > 0 && !config.allowedTools.includes(tool)) {
         const error = new Error(`Tool "${tool}" not allowed. Allowed: ${config.allowedTools.join(', ')}`);
-        eventStream.sendTaskFailed(taskId, error.message);
         throw error;
       }
       
@@ -137,28 +180,24 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
           case 'agent_chat_direct':
             toolDefinition = createAgentChatDirectTool(cwd);
             break;
-          case 'agent_ws_chat':
-            toolDefinition = createAgentWebSocketChatTool(cwd);
+          case 'agent_grpc_chat':
+            if (grpcServer) {
+              toolDefinition = createAgentGrpcChatTool(config, grpcServer, tasks);
+            } else {
+              const error = new Error(`gRPC server not available. Cannot use agent_grpc_chat tool.`);
+              throw error;
+            }
             break;
           default:
-            const error = new Error(`Tool not supported by agent: ${tool}. Supported tools: coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run, agent_chat_direct, agent_ws_chat`);
-            eventStream.sendTaskFailed(taskId, error.message);
+            const error = new Error(`Tool not supported by agent: ${tool}. Supported tools: coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run, agent_chat_direct, agent_grpc_chat`);
             throw error;
         }
       }
       
-      // Send tool started event
-      eventStream.sendToolStarted(taskId, tool, params, 'task');
-      
-      // Execute the tool with streaming
+      // Execute the tool with streaming (no EventStream callbacks)
       const stream = executeToolWithStream(tool, params, config.workspace, config.allowedTools, context, (event) => {
-        if (event.type === 'tool_stdout') {
-          eventStream.sendToolStdout(taskId, event.data, 'task');
-        } else if (event.type === 'tool_stderr') {
-          eventStream.sendToolStderr(taskId, event.data, 'task');
-        } else if (event.type === 'tool_finished') {
-          eventStream.sendToolFinished(taskId, event.result, 'task');
-        }
+        // Tool events are handled by the tool itself or via gRPC
+        // No more EventStream usage
       }, taskId, 'task');
       
       // Wait for result with timeout
@@ -172,9 +211,6 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       task.completed = Date.now();
       task.result = result;
       
-      // Send task completed event
-      eventStream.sendTaskCompleted(taskId, result);
-      
       log.info(`Task ${taskId} completed successfully`);
       
     } catch (error) {
@@ -182,130 +218,180 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       task.completed = Date.now();
       task.error = error instanceof Error ? error.message : String(error);
       
-      // Send task failed event
-      eventStream.sendTaskFailed(taskId, task.error);
-      
       log.error(`Task ${taskId} failed:`, error);
     }
   }
-  
-  /** Generate chat response using actual model with persona context and real tools */
-  async function generateChatResponse(
-    persona: Persona | null, 
-    memory: Memory | null, 
-    turn: ConversationTurn, 
-    personaContext: string,
-    workspace: string
-  ): Promise<ChatResponse> {
-    try {
-      // Get available tools for grounded execution
-      const availableTools = getWorkerTools(workspace, config.allowedTools);
-      
-      // Generate response using actual model with access to real tools
-      const { reply, thinking, toolCalls } = await generateModelChatResponse(
-        persona,
-        memory,
-        turn,
-        workspace,
-        availableTools
-      );
-      
-      let finalReply = reply;
-      const executedActions: string[] = [];
-      
-      // Execute any tool calls the model requested
-      if (toolCalls && toolCalls.length > 0) {
-        log.info(`Executing ${toolCalls.length} tool calls from chat response`);
-        
-        const { results, combinedOutput } = await executeToolCalls(
-          toolCalls,
-          workspace,
-          config.allowedTools,
-          turn.context
-        );
-        
-        // Append tool execution results to reply
-        finalReply += combinedOutput;
-        
-        // Track executed actions
-        toolCalls.forEach((tc, i) => {
-          if (results[i]?.success) {
-            executedActions.push(`${tc.name}: success`);
-          } else {
-            executedActions.push(`${tc.name}: failed`);
-          }
-        });
-      }
-      
-      // Update memory based on conversation
-      const updatedMemory = updateMemoryFromConversation(memory, persona, turn, finalReply);
-      saveMemory(workspace, updatedMemory);
-      
-      return {
-        reply: finalReply,
-        notes: {
-          persona_applied: !!persona,
-          persona_name: persona?.name || 'default',
-          persona_role: persona?.role || 'Agent',
-          response_style: persona?.tone || 'neutral',
-          model_used: true,
-          thinking_length: thinking?.length || 0,
-          tool_calls_executed: toolCalls?.length || 0,
-          executed_actions: executedActions,
-        },
-        memory_update: `Conversation with ${turn.speaker}: ${turn.message.substring(0, 50)}...`,
-        next_actions: executedActions.length > 0 ? ['continue_conversation'] : ['continue_conversation', 'suggest_task_if_needed'],
-      };
-      
-    } catch (error) {
-      log.error('Failed to generate model chat response:', error);
-      
-      // Fallback response if model fails
-      const fallbackReply = persona 
-        ? `As ${persona.name} (${persona.role}), I received your message: "${turn.message.substring(0, 100)}${turn.message.length > 100 ? '...' : ''}"\n\n[Note: Model call failed, using fallback response]`
-        : `I received your message: "${turn.message.substring(0, 100)}${turn.message.length > 100 ? '...' : ''}"\n\n[Note: Model call failed, using fallback response]`;
-      
-      return {
-        reply: fallbackReply,
-        notes: {
-          persona_applied: !!persona,
-          persona_name: persona?.name || 'default',
-          persona_role: persona?.role || 'Agent',
-          response_style: persona?.tone || 'neutral',
-          model_used: false,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        memory_update: undefined,
-        next_actions: ['continue_conversation'],
-      };
-    }
-  }
-  
-  // Health endpoint
+
+  // Health check
   app.get('/health', (req: Request, res: Response) => {
     res.json({
-      status: 'healthy',
       agentId: config.id,
       agentName: config.name,
+      status: 'healthy',
       timestamp: Date.now(),
-      wsPort,
-      wsEnabled: !!wsServer,
+      grpcEnabled: !!grpcServer,
+      grpcPort,
+      taskCount: tasks.size,
+      connectedAgents: grpcServer ? grpcServer.getAgentCount() : 0,
     });
   });
   
-  // Heartbeat endpoint (for master to check worker health)
-  app.get('/heartbeat', (req: Request, res: Response) => {
+  // List agents (for masters)
+  app.get('/agents', (req: Request, res: Response) => {
+    if (grpcServer) {
+      const agents = grpcServer.getConnectedAgents();
+      res.json(agents);
+    } else {
+      res.json([]);
+    }
+  });
+  
+  // Task submission - gRPC version
+  app.post('/task', async (req: Request, res: Response) => {
+    try {
+      const { tool, params, context, taskId: requestedTaskId, targetAgentId } = req.body;
+      
+      if (!tool) {
+        return res.status(400).json({ error: 'tool name required' });
+      }
+      
+      // Use requested task ID if provided, otherwise generate one
+      const taskId = requestedTaskId || uuidv4();
+      
+      // If targetAgentId is provided and connected via gRPC, route via gRPC
+      if (targetAgentId && grpcServer && grpcServer.isAgentConnected(targetAgentId)) {
+        log.info(`Routing task ${taskId} to worker ${targetAgentId} via gRPC: ${tool}`);
+        
+        // Send task via gRPC
+        const sent = grpcServer.sendTask(targetAgentId, taskId, tool, params, context);
+        
+        if (!sent) {
+          return res.status(404).json({ error: `Worker ${targetAgentId} not connected via gRPC` });
+        }
+        
+        // Create task record
+        const task: AgentTask = {
+          id: taskId,
+          agentId: targetAgentId,
+          type: 'execute',
+          payload: { tool, params, context },
+          status: 'running',
+          created: Date.now(),
+          started: Date.now(),
+        };
+        
+        tasks.set(taskId, task);
+        
+        return res.json({
+          taskId,
+          status: 'accepted',
+          message: `Task routed to worker ${targetAgentId} via gRPC`,
+          routed: true,
+          transport: 'grpc',
+        });
+      }
+      
+      // Fallback: local execution (for self-tasks or when no target specified)
+      log.info(`Executing task ${taskId} locally: ${tool}`);
+      
+      // Check if tool is allowed
+      if (config.allowedTools.length > 0 && !config.allowedTools.includes(tool)) {
+        return res.status(403).json({ 
+          error: `Tool "${tool}" not allowed. Allowed: ${config.allowedTools.join(', ')}` 
+        });
+      }
+      
+      const task: AgentTask = {
+        id: taskId,
+        agentId: config.id,
+        type: 'execute',
+        payload: { tool, params, context },
+        status: 'pending',
+        created: Date.now(),
+      };
+      
+      tasks.set(taskId, task);
+      
+      // Execute task in background (legacy HTTP path)
+      executeTask(taskId, tool, params, context).catch(error => {
+        log.error(`Task ${taskId} execution failed:`, error);
+        const storedTask = tasks.get(taskId);
+        if (storedTask) {
+          storedTask.status = 'failed';
+          storedTask.completed = Date.now();
+          storedTask.error = error.message;
+        }
+      });
+      
+      res.json({
+        taskId,
+        status: 'accepted',
+        message: 'Task queued for local execution',
+      });
+      
+    } catch (error) {
+      log.error('Task submission failed:', error);
+      res.status(500).json({ error: 'Task submission failed' });
+    }
+  });
+  
+  // Task status
+  app.get('/task/:id/status', (req: Request, res: Response) => {
+    const taskId = req.params.id as string;
+    const task = tasks.get(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ error: `Task ${taskId} not found` });
+    }
+    
     res.json({
-      agentId: config.id,
-      agentName: config.name,
-      status: 'alive',
-      timestamp: Date.now(),
-      tasks: Array.from(tasks.values()).map(t => ({
-        id: t.id,
-        status: t.status,
-        tool: t.payload?.tool || 'unknown',
-      })),
+      taskId,
+      status: task.status,
+      agentId: task.agentId,
+      created: task.created,
+      started: task.started,
+      completed: task.completed,
+      result: task.result,
+      error: task.error,
     });
+  });
+  
+  // Cancel task
+  app.post('/task/:id/cancel', (req: Request, res: Response) => {
+    const taskId = req.params.id as string;
+    const task = tasks.get(taskId);
+    
+    if (!task) {
+      return res.status(404).json({ error: `Task ${taskId} not found` });
+    }
+    
+    if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
+      return res.status(400).json({ error: `Task ${taskId} is already ${task.status}` });
+    }
+    
+    task.status = 'cancelled';
+    task.completed = Date.now();
+    
+    res.json({
+      taskId,
+      status: 'cancelled',
+      message: `Task ${taskId} cancelled`,
+    });
+  });
+  
+  // List tasks
+  app.get('/tasks', (req: Request, res: Response) => {
+    const taskList = Array.from(tasks.values()).map(t => ({
+      id: t.id,
+      status: t.status,
+      agentId: t.agentId,
+      tool: t.payload?.tool || 'unknown',
+      created: t.created,
+      started: t.started,
+      completed: t.completed,
+    }));
+    
+    res.json(taskList);
   });
   
   // Register with master (for agents)
@@ -346,134 +432,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     }
   });
   
-  // Task submission
-  app.post('/task', async (req: Request, res: Response) => {
-    try {
-      const { tool, params, context, taskId: requestedTaskId } = req.body;
-      
-      if (!tool) {
-        return res.status(400).json({ error: 'tool name required' });
-      }
-      
-      // Check if tool is allowed
-      if (config.allowedTools.length > 0 && !config.allowedTools.includes(tool)) {
-        return res.status(403).json({ 
-          error: `Tool "${tool}" not allowed. Allowed: ${config.allowedTools.join(', ')}` 
-        });
-      }
-      
-      // Use requested task ID if provided, otherwise generate one
-      const taskId = requestedTaskId || uuidv4();
-      const task: AgentTask = {
-        id: taskId,
-        agentId: config.id,
-        type: 'execute',
-        payload: { tool, params, context },
-        status: 'pending',
-        created: Date.now(),
-      };
-      
-      tasks.set(taskId, task);
-      
-      // Execute task in background
-      executeTask(taskId, tool, params, context).catch(error => {
-        log.error(`Task ${taskId} execution failed:`, error);
-        const storedTask = tasks.get(taskId);
-        if (storedTask) {
-          storedTask.status = 'failed';
-          storedTask.completed = Date.now();
-          storedTask.error = error.message;
-        }
-      });
-      
-      res.json({
-        taskId,
-        status: 'accepted',
-        message: 'Task queued for execution',
-      });
-      
-    } catch (error) {
-      log.error('Task submission failed:', error);
-      res.status(500).json({ error: 'Task submission failed' });
-    }
-  });
-  
-  // Task status
-  app.get('/task/:id/status', (req: Request, res: Response) => {
-    const taskId = req.params.id as string;
-    const task = tasks.get(taskId);
-    
-    if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-    
-    res.json({
-      taskId: task.id,
-      status: task.status,
-      created: task.created,
-      started: task.started,
-      completed: task.completed,
-      error: task.error,
-    });
-  });
-  
-  // Task result
-  app.get('/task/:id/result', (req: Request, res: Response) => {
-    const taskId = req.params.id as string;
-    const task = tasks.get(taskId);
-    
-    if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-    
-    if (task.status !== 'completed' && task.status !== 'failed') {
-      return res.status(400).json({ 
-        error: `Task not completed (status: ${task.status})` 
-      });
-    }
-    
-    res.json({
-      taskId: task.id,
-      status: task.status,
-      result: task.result,
-      error: task.error,
-      completed: task.completed,
-    });
-  });
-  
-  // Cancel task
-  app.post('/task/:id/cancel', (req: Request, res: Response) => {
-    const taskId = req.params.id as string;
-    const task = tasks.get(taskId);
-    
-    if (!task) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-    
-    if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
-      return res.status(400).json({ 
-        error: `Cannot cancel task in status: ${task.status}` 
-      });
-    }
-    
-    task.status = 'cancelled';
-    task.completed = Date.now();
-    task.error = 'Cancelled by request';
-    
-    // Send cancellation event
-    eventStream.sendTaskCancelled(taskId);
-    
-    res.json({
-      taskId: task.id,
-      status: 'cancelled',
-      message: 'Task cancelled',
-    });
-  });
-  
-  // Event streaming endpoint (SSE)
-  app.get('/events', createSSEHandler(eventStream));
-  
-  // Chat turn - conversational interaction (streaming)
+  // Chat turn - conversational interaction (via gRPC when possible)
   app.post('/chat', async (req: Request, res: Response) => {
     const turnId = uuidv4();
     
@@ -483,6 +442,34 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       if (!speaker || !target || !message) {
         return res.status(400).json({ error: 'speaker, target, and message required' });
       }
+      
+      // If we have a gRPC server and target is a connected agent, use gRPC
+      if (grpcServer && grpcServer.isAgentConnected(target) && target !== config.id) {
+        log.info(`Routing chat via gRPC from ${speaker} to ${target}`);
+        
+        // Send chat message via gRPC
+        const sent = grpcServer.sendChat(speaker, target, message, turnId);
+        
+        if (!sent) {
+          return res.status(404).json({ error: `Agent ${target} not connected via gRPC` });
+        }
+        
+        // Return immediate acknowledgment
+        const response = {
+          turnId,
+          speaker: config.id,
+          target: speaker,
+          message: `Chat routed to ${target} via gRPC`,
+          timestamp: Date.now(),
+          routed: true,
+          transport: 'grpc',
+        };
+        
+        return res.json(response);
+      }
+      
+      // Fallback: local chat processing (for self-chat or when gRPC not available)
+      log.info(`Processing chat locally for ${target}`);
       
       // Load persona and memory for this agent
       const persona = loadPersona(config.workspace) || createDefaultPersona(config.id, config.name);
@@ -502,12 +489,6 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       // Log the incoming turn
       logConversationTurn(config.workspace, turn);
       
-      // Send message start event
-      eventStream.sendMessageStart(turnId, {
-        name: persona.name,
-        role: persona.role,
-      });
-      
       // Build persona context for the model
       const personaContext = buildPersonaContext(persona, memory);
       
@@ -520,17 +501,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         memory,
         turn,
         config.workspace,
-        availableTools,
-        (event) => {
-          // Forward events to the event stream
-          if (event.type === 'agent_message_start') {
-            eventStream.sendMessageStart(event.turnId, event.persona);
-          } else if (event.type === 'agent_message_delta') {
-            eventStream.sendMessageDelta(event.turnId, event.delta);
-          } else if (event.type === 'agent_message_end') {
-            eventStream.sendMessageEnd(event.turnId, event.finalMessage);
-          }
-        }
+        availableTools
       );
       
       let finalReply = reply;
@@ -543,25 +514,11 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         for (const toolCall of toolCalls) {
           const { name, arguments: args } = toolCall;
           
-          // Send tool started event
-          eventStream.sendToolStarted(turnId, name, args, 'chat');
-          
           // Execute tool
           const stream = executeToolWithStream(name, args, config.workspace, config.allowedTools, turn.context, (event) => {
-            if (event.type === 'tool_started') {
-              eventStream.sendToolStarted(turnId, event.toolName, event.params, 'chat');
-            } else if (event.type === 'tool_stdout') {
-              eventStream.sendToolStdout(turnId, event.data, 'chat');
-            } else if (event.type === 'tool_stderr') {
-              eventStream.sendToolStderr(turnId, event.data, 'chat');
-            } else if (event.type === 'tool_finished') {
-              eventStream.sendToolFinished(turnId, event.result, 'chat');
-            }
-          }, turnId, 'chat');  // Pass turnId as parentOperationId and type
+            // Tool events could be sent via gRPC if we had proper client
+          }, turnId, 'chat');
           const result = await stream.result;
-          
-          // Send tool finished event
-          eventStream.sendToolFinished(turnId, result, 'chat');
           
           if (result.success) {
             finalReply += `\n\n**Tool ${name} executed successfully:**\n${result.output}`;
@@ -573,12 +530,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         }
       }
       
-      // Update memory based on conversation
+      // Update memory with the conversation
       const updatedMemory = updateMemoryFromConversation(memory, persona, turn, finalReply);
       saveMemory(config.workspace, updatedMemory);
-      
-      // Send message end event
-      eventStream.sendMessageEnd(turnId, finalReply);
       
       // Log the response turn
       const responseTurn: ConversationTurn = {
@@ -635,9 +589,6 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
     } catch (error) {
       log.error('Chat turn failed:', error);
       
-      // Send error event
-      eventStream.sendMessageEnd(turnId, `Error: ${error instanceof Error ? error.message : String(error)}`);
-      
       res.status(500).json({ 
         error: 'Chat turn failed',
         details: error instanceof Error ? error.message : String(error)
@@ -667,74 +618,20 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
       resolve({
         port: actualPort,
-        wsPort,
+        grpcPort,
         app,
         close: () => {
-          eventStream.destroy();
-          server.close();
-          if (wsServer) {
-            wsServer.close();
+          if (grpcServer) {
+            grpcServer.stop();
           }
-          log.info('Agent server stopped');
+          server.close();
         },
       });
     });
     
     server.on('error', (error) => {
-      log.error('Agent server failed to start:', error);
+      log.error('Server error:', error);
       reject(error);
     });
   });
 }
-
-/** Create agent identity from config */
-export function createAgentIdentity(config: AgentConfig, port: number): AgentIdentity {
-  // Filter capabilities based on platform
-  let capabilities = config.allowedTools.length > 0 ? config.allowedTools : ['all'];
-  
-  // If search_files is included, check if it's actually supported
-  if (capabilities.includes('search_files') || capabilities.includes('all')) {
-    const searchCapabilities = getPlatformSearchCapabilities();
-    if (!searchCapabilities.hasGrep && !searchCapabilities.hasRipgrep) {
-      // Remove search_files from capabilities if grep/ripgrep not available
-      if (config.allowedTools.length > 0) {
-        capabilities = capabilities.filter(tool => tool !== 'search_files');
-      }
-      // Note: we still include it but will handle gracefully in execution
-    }
-  }
-  
-  // Check if persona exists for this agent
-  let personaInfo = undefined;
-  try {
-    const persona = loadPersona(config.workspace);
-    if (persona) {
-      personaInfo = {
-        loaded: true,
-        name: persona.name,
-        role: persona.role,
-      };
-    }
-  } catch (error) {
-    // Persona loading failed, continue without it
-    log.debug(`Failed to load persona for agent ${config.id}:`, error);
-  }
-  
-  return {
-    id: config.id,
-    name: config.name,
-    type: 'local',
-    status: 'idle',
-    capabilities,
-    endpoint: `http://localhost:${port}`,
-    workspace: config.workspace,
-    created: Date.now(),
-    lastHeartbeat: Date.now(),
-    platform: process.platform,
-    platformCapabilities: {
-      search: getPlatformSearchCapabilities(),
-    },
-    persona: personaInfo,
-  };
-}
-

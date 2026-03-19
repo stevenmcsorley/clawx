@@ -186,7 +186,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
         'read', 'write', 'edit', 'bash', 
         'grep', 'find', 'ls', 'search_files', 
         'git_status', 'git_diff', 'ssh_run',
-        'agent_chat_direct', 'agent_ws_chat'
+        'agent_chat_direct', 'agent_grpc_chat'
       ];
       const effectiveAllowedTools = allowedTools.length > 0 
         ? allowedTools.filter((tool: string) => agentSupportedTools.includes(tool))
@@ -225,6 +225,21 @@ export const agentSpawnLocalTool: ToolDefinition = {
         '--master', masterEndpoint,
         '--workspace', workspace,
       ];
+      
+      // Add gRPC endpoint if master has one
+      if (masterEndpoint) {
+        try {
+          const masterHealth = await fetch(`${masterEndpoint}/health`);
+          if (masterHealth.ok) {
+            const masterInfo = await masterHealth.json() as any;
+            if (masterInfo.grpcPort) {
+              args.push('--grpc-master', `grpc://localhost:${masterInfo.grpcPort}`);
+            }
+          }
+        } catch (error) {
+          log.debug('Could not get master gRPC endpoint:', error);
+        }
+      }
       
       if (allowedTools.length > 0) {
         args.push('--allowed-tools', allowedTools.join(','));
