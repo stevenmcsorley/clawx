@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.30] - 2025-01-15
+
+### Windows Local Worker Persistence Fix
+- **Improved Windows local worker lifetime** by spawning worker processes in detached mode and calling `unref()` so they behave more like independent background agents
+- This targets cases where freshly spawned workers appeared healthy initially but then disappeared from the registry shortly afterward, making task delegation look broken or inconsistent
+- Aligns Windows worker spawning behavior more closely with the existing detached Unix-style behavior
+
+### Technical Changes
+- Updated Windows local spawn in `src/tools/agentSpawnLocal.ts` to use `detached: true`
+- Added best-effort `agentProcess.unref()` after spawn so worker lifetime is less coupled to the parent tool invocation
+
 ## [0.4.29] - 2025-01-15
 
 ### Stale Task Cleanup Improvements

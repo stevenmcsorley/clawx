@@ -391,6 +391,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
           stdio: ['ignore', 'pipe', 'pipe'],
           shell: true, // Use cmd.exe shell
           windowsHide: true,
+          detached: true,
         });
       } else {
         // On Unix-like systems
@@ -401,6 +402,12 @@ export const agentSpawnLocalTool: ToolDefinition = {
           stdio: ['ignore', 'pipe', 'pipe'],
           detached: true,
         });
+      }
+
+      try {
+        agentProcess.unref();
+      } catch {
+        // Best effort only
       }
       
       // Store process info
