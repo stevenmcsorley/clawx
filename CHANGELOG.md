@@ -2,6 +2,23 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.12] - 2025-01-15
+
+### Canonical gRPC Master↔Worker Routing
+- **agent_chat now sends over gRPC** from the master directly to workers instead of using HTTP `/chat` as the normal trigger path
+- **agent_send now sends over gRPC** from the master directly to workers instead of using HTTP `/task` as the normal trigger path
+- **Worker gRPC chat is now real**: incoming gRPC chat messages execute the real persona/model/tool path and stream deltas back live
+- **Streaming waits for real terminal events**: master-side gRPC streaming helper now waits for chat/task terminal events instead of returning immediately
+- **Multi-agent conversation clarity improved**: streamed chat now stays scoped by operation/agent identity for cleaner master-side rendering
+
+### Technical Changes
+- Switched `src/tools/agentChat.ts` to master-direct gRPC send path
+- Switched `src/tools/agentSend.ts` to master-direct gRPC task send path
+- Replaced stubbed worker gRPC chat handler in `src/core/worker-agent.ts` with real model/tool execution
+- Extended gRPC chat payload metadata in `src/core/grpc/protocol.ts`
+- Updated `src/core/grpc/grpc-server.ts` to support enriched direct chat payloads
+- Updated `src/utils/grpc-streaming-tool-helper.ts` to wait for terminal stream events
+
 ## [0.4.11] - 2025-01-15
 
 ### Multi-Agent Runtime Integration Fixes

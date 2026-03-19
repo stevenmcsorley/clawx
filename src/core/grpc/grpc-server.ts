@@ -342,8 +342,8 @@ export class GrpcServer extends EventEmitter {
     return this.sendToAgent(frame.toAgentId, frame);
   }
   
-  sendChat(fromAgentId: string, toAgentId: string, message: string, conversationId?: string): boolean {
-    const frame = GrpcFrames.createChatMessage(fromAgentId, toAgentId, message, conversationId);
+  sendChat(fromAgentId: string, toAgentId: string, message: string, conversationId?: string, extraPayload?: Record<string, any>): boolean {
+    const frame = GrpcFrames.createChatMessage(fromAgentId, toAgentId, message, conversationId, extraPayload);
     return this.sendFrame(frame);
   }
   

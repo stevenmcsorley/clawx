@@ -8,7 +8,8 @@
 import { ToolDefinition } from '../types/extension.js';
 import { log } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
-import type { ChatRequest, ChatResponse } from '../types/persona.js';
+import { agentMaster } from '../core/agent-master.js';
+import type { ChatResponse } from '../types/persona.js';
 import { withGrpcWorkerStreaming } from '../utils/grpc-streaming-tool-helper.js';
 
 export const agentChatTool: ToolDefinition = {
@@ -142,15 +143,12 @@ export const agentChatTool: ToolDefinition = {
       // Generate a turn ID for this conversation
       const turnId = `chat_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
-      // Build chat request
-      const chatRequest: ChatRequest = {
-        speaker: 'master',
-        target: agent.id,
-        message,
-        context: conversationContext,
-        mode,
-      };
-      
+      const masterServer = agentMaster.getServer();
+      const masterConfig = agentMaster.getConfig();
+      if (!masterServer?.grpcPort || !masterConfig) {
+        throw new Error('Current session is not serving as a gRPC-capable master');
+      }
+
       // Use gRPC streaming helper
       const streamingResult = await withGrpcWorkerStreaming({
         agentId: agent.id,
@@ -160,47 +158,38 @@ export const agentChatTool: ToolDefinition = {
         onUpdate: onUpdate,
         signal,
       }, async () => {
-        // Send chat request
-        const response = await fetch(`${agent.endpoint}/chat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...chatRequest,
-            turnId, // Pass our turn ID for gRPC routing
-          }),
-          signal: signal || AbortSignal.timeout(30000), // 30 second timeout for chat
+        const grpcServer = (masterServer as any);
+        const sent = grpcServer.sendChat(masterConfig.id, agent.id, message, turnId, {
+          mode,
+          context: conversationContext,
         });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Chat request failed (${response.status}): ${errorText}`);
+
+        if (!sent) {
+          throw new Error(`Failed to send chat to ${agent.name} over gRPC`);
         }
-        
-        const result = await response.json() as {
-          success: boolean;
-          turnId: string;
-          response: ChatResponse;
-          persona?: {
-            name: string;
-            role: string;
-          };
+
+        return {
+          success: true,
+          turnId,
+          response: {
+            reply: '',
+          } as ChatResponse,
+          persona: {
+            name: agent.name,
+            role: 'Agent',
+          },
         };
-        
-        if (!result.success) {
-          throw new Error(`Chat failed: ${JSON.stringify(result)}`);
-        }
-        
-        return result;
       });
       
       const { finalResult, events } = streamingResult;
       
-      // Format response for display
-      const reply = finalResult.response.reply || 'No reply received';
-      const personaName = finalResult.persona?.name || agent.name;
-      const personaRole = finalResult.persona?.role || 'Agent';
+      // Format response for display from streamed events first
+      const deltas = events.filter(e => e.type === 'agent_message_delta').map((e: any) => e.delta || '');
+      const endEvent = [...events].reverse().find((e: any) => e.type === 'agent_message_end') as any;
+      const startEvent = events.find((e: any) => e.type === 'agent_message_start') as any;
+      const reply = endEvent?.finalMessage || deltas.join('') || finalResult.response.reply || 'No reply received';
+      const personaName = startEvent?.persona?.name || finalResult.persona?.name || agent.name;
+      const personaRole = startEvent?.persona?.role || finalResult.persona?.role || 'Agent';
       
       return {
         content: [{

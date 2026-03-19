@@ -119,6 +119,8 @@ export interface TaskFailedPayload {
 export interface ChatMessagePayload {
   message: string;
   conversationId?: string;
+  mode?: string;
+  context?: any;
 }
 
 export interface SystemPayload {
@@ -350,7 +352,7 @@ export const GrpcFrames = {
     };
   },
   
-  createChatMessage(fromAgentId: string, toAgentId: string, message: string, conversationId?: string): GrpcAgentFrame {
+  createChatMessage(fromAgentId: string, toAgentId: string, message: string, conversationId?: string, extraPayload?: Record<string, any>): GrpcAgentFrame {
     return {
       id: `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type: 'chat_message',
@@ -362,6 +364,7 @@ export const GrpcFrames = {
       payload: {
         message,
         conversationId,
+        ...(extraPayload || {}),
       } as ChatMessagePayload,
     };
   },

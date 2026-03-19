@@ -201,11 +201,29 @@ export async function withGrpcWorkerStreaming(
   }
   
   try {
-    // Execute the operation (HTTP request that triggers gRPC streaming)
+    // Execute the operation that triggers gRPC streaming
     const finalResult = await operation();
-    
-    // Wait a bit for any final events to come through
-    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const isTerminalEvent = (event: StreamEvent) => {
+      if (operationType === 'chat') {
+        return event.type === 'agent_message_end';
+      }
+      return event.type === 'task_completed' || event.type === 'task_failed' || event.type === 'task_cancelled';
+    };
+
+    const alreadyTerminal = events.some(isTerminalEvent);
+    if (!alreadyTerminal) {
+      const waitUntil = Date.now() + (operationType === 'chat' ? 30000 : 120000);
+      while (Date.now() < waitUntil) {
+        if (signal?.aborted) {
+          break;
+        }
+        if (events.some(isTerminalEvent)) {
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
     
     return { finalResult, events };
     

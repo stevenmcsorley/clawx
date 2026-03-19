@@ -119,22 +119,115 @@ export class WorkerAgent {
     }
   }
   
-  private handleChatMessage(frame: any) {
+  private async handleChatMessage(frame: any) {
     const { fromAgentId, payload, parentOperationId } = frame;
     const message = payload?.message;
-    
-    if (!message) return;
-    
+    const mode = payload?.mode || 'discussion';
+    const context = payload?.context || {};
+
+    if (!message || !this.grpcClient) return;
+
     log.info(`Worker ${this.options.agentId} received chat from ${fromAgentId}: ${message.substring(0, 100)}...`);
-    
-    // In a real implementation, this would trigger AI response generation
-    // For now, just acknowledge receipt
-    if (this.grpcClient) {
-      this.grpcClient.sendChat(
-        fromAgentId,
-        `Received your message: "${message.substring(0, 50)}..."`,
-        parentOperationId
+
+    try {
+      const { createDefaultPersona, createDefaultMemory, logConversationTurn, saveMemory } = await import('../utils/persona-utils.js');
+      const { generateModelChatResponse, updateMemoryFromConversation } = await import('../utils/worker-model-caller.js');
+      const { getWorkerTools, executeToolWithStream } = await import('../utils/worker-tool-executor.js');
+
+      const persona = this.persona || createDefaultPersona(this.options.agentId, this.options.agentName);
+      const memory = this.memory || createDefaultMemory();
+      const turnId = parentOperationId || `chat_${Date.now()}`;
+      const turn = {
+        id: turnId,
+        speaker: fromAgentId,
+        target: this.options.agentId,
+        message,
+        context,
+        mode,
+        timestamp: Date.now(),
+      };
+
+      logConversationTurn(this.options.workspace, turn);
+      const availableTools = getWorkerTools(this.options.workspace, this.options.allowedTools);
+
+      const { reply, toolCalls } = await generateModelChatResponse(
+        persona,
+        memory,
+        turn,
+        this.options.workspace,
+        availableTools,
+        (event) => {
+          switch (event.type) {
+            case 'agent_message_start':
+              this.grpcClient!.sendAgentMessageStart(turnId, fromAgentId, event.persona);
+              break;
+            case 'agent_message_delta':
+              this.grpcClient!.sendAgentMessageDelta(turnId, fromAgentId, event.delta);
+              break;
+            case 'agent_message_end':
+              break;
+          }
+        }
       );
+
+      let finalReply = reply;
+      const executedActions: string[] = [];
+
+      if (toolCalls && toolCalls.length > 0) {
+        for (const toolCall of toolCalls) {
+          const stream = executeToolWithStream(
+            toolCall.name,
+            toolCall.arguments || {},
+            this.options.workspace,
+            this.options.allowedTools,
+            context,
+            (event) => {
+              switch (event.type) {
+                case 'tool_started':
+                  this.grpcClient!.sendToolStarted(turnId, fromAgentId, event.toolName, event.params, 'chat');
+                  break;
+                case 'tool_stdout':
+                  this.grpcClient!.sendToolStdout(turnId, fromAgentId, event.data, 'chat');
+                  break;
+                case 'tool_stderr':
+                  this.grpcClient!.sendToolStderr(turnId, fromAgentId, event.data, 'chat');
+                  break;
+                case 'tool_finished':
+                  this.grpcClient!.sendToolFinished(turnId, fromAgentId, event.result, 'chat');
+                  break;
+              }
+            },
+            turnId,
+            'chat'
+          );
+          const result = await stream.result;
+          if (result.success) {
+            finalReply += `\n\n**Tool ${toolCall.name} executed successfully:**\n${result.output}`;
+            executedActions.push(`${toolCall.name}: success`);
+          } else {
+            finalReply += `\n\n**Tool ${toolCall.name} failed:** ${result.error}`;
+            executedActions.push(`${toolCall.name}: failed`);
+          }
+        }
+      }
+
+      this.memory = updateMemoryFromConversation(memory, persona, turn as any, finalReply);
+      saveMemory(this.options.workspace, this.memory);
+
+      logConversationTurn(this.options.workspace, {
+        id: `${turnId}_reply`,
+        speaker: this.options.agentId,
+        target: fromAgentId,
+        message: finalReply,
+        context: { executed_actions: executedActions, tool_calls_executed: toolCalls?.length || 0 },
+        mode,
+        timestamp: Date.now(),
+      });
+
+      this.grpcClient.sendAgentMessageEnd(turnId, fromAgentId, finalReply);
+    } catch (error) {
+      log.error(`Worker ${this.options.agentId} failed chat ${parentOperationId}:`, error);
+      this.grpcClient.sendAgentMessageEnd(parentOperationId || `chat_${Date.now()}`, fromAgentId, `Chat failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   

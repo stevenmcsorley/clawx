@@ -7,6 +7,7 @@
 import { ToolDefinition } from '../types/extension.js';
 import { log } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
+import { agentMaster } from '../core/agent-master.js';
 import { AgentTask } from '../types/agent.js';
 import { v4 as uuidv4 } from 'uuid';
 import { withGrpcWorkerStreaming } from '../utils/grpc-streaming-tool-helper.js';
@@ -135,6 +136,12 @@ export const agentSendTool: ToolDefinition = {
       registry.addTask(task);
       registry.save();
       
+      const masterServer = agentMaster.getServer();
+      const masterConfig = agentMaster.getConfig();
+      if (!masterServer?.grpcPort || !masterConfig) {
+        throw new Error('Current session is not serving as a gRPC-capable master');
+      }
+
       // Use gRPC streaming helper
       const streamingResult = await withGrpcWorkerStreaming({
         agentId: agent.id,
@@ -144,35 +151,18 @@ export const agentSendTool: ToolDefinition = {
         onUpdate: onUpdate,
         signal,
       }, async () => {
-        // Send task to agent
-        const response = await fetch(`${agent.endpoint}/task`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tool,
-            params: taskParams,
-            context,
-            taskId, // Pass our task ID for gRPC routing
-          }),
-          signal: signal || AbortSignal.timeout(120000), // 2 minute timeout for tasks
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Task request failed (${response.status}): ${errorText}`);
+        const grpcServer = (masterServer as any);
+        const sent = grpcServer.sendTask(masterConfig.id, agent.id, taskId, tool, taskParams, context);
+        if (!sent) {
+          throw new Error(`Failed to send task to ${agent.name} over gRPC`);
         }
-        
-        const result = await response.json() as any;
-        
-        // Update task status based on response
-        if (result.status === 'accepted' || result.status === 'running') {
-          task.status = 'running';
-          task.started = Date.now();
-          registry.addTask(task);
-          registry.save();
-        }
-        
-        return result;
+
+        task.status = 'running';
+        task.started = Date.now();
+        registry.addTask(task);
+        registry.save();
+
+        return { status: 'accepted', transport: 'grpc', taskId };
       });
       
       const { finalResult, events } = streamingResult;
