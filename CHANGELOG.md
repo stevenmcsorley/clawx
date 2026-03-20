@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.37] - 2025-01-15
+
+### Plain-Text Worker Result Extraction
+- **Improved `agent_send` result flattening again** so JSON-stringified nested tool results are parsed and reduced to their actual text output when possible
+- Worker tasks like `ls`, `read`, `search_files`, and `bash` should now render their real text output directly instead of showing a JSON object containing a `content` array
+- Keeps structured JSON fallback only when no readable text can be extracted
+
+### Technical Changes
+- Enhanced recursive result extraction in `src/tools/agentSend.ts` to parse JSON string payloads before returning output
+- Allows final worker task output to collapse nested `output -> content -> text` wrappers into plain text
+
 ## [0.4.36] - 2025-01-15
 
 ### Removed Remaining SSE-Named Runtime File

@@ -16,6 +16,16 @@ function extractReadableResult(value: any): string {
   if (!value) return '';
 
   if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if ((trimmed.startsWith('{') || trimmed.startsWith('['))) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const nested = extractReadableResult(parsed);
+        if (nested) return nested;
+      } catch {
+        // keep original string
+      }
+    }
     return value;
   }
 
@@ -27,7 +37,8 @@ function extractReadableResult(value: any): string {
   }
 
   if (typeof value?.output === 'string') {
-    return value.output;
+    const nested = extractReadableResult(value.output);
+    return nested || value.output;
   }
 
   if (value?.details) {
