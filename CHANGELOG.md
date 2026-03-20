@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.39] - 2025-01-15
+
+### Fixed Parallel Worker Spawn Port Race
+- **Serialized local agent spawn port allocation** with a filesystem lock so concurrent `agent_spawn_local` calls cannot both claim the same worker port
+- Prevents duplicate endpoint assignment like two fresh workers both being given `http://localhost:43121`
+- Reduces downstream identity/routing corruption where one named worker could accidentally point at another worker's live process
+
+### Technical Changes
+- Added a spawn lock in `src/tools/agentSpawnLocal.ts` around port selection and worker startup
+- Includes stale lock cleanup and guaranteed lock release in `finally`
+
 ## [0.4.38] - 2025-01-15
 
 ### Windows Worker Spawn Without Extra Console Window

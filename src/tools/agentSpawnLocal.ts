@@ -19,7 +19,44 @@ import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
 import { join } from 'path';
 import { homedir } from 'os';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, rmSync, statSync } from 'fs';
+
+const SPAWN_LOCK_DIR = join(homedir(), '.clawx', 'agents', 'spawn.lock');
+
+async function acquireSpawnLock(timeoutMs = 10000, staleMs = 30000): Promise<() => void> {
+  const start = Date.now();
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      mkdirSync(SPAWN_LOCK_DIR);
+      return () => {
+        try {
+          rmSync(SPAWN_LOCK_DIR, { recursive: true, force: true });
+        } catch {
+          // best effort
+        }
+      };
+    } catch (error: any) {
+      if (error?.code !== 'EEXIST') {
+        throw error;
+      }
+
+      try {
+        const stats = statSync(SPAWN_LOCK_DIR);
+        if (Date.now() - stats.mtimeMs > staleMs) {
+          rmSync(SPAWN_LOCK_DIR, { recursive: true, force: true });
+          continue;
+        }
+      } catch {
+        // another process may have released it
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+
+  throw new Error('Timed out waiting for agent spawn lock');
+}
 
 export const agentSpawnLocalTool: ToolDefinition = {
   name: 'agent_spawn_local',
@@ -98,7 +135,11 @@ export const agentSpawnLocalTool: ToolDefinition = {
     const allowedTools = normalizedParams.allowed_tools;
     const requestedPort = normalizedParams.port;
     
+    let releaseSpawnLock: (() => void) | null = null;
+
     try {
+      releaseSpawnLock = await acquireSpawnLock();
+
       // Clean up stale agents first
       const cleaned = cleanupStaleAgents();
       if (cleaned > 0) {
@@ -261,6 +302,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       let nodePath = process.argv[0];
       let scriptPath = process.argv[1];
       let useClawxCommand = false;
+      let globalClawxScriptPath = '';
       
       // Check if 'clawx' command is available in PATH (cross-platform)
       try {
@@ -287,12 +329,37 @@ export const agentSpawnLocalTool: ToolDefinition = {
         }
         
         if (clawxFound) {
-          // 'clawx' command is available - use it directly.
-          // On Windows prefer clawx.cmd so we can spawn without shell:true and avoid extra console windows.
-          nodePath = process.platform === 'win32' ? 'clawx.cmd' : 'clawx';
-          scriptPath = ''; // No script path needed when using 'clawx' command
-          useClawxCommand = true;
-          log.debug(`Using global '${nodePath}' command with full subcommand args`);
+          // 'clawx' command is available - prefer resolving its real JS entry point,
+          // especially on Windows where wrapper scripts can create console windows or spawn issues.
+          if (process.platform === 'win32') {
+            try {
+              const { execSync } = await import('child_process');
+              const globalNodeModules = execSync('npm root -g', { encoding: 'utf8' }).trim();
+              const candidatePath = join(globalNodeModules, '@halfagiraf', 'clawx', 'bin', 'clawx.js');
+              if (existsSync(candidatePath)) {
+                nodePath = process.execPath;
+                scriptPath = candidatePath;
+                globalClawxScriptPath = candidatePath;
+                useClawxCommand = false;
+                log.debug(`Using resolved global clawx script: ${candidatePath}`);
+              } else {
+                nodePath = 'clawx';
+                scriptPath = '';
+                useClawxCommand = true;
+                log.debug(`Global clawx script not found at ${candidatePath}, falling back to command wrapper`);
+              }
+            } catch (resolveError) {
+              nodePath = 'clawx';
+              scriptPath = '';
+              useClawxCommand = true;
+              log.debug(`Failed resolving global clawx script, falling back to command wrapper: ${resolveError}`);
+            }
+          } else {
+            nodePath = 'clawx';
+            scriptPath = ''; // No script path needed when using 'clawx' command
+            useClawxCommand = true;
+            log.debug(`Using global '${nodePath}' command with full subcommand args`);
+          }
         } else {
           log.debug(`'clawx' command not found in PATH`);
         }
@@ -323,6 +390,9 @@ export const agentSpawnLocalTool: ToolDefinition = {
       
       log.debug(`Spawning agent with: ${nodePath} ${scriptPath ? scriptPath + ' ' : ''}${args.join(' ')}`);
       log.debug(`Using clawx command: ${useClawxCommand}`);
+      if (globalClawxScriptPath) {
+        log.debug(`Resolved global clawx script path: ${globalClawxScriptPath}`);
+      }
       log.debug(`Current directory: ${process.cwd()}`);
       log.debug(`Platform: ${process.platform}`);
       
@@ -352,15 +422,26 @@ export const agentSpawnLocalTool: ToolDefinition = {
       
       if (process.platform === 'win32') {
         const spawnArgs = scriptPath ? [scriptPath, ...args] : args;
-        log.debug(`Windows spawn: ${nodePath} ${spawnArgs.join(' ')}`);
 
-        agentProcess = spawn(nodePath, spawnArgs, {
-          cwd: workspace,
-          stdio: ['ignore', 'pipe', 'pipe'],
-          shell: false,
-          windowsHide: true,
-          detached: true,
-        });
+        if (useClawxCommand) {
+          log.debug(`Windows wrapper spawn: ${nodePath} ${spawnArgs.join(' ')}`);
+          agentProcess = spawn(nodePath, spawnArgs, {
+            cwd: workspace,
+            stdio: ['ignore', 'pipe', 'pipe'],
+            shell: true,
+            windowsHide: true,
+            detached: true,
+          });
+        } else {
+          log.debug(`Windows direct node spawn: ${nodePath} ${spawnArgs.join(' ')}`);
+          agentProcess = spawn(nodePath, spawnArgs, {
+            cwd: workspace,
+            stdio: ['ignore', 'pipe', 'pipe'],
+            shell: false,
+            windowsHide: true,
+            detached: true,
+          });
+        }
       } else {
         // On Unix-like systems
         const spawnArgs = scriptPath ? [scriptPath, ...args] : args;
@@ -529,6 +610,12 @@ export const agentSpawnLocalTool: ToolDefinition = {
         details: { error: error instanceof Error ? error.message : String(error) },
         isError: true,
       };
+    } finally {
+      try {
+        releaseSpawnLock?.();
+      } catch {
+        // best effort
+      }
     }
   },
 };
