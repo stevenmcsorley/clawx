@@ -2,6 +2,19 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.47] - 2025-01-15
+
+### Removed Unused Parallel gRPC Implementations
+- Deleted old unused gRPC implementation files that were no longer part of the active runtime
+- This reduces architectural duplication and makes the real live transport path clearer: `src/core/grpc/grpc-client.ts` + `src/core/grpc/grpc-server.ts`
+- Helps keep the codebase honest by removing superseded gRPC variants instead of leaving multiple competing implementations around
+
+### Removed Files
+- `src/core/agent-grpc-client.ts`
+- `src/core/agent-grpc.ts`
+- `src/core/grpc/agent-grpc-client.ts`
+- `src/core/grpc/agent-grpc-server.ts`
+
 ## [0.4.46] - 2025-01-15
 
 ### Collaboration Guide Numbering Polish
