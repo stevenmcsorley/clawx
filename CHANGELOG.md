@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.44] - 2025-01-15
+
+### Clearer Worker Chat Streaming Presentation
+- **Improved `agent_chat` live rendering** so worker replies are shown as a cleaner chat block instead of a confusing mixture of header text and raw streamed fragments
+- Tool activity is now visually separated from normal assistant prose under a dedicated `🔧 Tool activity` section
+- This should make streamed worker chat easier to read and understand while a reply is still arriving
+
+### Technical Changes
+- Updated `src/tools/agentChat.ts` streaming formatting
+- Chat deltas now build a clearer reply block
+- Tool stdout/stderr is grouped separately instead of blending directly into the prose stream
+
 ## [0.4.43] - 2025-01-15
 
 ### Added One-Pass Worker Chat Constraint Repair

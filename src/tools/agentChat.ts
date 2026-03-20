@@ -153,9 +153,14 @@ export const agentChatTool: ToolDefinition = {
       let streamedHeaderShown = false;
       let streamedReplyBuffer = '';
       let streamedDisplay = '';
-      const pushPartial = () => {
+      let inToolSection = false;
+      const renderDisplay = () => {
+        const header = streamedHeaderShown ? `💬 ${agent.name} is replying...\n\n` : '';
+        const replyBlock = streamedReplyBuffer ? `${agent.name}:\n${streamedReplyBuffer}` : '';
+        const toolSpacer = streamedDisplay && replyBlock ? `\n\n` : '';
+        const text = `${header}${replyBlock}${toolSpacer}${streamedDisplay}`.trimEnd();
         onUpdate?.({
-          content: [{ type: 'text', text: streamedDisplay }],
+          content: [{ type: 'text', text }],
           details: {
             agent_id: agent.id,
             agent_name: agent.name,
@@ -164,45 +169,51 @@ export const agentChatTool: ToolDefinition = {
           },
         });
       };
+      const appendToolLine = (line: string) => {
+        if (!inToolSection) {
+          inToolSection = true;
+          streamedDisplay += `🔧 Tool activity\n`;
+        }
+        streamedDisplay += line.endsWith('\n') ? line : `${line}\n`;
+        renderDisplay();
+      };
       const prettyOnUpdate = (update: any) => {
         switch (update?.type) {
           case 'chat_start': {
             if (!streamedHeaderShown) {
               streamedHeaderShown = true;
-              streamedDisplay += `${update.agentName}:\n`;
-              pushPartial();
+              renderDisplay();
             }
             break;
           }
           case 'chat_delta': {
             if (typeof update.delta === 'string') {
               streamedReplyBuffer += update.delta;
-              streamedDisplay += update.delta;
-              pushPartial();
+              renderDisplay();
             }
             break;
           }
           case 'chat_end': {
-            streamedDisplay += `\n`;
-            pushPartial();
+            renderDisplay();
             break;
           }
           case 'tool_started': {
-            streamedDisplay += `\n[${update.agentName} is using tool: ${update.toolName}]\n`;
-            pushPartial();
+            appendToolLine(`• ${update.agentName} used ${update.toolName}`);
             break;
           }
           case 'tool_stdout': {
             if (typeof update.data === 'string' && update.data) {
-              streamedDisplay += update.data.endsWith('\n') ? update.data : `${update.data}\n`;
-              pushPartial();
+              for (const line of update.data.split(/\r?\n/).filter(Boolean)) {
+                appendToolLine(`  ${line}`);
+              }
             }
             break;
           }
           case 'tool_stderr': {
             if (typeof update.data === 'string' && update.data) {
-              streamedDisplay += `[stderr] ${update.data.endsWith('\n') ? update.data : `${update.data}\n`}`;
-              pushPartial();
+              for (const line of update.data.split(/\r?\n/).filter(Boolean)) {
+                appendToolLine(`  [stderr] ${line}`);
+              }
             }
             break;
           }
