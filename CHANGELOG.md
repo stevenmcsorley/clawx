@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.63] - 2025-01-15
+
+### Fixed Tool-Level Peer Observer Startup
+- `agent_serve` now supports `tui: true` so observer mode can be enabled from within Clawx tool calls, not just the raw CLI
+- Tool output now reports whether peer observer TUI is enabled or disabled
+- This closes the gap where `clawx agent serve --tui` existed but `agent_serve` could not expose the same capability
+
+### Technical Changes
+- Updated `src/tools/agentServe.ts` to accept and normalize `tui`
+- Wired tool-based `agent_serve` to launch `startPeerObserverTui(...)`
+- Added startup peer-activity log entry for tool-launched serve mode
+
 ## [0.4.62] - 2025-01-15
 
 ### Added Optional Peer Activity Observer TUI
