@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.38] - 2025-01-15
+
+### Windows Worker Spawn Without Extra Console Window
+- **Improved Windows worker spawning** to avoid `shell: true` command wrapping and prefer direct spawning of `clawx.cmd` / direct executable arguments
+- This should reduce or eliminate extra terminal/debug window popups when spawning background worker agents on Windows
+- Keeps detached background worker behavior while making normal worker startup quieter and more polished
+
+### Technical Changes
+- Updated `src/tools/agentSpawnLocal.ts` to prefer `clawx.cmd` on Windows when using the global command
+- Replaced Windows `spawn(fullCommand, { shell: true })` with direct argument spawning using `shell: false`
+
 ## [0.4.37] - 2025-01-15
 
 ### Plain-Text Worker Result Extraction

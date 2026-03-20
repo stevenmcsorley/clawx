@@ -288,11 +288,11 @@ export const agentSpawnLocalTool: ToolDefinition = {
         
         if (clawxFound) {
           // 'clawx' command is available - use it directly.
-          // Keep full args as `agent serve ...` because the CLI subcommand is `clawx agent serve`.
-          nodePath = 'clawx';
+          // On Windows prefer clawx.cmd so we can spawn without shell:true and avoid extra console windows.
+          nodePath = process.platform === 'win32' ? 'clawx.cmd' : 'clawx';
           scriptPath = ''; // No script path needed when using 'clawx' command
           useClawxCommand = true;
-          log.debug(`Using global 'clawx' command with full subcommand args`);
+          log.debug(`Using global '${nodePath}' command with full subcommand args`);
         } else {
           log.debug(`'clawx' command not found in PATH`);
         }
@@ -351,45 +351,13 @@ export const agentSpawnLocalTool: ToolDefinition = {
       let agentProcess;
       
       if (process.platform === 'win32') {
-        // On Windows: build a properly quoted command string
-        // Always quote nodePath if it contains spaces (common on Windows)
-        const quoteIfNeeded = (arg: string): string => {
-          if (!arg) return '';
-          // Always quote if it contains spaces, or if it's a path that might have spaces
-          if (arg.includes(' ') || arg.includes('\\') || arg.includes(':')) {
-            return `"${arg}"`;
-          }
-          return arg;
-        };
-        
-        // Build command parts
-        const cmdParts: string[] = [];
-        
-        // Always include nodePath (or 'clawx')
-        cmdParts.push(quoteIfNeeded(nodePath));
-        
-        // Include scriptPath if not empty
-        if (scriptPath) {
-          cmdParts.push(quoteIfNeeded(scriptPath));
-        }
-        
-        // Include args (some args might need quoting too)
-        for (const arg of args) {
-          cmdParts.push(quoteIfNeeded(arg));
-        }
-        
-        // Filter out empty parts and join
-        const filteredParts = cmdParts.filter(p => p !== '');
-        const fullCommand = filteredParts.join(' ');
-        
-        log.debug(`Windows command parts: ${JSON.stringify(filteredParts)}`);
-        log.debug(`Windows full command: ${fullCommand}`);
-        
-        // Use spawn with the full command string
-        agentProcess = spawn(fullCommand, {
+        const spawnArgs = scriptPath ? [scriptPath, ...args] : args;
+        log.debug(`Windows spawn: ${nodePath} ${spawnArgs.join(' ')}`);
+
+        agentProcess = spawn(nodePath, spawnArgs, {
           cwd: workspace,
           stdio: ['ignore', 'pipe', 'pipe'],
-          shell: true, // Use cmd.exe shell
+          shell: false,
           windowsHide: true,
           detached: true,
         });
