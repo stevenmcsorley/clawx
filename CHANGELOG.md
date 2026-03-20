@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.41] - 2025-01-15
+
+### Reduced Windows Task-Time Console Flash
+- **Adjusted Windows streaming command execution again** to use `child_process.exec(..., { windowsHide: true })` for worker `bash` tasks
+- This targets the brief console window flash that could still appear during worker task execution even after silent worker spawn was fixed
+- Keeps real streamed stdout/stderr behavior while trying a Windows-native hidden execution path that is often quieter than manual shell spawning
+
+### Technical Changes
+- Updated `src/utils/streaming-bash-wrapper.ts` to use hidden `exec()` on Windows and keep spawn-based streaming on Unix-like systems
+
 ## [0.4.40] - 2025-01-15
 
 ### Cleaner Task Truth And Quieter Windows Task Execution
