@@ -1,6 +1,40 @@
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
 
+function extractReadablePeerResult(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const nested = extractReadablePeerResult(parsed);
+        if (nested) return nested;
+      } catch {}
+    }
+    return value;
+  }
+  if (Array.isArray(value?.content)) {
+    return value.content
+      .filter((item: any) => item?.type === 'text' && typeof item.text === 'string')
+      .map((item: any) => item.text)
+      .join('\n');
+  }
+  if (typeof value?.output === 'string') {
+    const nested = extractReadablePeerResult(value.output);
+    return nested || value.output;
+  }
+  if (value?.details) {
+    const nested = extractReadablePeerResult(value.details);
+    if (nested) return nested;
+  }
+  if (value?.result) {
+    const nested = extractReadablePeerResult(value.result);
+    if (nested) return nested;
+  }
+  return '';
+}
+
 export const agentPeerSendTool: ToolDefinition = {
   name: 'agent_peer_send',
   label: 'Send Task to Peer Master',
@@ -68,14 +102,15 @@ export const agentPeerSendTool: ToolDefinition = {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
+    const readable = extractReadablePeerResult(finalResult).trim();
     return {
       content: [{
         type: 'text',
         text: finalStatus === 'completed'
-          ? `🌐 Peer task ${taskId} completed\n${typeof finalResult === 'string' ? finalResult : JSON.stringify(finalResult, null, 2)}`
+          ? `🌐 ${peer.name} completed ${tool}${readable ? `\n${readable}` : ''}`
           : `🌐 Peer task ${taskId} status: ${finalStatus}`,
       }],
-      details: { peer_name: peer.name, endpoint: peer.endpoint, task_id: taskId, status: finalStatus, result: finalResult },
+      details: { peer_name: peer.name, endpoint: peer.endpoint, task_id: taskId, status: finalStatus, result: finalResult, tool },
       isError: finalStatus === 'failed',
     };
   },

@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.55] - 2025-01-15
+
+### Peer-Master UX Polish
+- **Improved `agent_peer_send` output rendering** so peer task results are flattened into readable text instead of raw nested JSON wrappers when possible
+- **Improved `agent_master_status` peer visibility** so remote entries are shown as peer masters with direct example commands for peer chat and peer task delegation
+- This makes the Windows ↔ Ubuntu peer workflow feel more coherent before expanding to the Raspberry Pi
+
+### Technical Changes
+- Added readable-result extraction to `src/tools/agentPeerSend.ts`
+- Updated `src/tools/agentMasterStatus.ts` to present remote peers more clearly and actionably
+
 ## [0.4.54] - 2025-01-15
 
 ### First Peer-Master Task Delegation

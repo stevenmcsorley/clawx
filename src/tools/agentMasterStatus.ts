@@ -103,7 +103,7 @@ export const agentMasterStatusTool: ToolDefinition = {
         }
         
         if (remoteAgents.length > 0) {
-          output += `\n### Remote Workers (${remoteAgents.length})\n`;
+          output += `\n### Remote Peer Masters (${remoteAgents.length})\n`;
           for (const agent of remoteAgents) {
             const health = checkHealth && agent.endpoint ? await checkAgentHealth(agent.endpoint) : true;
             output += `- ${health ? '✅' : '❌'} **${agent.name}** (${agent.id})\n`;
@@ -111,9 +111,14 @@ export const agentMasterStatusTool: ToolDefinition = {
             output += `  - Status: ${agent.status}\n`;
             output += `  - Endpoint: ${agent.endpoint || 'none'}\n`;
             output += `  - Health: ${health ? 'reachable' : 'unreachable'}\n`;
+            if (agent.persona?.loaded) {
+              output += `  - Role: ${agent.persona.role || 'remote peer master'}\n`;
+            }
             if (agent.capabilities && agent.capabilities.length > 0) {
               output += `  - Capabilities: ${agent.capabilities.join(', ')}\n`;
             }
+            output += `  - Peer chat: agent_peer_chat --peer_name ${agent.name} --message \"Hello from this master\"\n`;
+            output += `  - Peer task: agent_peer_send --peer_name ${agent.name} --tool ls --params {}\n`;
           }
         }
       } else {
