@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.57] - 2025-01-15
+
+### Explicit Peer-Master Startup Command
+- Added **`agent_peer_serve`** as a clearer explicit command for starting this machine in peer-master mode
+- This is a thin honest wrapper over `agent_serve`, not a fake new runtime path
+- It makes LAN/cross-master intent clearer without adding heuristic behavior or redundant SSH features
+
+### New Tool
+- `agent_peer_serve` — start this Clawx instance as a LAN-reachable peer master for cross-master communication
+
 ## [0.4.56] - 2025-01-15
 
 ### Cleaner Peer Chat Output
