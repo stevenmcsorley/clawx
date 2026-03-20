@@ -804,11 +804,11 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
   return new Promise((resolve, reject) => {
     const port = config.port || 0; // 0 = auto
     
-    server.listen(port, 'localhost', () => {
+    server.listen(port, '0.0.0.0', () => {
       const address = server.address();
       const actualPort = typeof address === 'string' ? parseInt(address.split(':').pop() || '0', 10) : address?.port || 0;
       
-      log.info(`Agent server listening on http://localhost:${actualPort}`);
+      log.info(`Agent server listening on http://0.0.0.0:${actualPort}`);
       
       resolve({
         port: actualPort,

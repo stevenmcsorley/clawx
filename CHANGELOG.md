@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.52] - 2025-01-15
+
+### LAN-Accessible Master HTTP Binding
+- **Changed the agent HTTP server to bind on `0.0.0.0` instead of `localhost`** so other machines on the LAN can reach a running Clawx master
+- This is required for real peer-master communication between your Windows machine, Ubuntu laptop, and Raspberry Pi
+- Local-only serving still works, but masters are now reachable via their LAN IP when the network/firewall allows it
+
+### Technical Changes
+- Updated `src/core/agent-server.ts` HTTP bind host from `localhost` to `0.0.0.0`
+
 ## [0.4.51] - 2025-01-15
 
 ### First Explicit LAN Peer-Master Support
