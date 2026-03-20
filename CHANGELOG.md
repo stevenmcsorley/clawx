@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.33] - 2025-01-15
+
+### Readable Worker Task Result Rendering
+- **Improved `agent_send` final output formatting** so successful worker task results prefer human-readable text content over nested JSON envelopes
+- Completed worker tasks like `ls`, `read`, `search_files`, and `bash` should now display their real output directly when possible
+- Preserves JSON fallback only when no readable text content can be extracted from the result structure
+
+### Technical Changes
+- Added recursive readable-result extraction in `src/tools/agentSend.ts`
+- Updated final success rendering to flatten nested `content` / `details` / `result` wrappers into direct task output
+
 ## [0.4.32] - 2025-01-15
 
 ### Minimal Context gRPC Task Dispatch

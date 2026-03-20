@@ -12,6 +12,37 @@ import { AgentTask } from '../types/agent.js';
 import { v4 as uuidv4 } from 'uuid';
 import { withGrpcWorkerStreaming } from '../utils/grpc-streaming-tool-helper.js';
 
+function extractReadableResult(value: any): string {
+  if (!value) return '';
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value?.content)) {
+    return value.content
+      .filter((item: any) => item?.type === 'text' && typeof item.text === 'string')
+      .map((item: any) => item.text)
+      .join('\n');
+  }
+
+  if (typeof value?.output === 'string') {
+    return value.output;
+  }
+
+  if (value?.details) {
+    const nested = extractReadableResult(value.details);
+    if (nested) return nested;
+  }
+
+  if (value?.result) {
+    const nested = extractReadableResult(value.result);
+    if (nested) return nested;
+  }
+
+  return '';
+}
+
 export const agentSendTool: ToolDefinition = {
   name: 'agent_send',
   label: 'Send Task to Agent',
@@ -314,7 +345,12 @@ export const agentSendTool: ToolDefinition = {
       if (finalStatus === 'completed') {
         responseText = `✅ Task ${taskId} completed`;
         if (finalTaskResult) {
-          responseText += `\nResult: ${JSON.stringify(finalTaskResult, null, 2)}`;
+          const readable = extractReadableResult(finalTaskResult).trim();
+          if (readable) {
+            responseText += `\n${readable}`;
+          } else {
+            responseText += `\nResult: ${JSON.stringify(finalTaskResult, null, 2)}`;
+          }
         }
       } else if (finalStatus === 'failed') {
         responseText = `❌ Task ${taskId} failed`;
