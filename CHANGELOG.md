@@ -2,6 +2,21 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.54] - 2025-01-15
+
+### First Peer-Master Task Delegation
+- Added a first real version of **peer task delegation** so one Clawx master can ask another registered peer master to execute a tool task over LAN
+- This moves the peer feature beyond chat and into actual cross-machine work execution
+- Uses the peer master's real `/task`, `/task/:id/status`, and `/task/:id/result` endpoints
+
+### New Tool
+- `agent_peer_send` — send a tool task to a registered peer master and wait for completion
+
+### Notes
+- This is a first-step peer task path using the peer master's HTTP task endpoints
+- It does not yet orchestrate the peer's own worker network automatically
+- It is explicit peer-to-peer delegation, not full federation
+
 ## [0.4.53] - 2025-01-15
 
 ### Fixed Peer-Master Chat gRPC Warning Spam
