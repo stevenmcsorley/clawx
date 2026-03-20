@@ -96,7 +96,11 @@ export const agentPeerSendTool: ToolDefinition = {
 
     const response = await fetch(`${peer.endpoint}/task`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-clawx-peer-name': 'peer-master',
+        'x-clawx-peer-source': 'peer-master',
+      },
       body: JSON.stringify({
         tool,
         params: toolParams,

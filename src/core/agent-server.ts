@@ -369,6 +369,41 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       }
       
       // Fallback: local execution (for self-tasks or when no target specified)
+      const isPeerTask = effectiveContext?.__transport === 'peer_http';
+      const peerTaskDetail = (() => {
+        if (tool === 'bash' && typeof params?.command === 'string') {
+          const oneLine = params.command.replace(/\s+/g, ' ').trim();
+          return oneLine.length > 120 ? `${oneLine.slice(0, 117)}...` : oneLine;
+        }
+        if ((tool === 'read' || tool === 'write' || tool === 'ls') && typeof params?.path === 'string') {
+          return params.path;
+        }
+        if (tool === 'search_files' && typeof params?.pattern === 'string') {
+          return `pattern: ${params.pattern}`;
+        }
+        return '';
+      })();
+      if (isPeerTask) {
+        const peerSource = req.get('x-clawx-peer-name') || req.get('x-clawx-peer-source') || 'remote peer';
+        const summary = `🌐 Incoming peer task from ${peerSource}: ${tool}${peerTaskDetail ? ` | ${peerTaskDetail}` : ''}`;
+        log.info(summary);
+        logConversationTurn(config.workspace, {
+          id: `peer-task-${taskId}`,
+          speaker: peerSource,
+          target: config.id,
+          message: summary,
+          mode: 'task',
+          timestamp: Date.now(),
+          notes: {
+            type: 'peer_task_received',
+            taskId,
+            tool,
+            detail: peerTaskDetail,
+            transport: effectiveContext?.__transport,
+            source: peerSource,
+          },
+        });
+      }
       log.info(`Executing task ${taskId} locally: ${tool}`);
       
       // Check if tool is allowed

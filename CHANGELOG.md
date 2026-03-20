@@ -2,6 +2,35 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.61] - 2025-01-15
+
+### Fixed Fresh-Session Tool Awareness
+- Main TUI now injects the actual loaded tool surface into the system prompt at session start
+- Built-in coding tools are now explicitly included in fresh-session awareness:
+  - `read`
+  - `write`
+  - `edit`
+  - `bash`
+  - `find`
+  - `ls`
+  - `grep`
+- Clawx agent, peer, SSH, git, search, and extension tools are now surfaced more truthfully to the model before the user mentions them
+- Forge mode now also injects its actual available tools at startup:
+  - `hf_search`
+  - `hf_model_info`
+  - `hf_readme`
+  - `hf_dataset_search`
+  - `forge_write_capability`
+  - `forge_list_capabilities`
+- Replaced stale hardcoded capability names like `read_file`, `write_file`, `list_dir`, and `run_shell` with the actual canonical tool names used in Clawx sessions
+
+### Technical Changes
+- Added runtime tool-prompt entry support to `ClawxConfig`
+- Updated `src/cli/tui.ts` to derive fresh-session prompt awareness from the actual loaded main-session tool list
+- Updated `src/cli/forge-tui.ts` to derive fresh-session prompt awareness from the actual Forge tool list
+- Updated `src/utils/system-prompt.ts` to render a truthful `Available tools you can call in this session` section and corrected stale capability aliases
+- Included `agent_cleanup_processes` in the main TUI tool load path and prompt-awareness surface
+
 ## [0.4.60] - 2025-01-15
 
 ### Added Minimal Peer Task Observability

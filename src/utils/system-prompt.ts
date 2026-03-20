@@ -5,7 +5,22 @@
  * No personality systems, no lore, no bootstrap documents.
  */
 
-import type { ClawxConfig, SshTarget } from "../types/index.js";
+import type { ClawxConfig, SshTarget, ToolPromptEntry } from "../types/index.js";
+
+function buildToolAwarenessSection(entries: ToolPromptEntry[] | undefined): string {
+  if (!entries || entries.length === 0) return "";
+
+  const lines = entries
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((entry) => {
+      const summary = entry.promptSnippet || entry.description;
+      return `- ${entry.name}: ${summary}`;
+    })
+    .join("\n");
+
+  return `\n\nAvailable tools you can call in this session:\n${lines}\nUse these exact tool names when you need to act. Do not wait for the user to mention a tool name first.`;
+}
 
 export function buildSystemPrompt(config: ClawxConfig): string {
   const sshSection = Object.keys(config.sshTargets).length > 0
@@ -13,13 +28,14 @@ export function buildSystemPrompt(config: ClawxConfig): string {
         .map(([name, t]: [string, SshTarget]) => `- target="${name}": ${t.username}@${t.host}${t.port ? `:${t.port}` : ""}`)
         .join("\n")}\nWhen the user asks to SSH into a machine or mentions a target name, ALWAYS use the ssh_run tool, never raw ssh commands.`
     : "";
+  const toolAwarenessSection = buildToolAwarenessSection(config.toolPromptEntries);
 
   return `You are Clawx, a coding and execution agent. You help users build software by creating files, writing code, running commands, and iterating based on results.
 
 Environment:
 - Working directory: ${config.workDir}
 - Platform: ${process.platform}
-- Shell: ${config.shell}${sshSection}
+- Shell: ${config.shell}${sshSection}${toolAwarenessSection}
 
 Behavior:
 - You are action-oriented. When asked to build something, start building immediately.
@@ -30,15 +46,18 @@ Behavior:
 - You do not ask permission before creating files or running commands — that is your purpose.
 
 Capabilities:
-- read_file: Read file contents
-- write_file: Write/create files with content
-- edit_file: Make precise edits to existing files (search and replace)
-- list_dir: List directory contents
+- read: Read file contents
+- write: Write/create files with content
+- edit: Make precise edits to existing files (search and replace)
+- ls: List directory contents
+- find: Find files and directories
+- grep: Search file contents with grep-style matching
+- bash: Execute shell commands locally
 - search_files: Search file contents with patterns
-- run_shell: Execute shell commands locally
 - ssh_run: Execute commands on remote SSH targets
 - git_status: Check git repository status
 - git_diff: View git diffs
+- agent_* and agent_peer_* tools: Manage local workers, peer masters, personas, memory, chat, and task delegation
 
 When building applications:
 1. Plan the file structure

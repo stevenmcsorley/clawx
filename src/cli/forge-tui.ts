@@ -16,7 +16,7 @@ import {
   type ExtensionFactory,
 } from "@mariozechner/pi-coding-agent";
 import type { Model, Api } from "@mariozechner/pi-ai";
-import type { ClawxConfig } from "../types/index.js";
+import type { ClawxConfig, ToolPromptEntry } from "../types/index.js";
 import { resolveModel } from "../core/provider.js";
 import { createHfSearchTool } from "../tools/hfSearch.js";
 import { createHfModelInfoTool } from "../tools/hfModelInfo.js";
@@ -57,11 +57,23 @@ function buildForgeTools(): ToolDefinition[] {
   ];
 }
 
+function buildToolPromptEntries(tools: ToolDefinition[]): ToolPromptEntry[] {
+  return tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description || tool.label || tool.name,
+    promptSnippet: (tool as any).promptSnippet || tool.description || tool.label || tool.name,
+  }));
+}
+
 export async function startForgeTUI(
-  config: ClawxConfig,
+  baseConfig: ClawxConfig,
 ): Promise<void> {
-  const model = resolveModel(config);
   const customTools = buildForgeTools();
+  const config: ClawxConfig = {
+    ...baseConfig,
+    toolPromptEntries: buildToolPromptEntries(customTools),
+  };
+  const model = resolveModel(config);
 
   printBanner(config.model, config.provider);
   console.error("  Mode: Forge (Capability Builder)\n");

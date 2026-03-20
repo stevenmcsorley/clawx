@@ -28,11 +28,15 @@ import {
   ModelRegistry,
   DefaultResourceLoader,
   SettingsManager,
+  createCodingTools,
+  createGrepTool,
+  createFindTool,
+  createLsTool,
   type ToolDefinition,
   type ExtensionFactory,
 } from "@mariozechner/pi-coding-agent";
 import type { Model, Api } from "@mariozechner/pi-ai";
-import type { ClawxConfig } from "../types/index.js";
+import type { ClawxConfig, ToolPromptEntry } from "../types/index.js";
 import { resolveModel } from "../core/provider.js";
 import { createSshRunTool } from "../tools/sshRun.js";
 import { createGitStatusTool } from "../tools/gitStatus.js";
@@ -73,6 +77,14 @@ function isToolDefinition(obj: any): obj is ToolDefinition {
     typeof obj.execute === 'function';
 }
 
+function buildToolPromptEntries(tools: ToolDefinition[]): ToolPromptEntry[] {
+  return tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description || tool.label || tool.name,
+    promptSnippet: (tool as any).promptSnippet || tool.description || tool.label || tool.name,
+  }));
+}
+
 async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> {
   const cwd = config.workDir;
   const tools: ToolDefinition[] = [];
@@ -81,6 +93,18 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
   tools.push(toolToDefinition(createSearchFilesTool(cwd)));
   tools.push(toolToDefinition(createGitStatusTool(cwd)));
   tools.push(toolToDefinition(createGitDiffTool(cwd)));
+
+  // Explicit built-in coding tools that the model should be aware of up front
+  tools.push(toolToDefinition(createFindTool(cwd) as any));
+  tools.push(toolToDefinition(createLsTool(cwd) as any));
+  tools.push(toolToDefinition(createGrepTool(cwd) as any));
+
+  const codingTools = createCodingTools(cwd) as any[];
+  for (const tool of codingTools) {
+    if (!tools.some(existing => existing.name === tool.name)) {
+      tools.push(toolToDefinition(tool as any));
+    }
+  }
 
   if (Object.keys(config.sshTargets).length > 0) {
     tools.push(toolToDefinition(createSshRunTool(config.sshTargets)));
@@ -98,6 +122,7 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     const { agentCleanupTool } = await import('../tools/agentCleanup.js');
     const { agentMasterStatusTool } = await import('../tools/agentMasterStatus.js');
     const { agentCleanupPortTool } = await import('../tools/agentCleanupPort.js');
+    const { agentCleanupProcessesTool } = await import('../tools/agentCleanupProcesses.js');
     const { agentPeerAddTool } = await import('../tools/agentPeerAdd.js');
     const { agentPeerChatTool } = await import('../tools/agentPeerChat.js');
     const { agentPeerSendTool } = await import('../tools/agentPeerSend.js');
@@ -118,6 +143,7 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     tools.push(toolToDefinition(agentCleanupTool));
     tools.push(toolToDefinition(agentMasterStatusTool));
     tools.push(toolToDefinition(agentCleanupPortTool));
+    tools.push(toolToDefinition(agentCleanupProcessesTool));
     tools.push(toolToDefinition(agentPeerAddTool));
     tools.push(toolToDefinition(agentPeerChatTool));
     tools.push(toolToDefinition(agentPeerSendTool));
@@ -187,7 +213,7 @@ async function checkOllamaToolSupport(config: ClawxConfig): Promise<boolean> {
  * Users can toggle with /chat at any time.
  */
 export async function startTui(
-  config: ClawxConfig,
+  baseConfig: ClawxConfig,
   options: {
     initialMessage?: string;
     continueSession?: boolean;
@@ -195,8 +221,12 @@ export async function startTui(
     sshEnabled?: boolean;
   } = {},
 ): Promise<void> {
+  const customTools = await buildCustomTools(baseConfig);
+  const config: ClawxConfig = {
+    ...baseConfig,
+    toolPromptEntries: buildToolPromptEntries(customTools),
+  };
   const model = resolveModel(config);
-  const customTools = await buildCustomTools(config);
 
   printBanner(config.model, config.provider);
 

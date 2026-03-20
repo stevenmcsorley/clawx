@@ -5,6 +5,12 @@
  * This file defines Clawx-specific configuration and runtime types.
  */
 
+export interface ToolPromptEntry {
+  name: string;
+  description: string;
+  promptSnippet?: string;
+}
+
 export interface ClawxConfig {
   provider: string;
   baseUrl: string;
@@ -20,6 +26,7 @@ export interface ClawxConfig {
   systemPrompt?: string;
   huggingfaceToken?: string;
   extensionsDir?: string;
+  toolPromptEntries?: ToolPromptEntry[];
 }
 
 export interface SshTarget {
