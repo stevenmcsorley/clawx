@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.48] - 2025-01-15
+
+### Removed HTTP Task Fallback From `agent_send`
+- **`agent_send` now uses direct gRPC task dispatch only**
+- If gRPC task delivery fails, the command now fails honestly instead of silently switching to the old HTTP compatibility path
+- This makes the canonical live transport architecture clearer and removes another active duplicate runtime path
+
+### Technical Changes
+- Removed HTTP `/task` fallback dispatch from `src/tools/agentSend.ts`
+- Removed follow-up HTTP status/result polling that only existed for fallback-dispatched tasks
+- Task transport for `agent_send` is now always real gRPC or an explicit failure
+
 ## [0.4.47] - 2025-01-15
 
 ### Removed Unused Parallel gRPC Implementations

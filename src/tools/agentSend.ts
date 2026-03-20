@@ -256,28 +256,9 @@ export const agentSendTool: ToolDefinition = {
         onUpdate: prettyOnUpdate,
         signal,
       }, async () => {
-        let transport: 'grpc' | 'http' = 'grpc';
         const sent = grpcServer.sendTask(masterConfig.id, agent.id, taskId, tool, taskParams, sanitizedContext);
         if (!sent) {
-          log.warn(`gRPC sendTask to ${agent.name} failed, falling back to HTTP /task compatibility path`);
-          const response = await fetch(`${agent.endpoint}/task`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: signal || AbortSignal.timeout(15000),
-            body: JSON.stringify({
-              tool,
-              params: taskParams,
-              context: { ...sanitizedContext, __transport: 'http' },
-              taskId,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to send task to ${agent.name} over gRPC or HTTP`);
-          }
-
-          transport = 'http';
-          task.payload.context = { ...(task.payload.context || {}), __transport: 'http' };
+          throw new Error(`Failed to send task to ${agent.name} over gRPC`);
         }
 
         task.status = 'running';
@@ -285,7 +266,7 @@ export const agentSendTool: ToolDefinition = {
         registry.addTask(task);
         registry.save();
 
-        return { status: 'accepted', transport, taskId };
+        return { status: 'accepted', transport: 'grpc', taskId };
       });
       
       const { finalResult, events } = streamingResult;
@@ -314,33 +295,6 @@ export const agentSendTool: ToolDefinition = {
         }
       }
       
-      if ((finalStatus === 'pending' || finalStatus === 'running') && usedTransport === 'http' && agent.endpoint) {
-        const waitUntil = Date.now() + 30000;
-        while (Date.now() < waitUntil && !signal?.aborted) {
-          try {
-            const statusResponse = await fetch(`${agent.endpoint}/task/${taskId}/status`, {
-              signal: signal || AbortSignal.timeout(5000),
-            });
-            if (statusResponse.ok) {
-              const statusJson: any = await statusResponse.json();
-              finalStatus = statusJson.status || finalStatus;
-              if (finalStatus === 'completed' || finalStatus === 'failed' || finalStatus === 'cancelled') {
-                const resultResponse = await fetch(`${agent.endpoint}/task/${taskId}/result`, {
-                  signal: signal || AbortSignal.timeout(5000),
-                });
-                if (resultResponse.ok) {
-                  const resultJson: any = await resultResponse.json();
-                  finalTaskResult = resultJson.result;
-                }
-                break;
-              }
-            }
-          } catch {
-            // keep polling until timeout
-          }
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
 
       // Update task in registry with final status
       task.status = finalStatus as any;
