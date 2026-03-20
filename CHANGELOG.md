@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.58] - 2025-01-15
+
+### Fixed Fresh Global Install Packaging
+- **Removed broken local `file:` package dependencies** from the published package manifest that were causing fresh global installs to fail on new machines like the Raspberry Pi
+- This fixes install errors like missing `agent-protocol/package.json` during `npm install -g @halfagiraf/clawx`
+- The current runtime does not import those local packages directly, so removing the stale file-dependency entries makes the published package more truthful and installable
+
+### Technical Changes
+- Removed stale local `file:agent-protocol` and `file:agent-runtime` dependencies from `package.json`
+- Rebuilt and repacked to verify clean package output
+
 ## [0.4.57] - 2025-01-15
 
 ### Explicit Peer-Master Startup Command

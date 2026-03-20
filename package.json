@@ -1,6 +1,6 @@
 {
   "name": "@halfagiraf/clawx",
-  "version": "0.4.57",
+  "version": "0.4.58",
   "description": "Terminal-first coding agent — runs locally with Ollama, DeepSeek, OpenAI, or any OpenAI-compatible endpoint",
   "type": "module",
   "bin": {
@@ -52,8 +52,6 @@
   "author": "Steven McSorley",
   "dependencies": {
     "@grpc/grpc-js": "^1.10.0",
-    "@halfagiraf/agent-protocol": "file:agent-protocol",
-    "@halfagiraf/agent-runtime": "file:agent-runtime",
     "@mariozechner/pi-agent-core": "^0.60.0",
     "@mariozechner/pi-ai": "^0.60.0",
     "@mariozechner/pi-coding-agent": "^0.60.0",
