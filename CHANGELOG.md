@@ -2,6 +2,22 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.51] - 2025-01-15
+
+### First Explicit LAN Peer-Master Support
+- Added a first real version of **master-to-master LAN communication** using explicit peer registration instead of fake auto-discovery or brittle heuristics
+- You can now register another Clawx master by HTTP endpoint and send it a direct chat turn as a peer
+- This is a minimal first step toward LAN federation between your Windows machine, Ubuntu laptop, and Raspberry Pi
+
+### New Tools
+- `agent_peer_add` — register another Clawx master on the LAN by name and endpoint
+- `agent_peer_chat` — send a chat turn to a registered peer master
+
+### Notes
+- This is explicit registration, not auto-discovery
+- It currently uses the peer master's real `/health` and `/chat` endpoints
+- It is a first-step peer/master feature, not full federated worker delegation yet
+
 ## [0.4.50] - 2025-01-15
 
 ### More Surgical Windows Worker Task Popup Mitigation
