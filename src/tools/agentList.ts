@@ -119,6 +119,8 @@ export const agentListTool: ToolDefinition = {
         output += '\n';
       }
       
+      registry.markOfflineAgents();
+      registry.cleanupOldTasks();
       registry.save();
 
       // Add registry info

@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.40] - 2025-01-15
+
+### Cleaner Task Truth And Quieter Windows Task Execution
+- **Reduced stale task-count lies** in `agent_list` by running offline-agent marking and old-task cleanup before rendering registry summary
+- **Made streaming worker bash execution quieter on Windows** by using `cmd.exe` with `windowsHide: true` instead of spawning `bash`, which should reduce the brief task-time console popup you noticed
+- Keeps real incremental output streaming while aligning command execution with the native Windows shell path
+
+### Technical Changes
+- Updated `src/tools/agentList.ts` to run registry cleanup before computing summary counts
+- Reworked `src/utils/streaming-bash-wrapper.ts` to use Windows-native hidden command execution and keep shell spawning explicit and truthful
+
 ## [0.4.39] - 2025-01-15
 
 ### Fixed Parallel Worker Spawn Port Race
