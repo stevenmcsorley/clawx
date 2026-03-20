@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.68] - 2025-01-15
+
+### Added Minimal Peer-Worker Federation
+- `agent_peer_send` now supports optional `worker_name`
+- When `worker_name` is provided, the caller resolves the named worker on the remote peer master via `/agents`
+- Peer task dispatch now forwards `targetAgentId` so the remote peer master can route work to one of its connected workers over gRPC
+- Receiver-side peer task summaries now include the intended remote worker when present
+
+### Technical Changes
+- Updated `src/tools/agentPeerSend.ts` to support remote worker targeting through peer masters
+- Updated `src/core/agent-server.ts` peer task summary/logging to include `remoteWorkerName` when present
+
 ## [0.4.67] - 2025-01-15
 
 ### Rolled Back Broken Live Peer Terminal Rendering

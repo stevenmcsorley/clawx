@@ -63,6 +63,7 @@ export const agentPeerSendTool: ToolDefinition = {
     type: 'object',
     properties: {
       peer_name: { type: 'string', description: 'Registered peer master name' },
+      worker_name: { type: 'string', description: 'Optional worker name on the remote peer master to route the task to' },
       tool: { type: 'string', description: 'Tool name to execute on the peer master' },
       params: { type: 'object', description: 'Tool parameters', default: {} },
     },
@@ -70,6 +71,7 @@ export const agentPeerSendTool: ToolDefinition = {
   },
   async execute(_toolCallId: string, params: any, _signal?: AbortSignal, onUpdate?: any) {
     const peerName = params.peer_name;
+    const workerName = params.worker_name;
     const tool = params.tool;
     const toolParams = params.params || {};
     const registry = new AgentRegistryManager();
@@ -85,6 +87,7 @@ export const agentPeerSendTool: ToolDefinition = {
         content: [{ type: 'text', text }],
         details: {
           peer_name: peer.name,
+          worker_name: workerName,
           endpoint: peer.endpoint,
           tool,
           stream: true,
@@ -92,7 +95,28 @@ export const agentPeerSendTool: ToolDefinition = {
       });
     };
 
-    emitPartial(`🌐 ${peer.name} starting ${tool}${detail ? `\n↳ ${detail}` : ''}`);
+    emitPartial(`🌐 ${peer.name}${workerName ? ` → ${workerName}` : ''} starting ${tool}${detail ? `\n↳ ${detail}` : ''}`);
+
+    let targetAgentId: string | undefined;
+    if (workerName) {
+      try {
+        const agentsResponse = await fetch(`${peer.endpoint}/agents`);
+        if (!agentsResponse.ok) {
+          return { content: [{ type: 'text', text: `❌ Failed to list workers on peer ${peer.name}` }], isError: true };
+        }
+        const remoteAgents = await agentsResponse.json() as any[];
+        const worker = remoteAgents.find((agent: any) => agent?.name === workerName);
+        if (!worker?.id) {
+          return { content: [{ type: 'text', text: `❌ Worker not found on ${peer.name}: ${workerName}` }], isError: true };
+        }
+        targetAgentId = worker.id;
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: `❌ Failed to resolve remote worker ${workerName} on ${peer.name}: ${error instanceof Error ? error.message : String(error)}` }],
+          isError: true,
+        };
+      }
+    }
 
     const response = await fetch(`${peer.endpoint}/task`, {
       method: 'POST',
@@ -104,7 +128,8 @@ export const agentPeerSendTool: ToolDefinition = {
       body: JSON.stringify({
         tool,
         params: toolParams,
-        context: { __transport: 'peer_http' },
+        targetAgentId,
+        context: { __transport: 'peer_http', remoteWorkerName: workerName },
       }),
     });
 
@@ -134,7 +159,7 @@ export const agentPeerSendTool: ToolDefinition = {
         const statusJson: any = await statusResponse.json();
         finalStatus = statusJson.status || finalStatus;
         if (!announcedRunning && (finalStatus === 'running' || finalStatus === 'pending')) {
-          emitPartial(`🌐 ${peer.name} running ${tool}${detail ? `\n↳ ${detail}` : ''}`);
+          emitPartial(`🌐 ${peer.name}${workerName ? ` → ${workerName}` : ''} running ${tool}${detail ? `\n↳ ${detail}` : ''}`);
           announcedRunning = true;
         }
         if (finalStatus === 'completed' || finalStatus === 'failed' || finalStatus === 'cancelled') {
@@ -154,21 +179,21 @@ export const agentPeerSendTool: ToolDefinition = {
     const readable = extractReadablePeerResult(finalResult).trim();
 
     if (finalStatus === 'completed') {
-      emitPartial(`✅ ${peer.name} completed ${tool} (${durationText})`);
+      emitPartial(`✅ ${peer.name}${workerName ? ` → ${workerName}` : ''} completed ${tool} (${durationText})`);
     } else if (finalStatus === 'failed') {
-      emitPartial(`❌ ${peer.name} failed ${tool} (${durationText})`);
+      emitPartial(`❌ ${peer.name}${workerName ? ` → ${workerName}` : ''} failed ${tool} (${durationText})`);
     } else if (finalStatus === 'cancelled') {
-      emitPartial(`⏹️ ${peer.name} cancelled ${tool} (${durationText})`);
+      emitPartial(`⏹️ ${peer.name}${workerName ? ` → ${workerName}` : ''} cancelled ${tool} (${durationText})`);
     }
 
     return {
       content: [{
         type: 'text',
         text: finalStatus === 'completed'
-          ? `🌐 ${peer.name} completed ${tool}${readable ? `\n${readable}` : ''}`
+          ? `🌐 ${peer.name}${workerName ? ` → ${workerName}` : ''} completed ${tool}${readable ? `\n${readable}` : ''}`
           : `🌐 Peer task ${taskId} status: ${finalStatus}`,
       }],
-      details: { peer_name: peer.name, endpoint: peer.endpoint, task_id: taskId, status: finalStatus, result: finalResult, tool },
+      details: { peer_name: peer.name, worker_name: workerName, endpoint: peer.endpoint, task_id: taskId, status: finalStatus, result: finalResult, tool, target_agent_id: targetAgentId },
       isError: finalStatus === 'failed',
     };
   },

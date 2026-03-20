@@ -387,7 +387,8 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       })();
       if (isPeerTask) {
         const peerSource = req.get('x-clawx-peer-name') || req.get('x-clawx-peer-source') || 'remote peer';
-        const summary = `🌐 Incoming peer task from ${peerSource}: ${tool}${peerTaskDetail ? ` | ${peerTaskDetail}` : ''}`;
+        const remoteWorkerName = effectiveContext?.remoteWorkerName;
+        const summary = `🌐 Incoming peer task from ${peerSource}${remoteWorkerName ? ` for worker ${remoteWorkerName}` : ''}: ${tool}${peerTaskDetail ? ` | ${peerTaskDetail}` : ''}`;
         const activityLogPath = join(config.workspace, 'peer-activity.log');
         log.info(summary);
         try {
@@ -407,6 +408,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
             detail: peerTaskDetail,
             transport: effectiveContext?.__transport,
             source: peerSource,
+            remoteWorkerName,
           },
         });
       }
