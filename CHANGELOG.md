@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.50] - 2025-01-15
+
+### More Surgical Windows Worker Task Popup Mitigation
+- **Reworked Windows streaming command execution again** to use a hidden Node host process with IPC instead of launching a visible shell host directly from the worker
+- This specifically targets the recurring task-time popup regression while preserving real incremental stdout/stderr streaming
+- The command still executes for real; only the host/process strategy changed
+
+### Technical Changes
+- Updated `src/utils/streaming-bash-wrapper.ts` to run Windows streamed commands through a hidden Node child that proxies stdout/stderr over IPC
+
 ## [0.4.49] - 2025-01-15
 
 ### Retuned Windows Worker Task Execution To Reduce Popup Regression

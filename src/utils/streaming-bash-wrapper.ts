@@ -2,8 +2,8 @@
  * Streaming command wrapper
  *
  * Provides incremental stdout/stderr streaming for worker command execution.
- * Uses a hidden PowerShell host on Windows to minimize console popups,
- * and bash on Unix-like systems.
+ * On Windows, uses a hidden Node host process to execute the command and proxy
+ * stdout/stderr back over IPC to avoid direct visible shell popups.
  */
 
 import { spawn } from 'child_process';
@@ -25,13 +25,31 @@ export interface StreamingBashResult {
   success: boolean;
 }
 
-function getWindowsCommand(command: string): { file: string; args: string[] } {
-  const escaped = command.replace(/'/g, "''");
-  const script = `$ErrorActionPreference = 'Stop'; cmd.exe /d /s /c '${escaped}'`;
-  return {
-    file: 'powershell.exe',
-    args: ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', script],
-  };
+function createWindowsHostScript(command: string): string {
+  return `
+const { exec } = require('child_process');
+const child = exec(${JSON.stringify(command)}, {
+  cwd: ${JSON.stringify(process.cwd())},
+  env: process.env,
+  windowsHide: true,
+  timeout: 0,
+  maxBuffer: 1024 * 1024 * 20,
+});
+child.stdout && child.stdout.on('data', data => {
+  if (process.send) process.send({ type: 'stdout', data: data.toString() });
+});
+child.stderr && child.stderr.on('data', data => {
+  if (process.send) process.send({ type: 'stderr', data: data.toString() });
+});
+child.on('close', code => {
+  if (process.send) process.send({ type: 'exit', code: code || 0 });
+  process.exit(0);
+});
+child.on('error', error => {
+  if (process.send) process.send({ type: 'error', error: error.message || String(error) });
+  process.exit(1);
+});
+`;
 }
 
 /**
@@ -45,20 +63,110 @@ export async function executeBashWithStreaming(
   return new Promise((resolve, reject) => {
     log.debug(`Executing command with streaming: ${command}`);
 
-    const child = process.platform === 'win32'
-      ? spawn(getWindowsCommand(command).file, getWindowsCommand(command).args, {
-          cwd: cwd || process.cwd(),
-          env: { ...process.env, ...env },
-          stdio: ['ignore', 'pipe', 'pipe'],
-          shell: false,
-          windowsHide: true,
-        })
-      : spawn('bash', ['-c', command], {
-          cwd: cwd || process.cwd(),
-          env: { ...process.env, ...env },
-          stdio: ['ignore', 'pipe', 'pipe'],
-          shell: false,
-        });
+    if (process.platform === 'win32') {
+      const hostScript = `
+const { exec } = require('child_process');
+const child = exec(${JSON.stringify(command)}, {
+  cwd: ${JSON.stringify(cwd || process.cwd())},
+  env: process.env,
+  windowsHide: true,
+  timeout: 0,
+  maxBuffer: 1024 * 1024 * 20,
+});
+child.stdout && child.stdout.on('data', data => {
+  if (process.send) process.send({ type: 'stdout', data: data.toString() });
+});
+child.stderr && child.stderr.on('data', data => {
+  if (process.send) process.send({ type: 'stderr', data: data.toString() });
+});
+child.on('close', code => {
+  if (process.send) process.send({ type: 'exit', code: code || 0 });
+  process.exit(0);
+});
+child.on('error', error => {
+  if (process.send) process.send({ type: 'error', error: error.message || String(error) });
+  process.exit(1);
+});
+`;
+
+      const child = spawn(process.execPath, ['-e', hostScript], {
+        cwd: cwd || process.cwd(),
+        env: { ...process.env, ...env },
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+        shell: false,
+        windowsHide: true,
+      });
+
+      let stdout = '';
+      let stderr = '';
+      let resolved = false;
+      let timeoutId: NodeJS.Timeout | null = null;
+
+      if (timeout > 0) {
+        timeoutId = setTimeout(() => {
+          try { child.kill(); } catch {}
+          reject(new Error(`Command timeout after ${timeout}ms: ${command}`));
+        }, timeout);
+      }
+
+      child.on('message', (message: any) => {
+        if (!message || typeof message !== 'object') return;
+        if (message.type === 'stdout') {
+          stdout += message.data || '';
+          onStdout?.(message.data || '');
+        } else if (message.type === 'stderr') {
+          stderr += message.data || '';
+          onStderr?.(message.data || '');
+        } else if (message.type === 'error') {
+          if (timeoutId) clearTimeout(timeoutId);
+          if (!resolved) {
+            resolved = true;
+            reject(new Error(message.error || 'Unknown command host error'));
+          }
+        } else if (message.type === 'exit') {
+          if (timeoutId) clearTimeout(timeoutId);
+          if (!resolved) {
+            resolved = true;
+            resolve({
+              exitCode: message.code || 0,
+              stdout,
+              stderr,
+              success: (message.code || 0) === 0,
+            });
+          }
+        }
+      });
+
+      child.on('error', (error) => {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!resolved) {
+          resolved = true;
+          reject(error);
+        }
+      });
+
+      child.on('exit', (code) => {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (!resolved) {
+          resolved = true;
+          resolve({
+            exitCode: code || 0,
+            stdout,
+            stderr,
+            success: (code || 0) === 0,
+          });
+        }
+      });
+
+      return;
+    }
+
+    const child = spawn('bash', ['-c', command], {
+      cwd: cwd || process.cwd(),
+      env: { ...process.env, ...env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+    });
 
     let stdout = '';
     let stderr = '';
@@ -100,9 +208,6 @@ export async function executeBashWithStreaming(
   });
 }
 
-/**
- * Check if we can use streaming command execution.
- */
 export function canUseStreamingBash(): boolean {
   return true;
 }
