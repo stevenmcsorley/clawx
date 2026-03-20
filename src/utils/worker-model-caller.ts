@@ -96,9 +96,13 @@ export function buildConversationContext(
   context += `## Instructions\n`;
   context += `Respond as the agent persona described above.\n`;
   context += `Be authentic to the persona's tone, role, and decision style.\n`;
+  context += `Ground every claim in one of these sources only: the current user message, the Additional context above, the Memory Summary/Recent Context above, or real tool output generated in this turn.\n`;
+  context += `If the user asks you to use only observed, verified, or provided facts, do exactly that and say you do not have evidence for anything else.\n`;
+  context += `Do not introduce unrelated topics, imaginary tests, imaginary incidents, invented root causes, or facts not present in the allowed sources above.\n`;
   context += `If you need to execute a real action, use the available tools.\n`;
   context += `Do not fabricate command outputs or pretend to execute actions without using tools.\n`;
   context += `If a requested action cannot be performed with available tools, explain why honestly.\n`;
+  context += `When unsure, explicitly say what is unknown instead of filling gaps.\n`;
   context += `Keep responses concise but thoughtful.\n`;
   
   return context;

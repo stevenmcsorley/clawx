@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.42] - 2025-01-15
+
+### Stronger Worker Chat Grounding Instructions
+- **Tightened worker chat grounding** so persona replies are explicitly constrained to the current user message, provided additional context, stored memory context, or real tool output from the current turn
+- Added direct anti-invention instructions for cases where the user asks for observed/verified facts only
+- This targets richer chat failures where workers replied coherently but drifted into unrelated topics or invented evidence during debate/synthesis prompts
+
+### Technical Changes
+- Updated `src/utils/worker-model-caller.ts` system prompt construction with stricter grounding and anti-hallucination instructions
+
 ## [0.4.41] - 2025-01-15
 
 ### Reduced Windows Task-Time Console Flash
