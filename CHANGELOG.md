@@ -2,6 +2,20 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.70] - 2025-01-15
+
+### Fixed Peer-Master Orchestration Tool Execution
+- Selected master orchestration tools now execute directly on the peer master instead of flowing through the worker-only tool executor
+- This fixes failures where peer task dispatch could accept orchestration tools like `agent_spawn_local` but then fail with `Tool not supported`
+- Direct peer-master execution now applies to:
+  - `agent_spawn_local`
+  - `agent_list`
+  - `agent_cleanup`
+  - `agent_master_status`
+
+### Technical Changes
+- Updated `src/core/agent-server.ts` so selected master tools bypass `executeToolWithStream(...)` and run through their actual tool definitions during peer task execution
+
 ## [0.4.69] - 2025-01-15
 
 ### Expanded Peer-Master Federation Support

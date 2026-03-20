@@ -289,17 +289,28 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         }
       }
       
-      // Execute the tool with streaming (no EventStream callbacks)
-      const stream = executeToolWithStream(tool, params, config.workspace, config.allowedTools, context, (event) => {
-        // Tool events are handled by the tool itself or via gRPC
-        // No more EventStream usage
-      }, taskId, 'task');
-      
-      // Wait for result with timeout
-      const result = await Promise.race([
-        stream.result,
-        timeoutPromise,
-      ]);
+      let result;
+
+      const isDirectMasterTool = ['agent_spawn_local', 'agent_list', 'agent_cleanup', 'agent_master_status'].includes(tool);
+      if (isDirectMasterTool) {
+        const toolCallId = `peer-master-tool-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        result = await Promise.race([
+          Promise.resolve(toolDefinition.execute(toolCallId, params, undefined, undefined, context)),
+          timeoutPromise,
+        ]);
+      } else {
+        // Execute the tool with streaming (no EventStream callbacks)
+        const stream = executeToolWithStream(tool, params, config.workspace, config.allowedTools, context, (event) => {
+          // Tool events are handled by the tool itself or via gRPC
+          // No more EventStream usage
+        }, taskId, 'task');
+        
+        // Wait for result with timeout
+        result = await Promise.race([
+          stream.result,
+          timeoutPromise,
+        ]);
+      }
       
       // Update task with result
       task.status = 'completed';
