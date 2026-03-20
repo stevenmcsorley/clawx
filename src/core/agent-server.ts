@@ -7,6 +7,8 @@
 
 import express, { Request, Response } from 'express';
 import { createServer, Server } from 'http';
+import { appendFileSync } from 'fs';
+import { join } from 'path';
 import { log } from '../utils/logger.js';
 import { AgentConfig, AgentIdentity, AgentTask } from '../types/agent.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -386,7 +388,11 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       if (isPeerTask) {
         const peerSource = req.get('x-clawx-peer-name') || req.get('x-clawx-peer-source') || 'remote peer';
         const summary = `🌐 Incoming peer task from ${peerSource}: ${tool}${peerTaskDetail ? ` | ${peerTaskDetail}` : ''}`;
+        const activityLogPath = join(config.workspace, 'peer-activity.log');
         log.info(summary);
+        try {
+          appendFileSync(activityLogPath, `[${new Date().toISOString()}] received task=${taskId} source=${peerSource} tool=${tool}${peerTaskDetail ? ` detail=${JSON.stringify(peerTaskDetail)}` : ''}\n`, 'utf8');
+        } catch {}
         logConversationTurn(config.workspace, {
           id: `peer-task-${taskId}`,
           speaker: peerSource,

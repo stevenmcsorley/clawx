@@ -2,6 +2,19 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.62] - 2025-01-15
+
+### Added Optional Peer Activity Observer TUI
+- `clawx agent serve` now supports `--tui` to open a local observer TUI for incoming peer activity
+- Incoming peer tasks already recorded in `peer-activity.log` are now surfaced into a lightweight local TUI observer session
+- This keeps peer-local observability optional so headless peers can stay quiet while visible peers can show short live activity messages
+
+### Peer Observability
+- Incoming peer tasks continue to be logged compactly on the receiving peer
+- Receiver-side activity is now available both as:
+  - `peer-activity.log`
+  - observer TUI custom messages when `--tui` is enabled
+
 ## [0.4.61] - 2025-01-15
 
 ### Fixed Fresh-Session Tool Awareness

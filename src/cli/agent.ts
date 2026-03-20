@@ -13,10 +13,11 @@ import { Command } from 'commander';
 import { log } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
 import { startAgentServer } from '../core/agent-server.js';
+import { startPeerObserverTui } from './agent-peer-observer.js';
 import { v4 as uuidv4 } from 'uuid';
 import { join } from 'path';
 import { homedir } from 'os';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, appendFileSync, readFileSync, statSync } from 'fs';
 
 export function createAgentCommand(): Command {
   const agentCmd = new Command('agent')
@@ -27,6 +28,7 @@ export function createAgentCommand(): Command {
   agentCmd
     .command('serve')
     .description('Start as a headless agent')
+     .option('--tui', 'Also open a local TUI observer for incoming peer activity')
     .option('--id <id>', 'Agent ID (default: auto-generated)')
     .option('--name <name>', 'Agent name (default: "agent-<id>")')
     .option('--port <port>', 'Port to listen on (default: 0 = auto)', '0')
@@ -110,6 +112,11 @@ async function serveAgent(options: any): Promise<void> {
   const server = await startAgentServer(config);
   
   log.info(`Agent server started on port ${server.port}`);
+
+  const logPath = join(workspace, 'peer-activity.log');
+  try {
+    appendFileSync(logPath, `[${new Date().toISOString()}] agent_started name=${agentName} id=${agentId} port=${server.port}\n`, 'utf8');
+  } catch {}
   
   // Update config with actual endpoint
   const actualEndpoint = `http://localhost:${server.port}`;
@@ -173,6 +180,12 @@ async function serveAgent(options: any): Promise<void> {
     }
   }
   
+  if (options.tui) {
+    void startPeerObserverTui(workspace, agentName).catch((error) => {
+      log.error('Peer observer TUI failed:', error);
+    });
+  }
+
   log.info('Press Ctrl+C to stop');
 
   // Handle shutdown
