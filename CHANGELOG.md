@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.49] - 2025-01-15
+
+### Retuned Windows Worker Task Execution To Reduce Popup Regression
+- **Adjusted Windows worker command execution again** to use a hidden PowerShell host around `cmd.exe` for streamed task commands
+- This targets the reported regression where a popup window reappeared during worker task execution even though worker spawn remained quiet
+- Keeps live stdout/stderr streaming while trying a quieter Windows-native command host path
+
+### Technical Changes
+- Updated `src/utils/streaming-bash-wrapper.ts` to use hidden PowerShell command hosting on Windows
+
 ## [0.4.48] - 2025-01-15
 
 ### Removed HTTP Task Fallback From `agent_send`

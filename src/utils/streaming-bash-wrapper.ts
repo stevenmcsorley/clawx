@@ -2,11 +2,11 @@
  * Streaming command wrapper
  *
  * Provides incremental stdout/stderr streaming for worker command execution.
- * Uses exec on Windows with windowsHide to minimize console popups,
+ * Uses a hidden PowerShell host on Windows to minimize console popups,
  * and bash on Unix-like systems.
  */
 
-import { exec, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import { log } from './logger.js';
 
 export interface StreamingBashOptions {
@@ -25,6 +25,15 @@ export interface StreamingBashResult {
   success: boolean;
 }
 
+function getWindowsCommand(command: string): { file: string; args: string[] } {
+  const escaped = command.replace(/'/g, "''");
+  const script = `$ErrorActionPreference = 'Stop'; cmd.exe /d /s /c '${escaped}'`;
+  return {
+    file: 'powershell.exe',
+    args: ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', script],
+  };
+}
+
 /**
  * Execute a command with real incremental streaming.
  */
@@ -36,52 +45,23 @@ export async function executeBashWithStreaming(
   return new Promise((resolve, reject) => {
     log.debug(`Executing command with streaming: ${command}`);
 
+    const child = process.platform === 'win32'
+      ? spawn(getWindowsCommand(command).file, getWindowsCommand(command).args, {
+          cwd: cwd || process.cwd(),
+          env: { ...process.env, ...env },
+          stdio: ['ignore', 'pipe', 'pipe'],
+          shell: false,
+          windowsHide: true,
+        })
+      : spawn('bash', ['-c', command], {
+          cwd: cwd || process.cwd(),
+          env: { ...process.env, ...env },
+          stdio: ['ignore', 'pipe', 'pipe'],
+          shell: false,
+        });
+
     let stdout = '';
     let stderr = '';
-
-    if (process.platform === 'win32') {
-      const child = exec(command, {
-        cwd: cwd || process.cwd(),
-        env: { ...process.env, ...env },
-        windowsHide: true,
-        timeout,
-      });
-
-      child.stdout?.on('data', (data: Buffer | string) => {
-        const text = data.toString();
-        stdout += text;
-        onStdout?.(text);
-      });
-
-      child.stderr?.on('data', (data: Buffer | string) => {
-        const text = data.toString();
-        stderr += text;
-        onStderr?.(text);
-      });
-
-      child.on('close', (code) => {
-        resolve({
-          exitCode: code || 0,
-          stdout,
-          stderr,
-          success: code === 0,
-        });
-      });
-
-      child.on('error', (error) => {
-        reject(error);
-      });
-
-      return;
-    }
-
-    const child = spawn('bash', ['-c', command], {
-      cwd: cwd || process.cwd(),
-      env: { ...process.env, ...env },
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: false,
-    });
-
     let timeoutId: NodeJS.Timeout | null = null;
 
     if (timeout > 0) {
