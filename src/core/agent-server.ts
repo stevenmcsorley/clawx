@@ -569,8 +569,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         return res.json(response);
       }
       
-      // Fallback: local chat processing (for self-chat or when gRPC not available)
+      // Fallback: local chat processing (for self-chat, peer HTTP callers, or when gRPC not available)
       log.info(`Processing chat locally for ${target}`);
+      const canStreamBackToSpeaker = !!grpcServer && speaker !== config.id && grpcServer.isAgentConnected(speaker);
       
       // Load persona and memory for this agent
       const persona = loadPersona(config.workspace) || createDefaultPersona(config.id, config.name);
@@ -604,7 +605,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         config.workspace,
         availableTools,
         (event) => {
-          if (!grpcServer || speaker === config.id) return;
+          if (!canStreamBackToSpeaker || !grpcServer) return;
           switch (event.type) {
             case 'agent_message_start':
               grpcServer.sendFrame({
@@ -658,7 +659,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
           
           // Execute tool
           const stream = executeToolWithStream(name, args, config.workspace, config.allowedTools, turn.context, (event) => {
-            if (!grpcServer || speaker === config.id) {
+            if (!canStreamBackToSpeaker || !grpcServer) {
               return;
             }
             switch (event.type) {

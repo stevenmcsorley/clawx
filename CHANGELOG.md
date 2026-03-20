@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.53] - 2025-01-15
+
+### Fixed Peer-Master Chat gRPC Warning Spam
+- **Peer-master HTTP chat no longer tries to stream gRPC frames back to fake/non-connected caller IDs**
+- This fixes noisy warnings like `[gRPC] Agent peer-master not found` on the remote master when receiving `agent_peer_chat` requests
+- Peer chat remains real, but now behaves correctly for HTTP peer callers instead of pretending they are connected gRPC agents
+
+### Technical Changes
+- Updated `src/core/agent-server.ts` to only stream chat/tool frames back to the speaker when the speaker is an actual connected gRPC agent
+
 ## [0.4.52] - 2025-01-15
 
 ### LAN-Accessible Master HTTP Binding
