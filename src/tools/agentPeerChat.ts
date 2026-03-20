@@ -1,6 +1,24 @@
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
 
+function extractReadablePeerChatReply(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value?.reply === 'string') return value.reply;
+  if (typeof value?.message === 'string') return value.message;
+  if (value?.response) {
+    const nested = extractReadablePeerChatReply(value.response);
+    if (nested) return nested;
+  }
+  if (Array.isArray(value?.content)) {
+    return value.content
+      .filter((item: any) => item?.type === 'text' && typeof item.text === 'string')
+      .map((item: any) => item.text)
+      .join('\n');
+  }
+  return '';
+}
+
 export const agentPeerChatTool: ToolDefinition = {
   name: 'agent_peer_chat',
   label: 'Chat with Peer Master',
@@ -33,7 +51,7 @@ export const agentPeerChatTool: ToolDefinition = {
     }
 
     const json: any = await response.json();
-    const reply = json.reply || json.message || JSON.stringify(json, null, 2);
+    const reply = extractReadablePeerChatReply(json) || JSON.stringify(json, null, 2);
     return {
       content: [{ type: 'text', text: `🌐 ${peer.name}: ${reply}` }],
       details: { peer_name: peer.name, endpoint: peer.endpoint, response: json },

@@ -2,6 +2,15 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.56] - 2025-01-15
+
+### Cleaner Peer Chat Output
+- **Improved `agent_peer_chat` output rendering** so peer replies are flattened to the actual reply text instead of showing the full remote response envelope when possible
+- This makes peer chat feel more like normal conversation and more consistent with the already-polished `agent_peer_send` output
+
+### Technical Changes
+- Added readable reply extraction in `src/tools/agentPeerChat.ts`
+
 ## [0.4.55] - 2025-01-15
 
 ### Peer-Master UX Polish
