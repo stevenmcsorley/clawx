@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.66] - 2025-01-15
+
+### Reduced Duplicate Execution Risk For Explicit Commands
+- Tightened the main system prompt so explicit operational requests are treated as direct one-shot execution requests
+- Added instruction to avoid narrating an action and then performing the same action again
+- Added instruction to avoid duplicate tool calls unless intentionally retrying after failure
+- Added guidance to prefer short results over conversational preambles for exact execution requests
+
+### Technical Changes
+- Updated `src/utils/system-prompt.ts` with stricter execution behavior for exact tool/command/target/port requests
+
 ## [0.4.65] - 2025-01-15
 
 ### Improved Peer Activity Rendering
