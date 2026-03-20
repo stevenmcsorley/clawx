@@ -10,8 +10,8 @@ export async function startPeerObserverTui(workspace: string, agentName: string)
   const logPath = join(workspace, 'peer-activity.log');
   let lastSize = existsSync(logPath) ? statSync(logPath).size : 0;
 
-  process.stdout.write(`\n👀 Peer activity for ${agentName}\n`);
-  process.stdout.write(`Watching ${logPath}\n\n`);
+  process.stderr.write(`\n👀 Peer activity for ${agentName}\n`);
+  process.stderr.write(`Watching ${logPath}\n\n`);
 
   setInterval(() => {
     try {
@@ -23,7 +23,7 @@ export async function startPeerObserverTui(workspace: string, agentName: string)
       lastSize = stats.size;
       const lines = delta.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
       for (const line of lines) {
-        process.stdout.write(`🌐 ${stripTimestampPrefix(line)}\n`);
+        process.stderr.write(`🌐 ${stripTimestampPrefix(line)}\n`);
       }
     } catch (error) {
       log.debug('peer observer poll failed:', error instanceof Error ? error.message : String(error));

@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.65] - 2025-01-15
+
+### Improved Peer Activity Rendering
+- Receiver-side peer activity watcher now writes to `stderr` instead of `stdout`
+- This is intended to avoid peer activity lines being injected into the managed TUI input box on the receiving peer
+- Peer activity visibility remains always on during serve mode
+
+### Technical Changes
+- Updated `src/cli/agent-peer-observer.ts` to emit passive peer activity lines to `stderr`
+
 ## [0.4.64] - 2025-01-15
 
 ### Simplified Peer Activity Visibility
