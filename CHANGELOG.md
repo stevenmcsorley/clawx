@@ -2,6 +2,15 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.46] - 2025-01-15
+
+### Collaboration Guide Numbering Polish
+- Fixed the `agent_master_status` collaboration guide so step numbering is generated cleanly instead of skipping numbers depending on runtime conditions
+- Small UX polish, but it makes the collaboration dashboard read more cleanly and professionally
+
+### Technical Changes
+- `src/tools/agentMasterStatus.ts` now builds guide steps dynamically and numbers them consistently
+
 ## [0.4.45] - 2025-01-15
 
 ### Better Master-Side Collaboration Visibility

@@ -122,21 +122,25 @@ export const agentMasterStatusTool: ToolDefinition = {
       
       const workerAgents = agents.filter(a => a.type === 'local' || a.type === 'remote');
       output += `\n## Collaboration Guide\n`;
+      const guideLines: string[] = [];
       if (!isServing) {
-        output += `1. Start as master: \`agent_serve --name master\`\n`;
+        guideLines.push('Start as master: `agent_serve --name master`');
       }
       if (workerAgents.length === 0) {
-        output += `2. Spawn workers: \`agent_spawn_local --name worker1\`\n`;
+        guideLines.push('Spawn workers: `agent_spawn_local --name worker1`');
       } else {
-        output += `1. Inspect workers/personas here before delegating\n`;
-        output += `2. Ask a worker directly: \`agent_chat --agent_name ${workerAgents[0].name} --message "Review this approach"\`\n`;
-        output += `3. Delegate a real tool task: \`agent_send --agent_name ${workerAgents[0].name} --tool ls --params {}\`\n`;
+        guideLines.push('Inspect workers/personas here before delegating');
+        guideLines.push(`Ask a worker directly: \`agent_chat --agent_name ${workerAgents[0].name} --message "Review this approach"\``);
+        guideLines.push(`Delegate a real tool task: \`agent_send --agent_name ${workerAgents[0].name} --tool ls --params {}\``);
         if (workerAgents.length > 1) {
-          output += `4. Chain collaboration manually: ask ${workerAgents[0].name} for analysis, then ask ${workerAgents[1].name} to critique or summarize the result\n`;
+          guideLines.push(`Chain collaboration manually: ask ${workerAgents[0].name} for analysis, then ask ${workerAgents[1].name} to critique or summarize the result`);
         }
       }
-      output += `5. List agents: \`agent_list\`\n`;
-      output += `6. Clean up: \`agent_cleanup\`\n`;
+      guideLines.push('List agents: `agent_list`');
+      guideLines.push('Clean up: `agent_cleanup`');
+      guideLines.forEach((line, index) => {
+        output += `${index + 1}. ${line}\n`;
+      });
       
       return {
         content: [{ type: 'text', text: output }],
