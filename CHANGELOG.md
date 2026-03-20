@@ -2,6 +2,24 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.60] - 2025-01-15
+
+### Added Minimal Peer Task Observability
+- `agent_peer_send` now emits compact live progress updates for peer task execution
+- Streaming updates are intentionally low-noise and truthful:
+  - start
+  - running
+  - completed / failed / cancelled
+- Optional one-line detail is included only for a few useful tool types:
+  - `bash` command preview
+  - `read` / `write` / `ls` path
+  - `search_files` pattern
+- This improves peer observability without using model-generated narration or wasting tokens on synthetic status text
+
+### Technical Changes
+- Updated `src/tools/agentPeerSend.ts` to emit minimal `onUpdate` partial results for peer task lifecycle visibility
+- Added compact detail summarization and duration reporting for peer task completion states
+
 ## [0.4.59] - 2025-01-15
 
 ### Fixed Remote Peer Status Truth In Master Status
