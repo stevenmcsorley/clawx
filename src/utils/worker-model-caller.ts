@@ -11,6 +11,68 @@ import { loadConfig } from "../config/index.js";
 import { log } from "./logger.js";
 import type { Persona, Memory, ConversationTurn } from "../types/persona.js";
 
+function detectOutputConstraints(message: string): { exactBulletCount?: number; exactNumberedCount?: number; jsonOnly?: boolean; observedFactsOnly?: boolean } {
+  const text = message.toLowerCase();
+  const constraints: { exactBulletCount?: number; exactNumberedCount?: number; jsonOnly?: boolean; observedFactsOnly?: boolean } = {};
+
+  const bulletMatch = text.match(/exactly\s+(\d+)\s+bullet/);
+  if (bulletMatch) constraints.exactBulletCount = parseInt(bulletMatch[1], 10);
+
+  const numberedMatch = text.match(/exactly\s+(\d+)\s+numbered/);
+  if (numberedMatch) constraints.exactNumberedCount = parseInt(numberedMatch[1], 10);
+
+  if (text.includes('json only')) constraints.jsonOnly = true;
+  if (text.includes('use only observed') || text.includes('using only those facts') || text.includes('use only the observed facts') || text.includes('verified facts only') || text.includes('do not introduce any new issues')) {
+    constraints.observedFactsOnly = true;
+  }
+
+  return constraints;
+}
+
+function countBulletLines(reply: string): number {
+  return reply.split(/\r?\n/).filter(line => /^\s*[-*•]\s+/.test(line)).length;
+}
+
+function countNumberedLines(reply: string): number {
+  return reply.split(/\r?\n/).filter(line => /^\s*\d+[.)]\s+/.test(line)).length;
+}
+
+function isLikelyJsonOnly(reply: string): boolean {
+  const trimmed = reply.trim();
+  if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) return false;
+  try {
+    JSON.parse(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function hasConstraintViolations(message: string, reply: string): string[] {
+  const constraints = detectOutputConstraints(message);
+  const violations: string[] = [];
+
+  if (constraints.exactBulletCount !== undefined) {
+    const count = countBulletLines(reply);
+    if (count !== constraints.exactBulletCount) {
+      violations.push(`expected exactly ${constraints.exactBulletCount} bullet points, got ${count}`);
+    }
+  }
+
+  if (constraints.exactNumberedCount !== undefined) {
+    const count = countNumberedLines(reply);
+    if (count !== constraints.exactNumberedCount) {
+      violations.push(`expected exactly ${constraints.exactNumberedCount} numbered items, got ${count}`);
+    }
+  }
+
+  if (constraints.jsonOnly && !isLikelyJsonOnly(reply)) {
+    violations.push('expected JSON-only output');
+  }
+
+  return violations;
+}
+
 /**
  * Build conversation context from persona, memory, and incoming turn
  */
@@ -117,7 +179,8 @@ export async function generateModelChatResponse(
   turn: ConversationTurn,
   workspace: string,
   availableTools: any[] = [],  // Add tools parameter for grounded execution
-  onEvent?: (event: any) => void  // Event callback for streaming
+  onEvent?: (event: any) => void,  // Event callback for streaming
+  validationAttempt = 0
 ): Promise<{ reply: string; thinking?: string; toolCalls?: any[] }> {
   try {
     // Load worker configuration
@@ -204,6 +267,16 @@ export async function generateModelChatResponse(
       }
     }
     
+    const violations = hasConstraintViolations(turn.message, reply);
+    if (violations.length > 0 && validationAttempt === 0) {
+      log.warn(`Reply violated explicit output constraints for ${turn.id}: ${violations.join('; ')}`);
+      const repairedTurn: ConversationTurn = {
+        ...turn,
+        message: `${turn.message}\n\nIMPORTANT REPAIR: Your previous reply violated these explicit output constraints: ${violations.join('; ')}. Rewrite the answer so it follows the original constraints exactly. Do not add commentary about the repair.`,
+      };
+      return await generateModelChatResponse(persona, memory, repairedTurn, workspace, availableTools, onEvent, 1);
+    }
+
     // Emit end event
     if (onEvent) {
       onEvent({ type: 'agent_message_end', turnId: turn.id, finalMessage: reply });

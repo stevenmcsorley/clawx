@@ -2,6 +2,20 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.43] - 2025-01-15
+
+### Added One-Pass Worker Chat Constraint Repair
+- **Worker chat now validates some explicit formatting constraints** from the user prompt and performs one automatic repair pass when the first reply violates them
+- Currently checks constraints like:
+  - `exactly N bullet points`
+  - `exactly N numbered items`
+  - `JSON only`
+- This targets richer chat cases where the worker stayed on-topic but still violated explicit output shape requirements
+
+### Technical Changes
+- Added lightweight output-constraint detection and validation in `src/utils/worker-model-caller.ts`
+- If the first reply violates explicit constraints, the worker reruns the model once with a repair instruction instead of returning the malformed answer directly
+
 ## [0.4.42] - 2025-01-15
 
 ### Stronger Worker Chat Grounding Instructions
