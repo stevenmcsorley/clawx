@@ -2,6 +2,29 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.36] - 2025-01-15
+
+### Removed Remaining SSE-Named Runtime File
+- **Deleted the last SSE-era streaming file** from the active source tree: `src/utils/streaming-events.ts`
+- Replaced it with a gRPC-native type-only module: `src/utils/grpc-stream-events.ts`
+- This removes another misleading artifact from the runtime and keeps the live transport naming aligned with the actual gRPC implementation
+
+### Technical Changes
+- Added `src/utils/grpc-stream-events.ts`
+- Updated gRPC streaming helpers to import `StreamEvent` from the gRPC-native type module
+- Removed `src/utils/streaming-events.ts` entirely
+
+## [0.4.35] - 2025-01-15
+
+### Removed Dead SSE Runtime Logic
+- **Removed leftover SSE/EventSource runtime implementation** from `src/utils/streaming-events.ts`
+- That file now exports only shared stream event types used by the active gRPC runtime, instead of carrying dead in-memory SSE broadcaster/handler code
+- Reduces misleading duplicate streaming architecture and helps keep the app aligned with a single truthful live transport path
+
+### Technical Changes
+- Replaced the old SSE/event-bus implementation in `src/utils/streaming-events.ts` with type-only definitions
+- Preserved active gRPC streaming helpers that import the shared `StreamEvent` type
+
 ## [0.4.34] - 2025-01-15
 
 ### Removed Fake Worker Chat Fallback Replies

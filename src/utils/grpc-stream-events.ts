@@ -1,9 +1,5 @@
 /**
- * Streaming event types shared by the gRPC streaming helpers.
- *
- * NOTE:
- * SSE/EventSource runtime support has been removed.
- * This file now contains types only so the active runtime stays gRPC-native.
+ * Shared stream event types for the active gRPC runtime.
  */
 
 export type StreamEvent = 

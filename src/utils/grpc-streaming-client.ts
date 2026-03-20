@@ -7,7 +7,7 @@
 
 import { EventEmitter } from 'events';
 import { log } from './logger.js';
-import type { StreamEvent } from './streaming-events.js';
+import type { StreamEvent } from './grpc-stream-events.js';
 import type { GrpcAgentFrame } from '../core/grpc/protocol.js';
 
 export interface GrpcStreamClientOptions {

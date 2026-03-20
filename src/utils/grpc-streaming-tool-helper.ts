@@ -7,7 +7,7 @@
 
 import { GrpcStreamingManager } from './grpc-streaming-client.js';
 import { log } from './logger.js';
-import type { StreamEvent } from './streaming-events.js';
+import type { StreamEvent } from './grpc-stream-events.js';
 
 export interface GrpcStreamingOptions {
   agentId: string;
