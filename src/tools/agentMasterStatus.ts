@@ -106,9 +106,15 @@ export const agentMasterStatusTool: ToolDefinition = {
           output += `\n### Remote Peer Masters (${remoteAgents.length})\n`;
           for (const agent of remoteAgents) {
             const health = checkHealth && agent.endpoint ? await checkAgentHealth(agent.endpoint) : true;
+            const effectiveStatus = health ? 'idle' : 'offline';
+            if (agent.status !== effectiveStatus) {
+              agent.status = effectiveStatus as any;
+              agent.lastHeartbeat = Date.now();
+              registry.upsertAgent(agent);
+            }
             output += `- ${health ? '✅' : '❌'} **${agent.name}** (${agent.id})\n`;
             output += `  - Type: ${agent.type}\n`;
-            output += `  - Status: ${agent.status}\n`;
+            output += `  - Status: ${effectiveStatus}\n`;
             output += `  - Endpoint: ${agent.endpoint || 'none'}\n`;
             output += `  - Health: ${health ? 'reachable' : 'unreachable'}\n`;
             if (agent.persona?.loaded) {

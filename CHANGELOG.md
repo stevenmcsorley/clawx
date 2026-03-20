@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.59] - 2025-01-15
+
+### Fixed Remote Peer Status Truth In Master Status
+- **Reachable peer masters now display as `idle` instead of stale `offline`** in `agent_master_status`
+- This keeps peer health and peer status aligned so the dashboard reflects reality more truthfully
+- Particularly useful now that both Ubuntu and Raspberry Pi peer masters are live on the LAN
+
+### Technical Changes
+- Updated `src/tools/agentMasterStatus.ts` to upsert remote peer status based on live health checks before rendering
+
 ## [0.4.58] - 2025-01-15
 
 ### Fixed Fresh Global Install Packaging
