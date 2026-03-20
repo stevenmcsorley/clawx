@@ -217,19 +217,7 @@ export async function generateModelChatResponse(
     
   } catch (error) {
     log.error('Failed to generate model chat response:', error);
-    
-    // Fallback to simple response if model fails
-    const fallbackReply = persona 
-      ? `As ${persona.name} (${persona.role}), I received your message: "${turn.message.substring(0, 100)}${turn.message.length > 100 ? '...' : ''}"\n\n[Note: Model call failed, using fallback response]`
-      : `I received your message: "${turn.message.substring(0, 100)}${turn.message.length > 100 ? '...' : ''}"\n\n[Note: Model call failed, using fallback response]`;
-
-    if (onEvent) {
-      onEvent({ type: 'agent_message_start', turnId: turn.id, persona: persona ? { name: persona.name, role: persona.role } : undefined });
-      onEvent({ type: 'agent_message_delta', turnId: turn.id, delta: fallbackReply });
-      onEvent({ type: 'agent_message_end', turnId: turn.id, finalMessage: fallbackReply });
-    }
-    
-    return { reply: fallbackReply };
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }
 

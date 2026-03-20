@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.34] - 2025-01-15
+
+### Removed Fake Worker Chat Fallback Replies
+- **Removed synthetic worker chat fallback responses** that previously pretended to answer when the real model call failed
+- Worker chat now fails truthfully instead of fabricating a generic fallback reply, aligning runtime behavior with the no-fake/no-pretend standard
+- Preserves error visibility so real model/provider failures can be diagnosed instead of hidden behind invented text
+
+### Technical Changes
+- Updated `src/utils/worker-model-caller.ts` to throw on model failure instead of generating a fake fallback reply
+- Worker chat paths now surface real failures rather than simulated assistant output
+
 ## [0.4.33] - 2025-01-15
 
 ### Readable Worker Task Result Rendering
