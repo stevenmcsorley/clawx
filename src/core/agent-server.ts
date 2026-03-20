@@ -263,8 +263,28 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
               throw error;
             }
             break;
+          case 'agent_spawn_local': {
+            const { agentSpawnLocalTool } = await import('../tools/agentSpawnLocal.js');
+            toolDefinition = agentSpawnLocalTool;
+            break;
+          }
+          case 'agent_list': {
+            const { agentListTool } = await import('../tools/agentList.js');
+            toolDefinition = agentListTool;
+            break;
+          }
+          case 'agent_cleanup': {
+            const { agentCleanupTool } = await import('../tools/agentCleanup.js');
+            toolDefinition = agentCleanupTool;
+            break;
+          }
+          case 'agent_master_status': {
+            const { agentMasterStatusTool } = await import('../tools/agentMasterStatus.js');
+            toolDefinition = agentMasterStatusTool;
+            break;
+          }
           default:
-            const error = new Error(`Tool not supported by agent: ${tool}. Supported tools: coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run, agent_chat_direct, agent_grpc_chat`);
+            const error = new Error(`Tool not supported by agent: ${tool}. Supported tools: coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run, agent_chat_direct, agent_grpc_chat, agent_spawn_local, agent_list, agent_cleanup, agent_master_status`);
             throw error;
         }
       }

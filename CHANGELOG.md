@@ -2,6 +2,21 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.69] - 2025-01-15
+
+### Expanded Peer-Master Federation Support
+- Remote peer `/task` execution can now run a first set of master orchestration tools locally on the peer master
+- Added peer-master task support for:
+  - `agent_spawn_local`
+  - `agent_list`
+  - `agent_cleanup`
+  - `agent_master_status`
+- This enables the first real orchestration step for peer-worker federation, such as spawning workers on a remote peer master from another machine
+
+### Technical Changes
+- Updated `src/core/agent-server.ts` local task execution path to allow selected master orchestration tools during peer task dispatch
+- Preserved existing worker-tool execution support while extending peer-master capabilities in a controlled v1 scope
+
 ## [0.4.68] - 2025-01-15
 
 ### Added Minimal Peer-Worker Federation
