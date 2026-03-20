@@ -31,6 +31,9 @@ export const agentMasterStatusTool: ToolDefinition = {
     
     try {
       const registry = new AgentRegistryManager();
+      registry.markOfflineAgents();
+      registry.cleanupOldTasks();
+      registry.save();
       const agents = registry.getAgents();
       
       let output = `# 🎯 Clawx Agent Network Status\n\n`;
@@ -88,9 +91,14 @@ export const agentMasterStatusTool: ToolDefinition = {
             output += `  - Status: ${agent.status}\n`;
             output += `  - Endpoint: ${agent.endpoint || 'none'}\n`;
             output += `  - Health: ${health ? 'reachable' : 'unreachable'}\n`;
+            if (agent.persona?.loaded) {
+              output += `  - Persona: ${agent.persona.name} — ${agent.persona.role}\n`;
+            }
             if (agent.capabilities && agent.capabilities.length > 0) {
               output += `  - Capabilities: ${agent.capabilities.join(', ')}\n`;
             }
+            output += `  - Quick chat: agent_chat --agent_name ${agent.name} --message \"Help me with ...\"\n`;
+            output += `  - Quick task: agent_send --agent_name ${agent.name} --tool ls --params {}\n`;
           }
         }
         
@@ -112,16 +120,23 @@ export const agentMasterStatusTool: ToolDefinition = {
         output += `\nNo agents registered.\n`;
       }
       
-      output += `\n## Recommendations\n`;
+      const workerAgents = agents.filter(a => a.type === 'local' || a.type === 'remote');
+      output += `\n## Collaboration Guide\n`;
       if (!isServing) {
         output += `1. Start as master: \`agent_serve --name master\`\n`;
       }
-      if (agents.filter(a => a.type === 'local' || a.type === 'remote').length === 0) {
+      if (workerAgents.length === 0) {
         output += `2. Spawn workers: \`agent_spawn_local --name worker1\`\n`;
+      } else {
+        output += `1. Inspect workers/personas here before delegating\n`;
+        output += `2. Ask a worker directly: \`agent_chat --agent_name ${workerAgents[0].name} --message "Review this approach"\`\n`;
+        output += `3. Delegate a real tool task: \`agent_send --agent_name ${workerAgents[0].name} --tool ls --params {}\`\n`;
+        if (workerAgents.length > 1) {
+          output += `4. Chain collaboration manually: ask ${workerAgents[0].name} for analysis, then ask ${workerAgents[1].name} to critique or summarize the result\n`;
+        }
       }
-      output += `3. List agents: \`agent_list\`\n`;
-      output += `4. Send tasks: \`agent_send --agent_name worker1 --tool search_files --pattern "TODO"\`\n`;
-      output += `5. Clean up: \`agent_cleanup\`\n`;
+      output += `5. List agents: \`agent_list\`\n`;
+      output += `6. Clean up: \`agent_cleanup\`\n`;
       
       return {
         content: [{ type: 'text', text: output }],

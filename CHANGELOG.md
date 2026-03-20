@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.45] - 2025-01-15
+
+### Better Master-Side Collaboration Visibility
+- **Improved `agent_master_status`** so it is more useful as a real collaboration dashboard instead of just a raw registry dump
+- Local workers now show persona info when available, plus quick example commands for direct chat and task delegation
+- Added a clearer collaboration guide so users can naturally move from seeing workers to actually using them without relying on hidden routing heuristics
+
+### Technical Changes
+- `agent_master_status` now performs registry cleanup before rendering
+- Worker entries include persona summaries and quick `agent_chat` / `agent_send` examples
+- Recommendations section replaced with a more practical collaboration guide
+
 ## [0.4.44] - 2025-01-15
 
 ### Clearer Worker Chat Streaming Presentation
