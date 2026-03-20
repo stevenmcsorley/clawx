@@ -2,6 +2,19 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.64] - 2025-01-15
+
+### Simplified Peer Activity Visibility
+- Removed the extra `--tui` / `tui: true` requirement for peer activity visibility
+- Peer activity visibility is now always enabled when serving an agent/peer master
+- Replaced the incorrect model-backed observer session with a passive peer activity watcher
+- The receiving peer now prints short live peer activity lines directly from `peer-activity.log` without invoking a model or taking autonomous actions
+
+### Technical Changes
+- Simplified `src/cli/agent-peer-observer.ts` into a passive stdout log watcher
+- Updated `src/cli/agent.ts` to start peer activity visibility automatically during serve mode
+- Updated `src/tools/agentServe.ts` to always start peer activity visibility and removed the temporary `tui` parameter
+
 ## [0.4.63] - 2025-01-15
 
 ### Fixed Tool-Level Peer Observer Startup
