@@ -2,6 +2,19 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.67] - 2025-01-15
+
+### Rolled Back Broken Live Peer Terminal Rendering
+- Removed automatic peer activity watcher startup from serve mode
+- This reverts the attempt to print live receiver-side peer activity directly into the terminal while the managed TUI was active
+- The previous approach interfered with the TUI input box and could make the receiving peer session unusable
+- Receiver-side peer activity logging groundwork remains in place via `peer-activity.log`, but no live terminal rendering is performed now
+
+### Technical Changes
+- Removed automatic observer startup from `src/cli/agent.ts`
+- Removed automatic observer startup from `src/tools/agentServe.ts`
+- Restored clean headless serve behavior while preserving peer activity logging foundations
+
 ## [0.4.66] - 2025-01-15
 
 ### Reduced Duplicate Execution Risk For Explicit Commands

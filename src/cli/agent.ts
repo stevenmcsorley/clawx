@@ -13,7 +13,6 @@ import { Command } from 'commander';
 import { log } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
 import { startAgentServer } from '../core/agent-server.js';
-import { startPeerObserverTui } from './agent-peer-observer.js';
 import { v4 as uuidv4 } from 'uuid';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -24,10 +23,10 @@ export function createAgentCommand(): Command {
     .description('Manage Clawx agents')
     .configureHelp({ helpWidth: 80 });
 
-  // agent serve - Start as agent with built-in peer activity visibility
+  // agent serve - Start as headless agent
   agentCmd
     .command('serve')
-    .description('Start as an agent with built-in peer activity visibility')
+    .description('Start as a headless agent')
     .option('--id <id>', 'Agent ID (default: auto-generated)')
     .option('--name <name>', 'Agent name (default: "agent-<id>")')
     .option('--port <port>', 'Port to listen on (default: 0 = auto)', '0')
@@ -179,10 +178,6 @@ async function serveAgent(options: any): Promise<void> {
     }
   }
   
-  void startPeerObserverTui(workspace, agentName).catch((error) => {
-    log.error('Peer observer TUI failed:', error);
-  });
-
   log.info('Press Ctrl+C to stop');
 
   // Handle shutdown

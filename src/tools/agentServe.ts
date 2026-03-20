@@ -11,7 +11,6 @@ import { AgentRegistryManager } from '../core/agent-registry.js';
 import { agentMaster } from '../core/agent-master.js';
 import { v4 as uuidv4 } from 'uuid';
 import { join } from 'path';
-import { startPeerObserverTui } from '../cli/agent-peer-observer.js';
 import { homedir } from 'os';
 import { existsSync, mkdirSync, writeFileSync, appendFileSync } from 'fs';
 
@@ -169,10 +168,6 @@ export const agentServeTool: ToolDefinition = {
       // The agent server already has /register-worker endpoint
       // No need to add custom endpoint
       
-      void startPeerObserverTui(workspace, name).catch((error) => {
-        log.error('Peer observer TUI failed:', error);
-      });
-      
       return {
         content: [{
           type: 'text',
@@ -181,8 +176,7 @@ export const agentServeTool: ToolDefinition = {
                 `Workspace: ${workspace}\n` +
                 `Port: ${server.port} (requested: ${requestedPort === 0 ? 'auto' : requestedPort})\n` +
                 `Debug: raw port param was "${params.port}", type ${typeof params.port}\n` +
-                `Allowed tools: ${allowedTools.length > 0 ? allowedTools.join(', ') : 'all'}\n` +
-                `Peer activity visibility: always enabled\n\n` +
+                `Allowed tools: ${allowedTools.length > 0 ? allowedTools.join(', ') : 'all'}\n\n` +
                 'Use agent_list to see registered agents.\n' +
                 'Use agent_spawn_local to spawn worker agents.\n' +
                 'Use agent_send to send tasks to agents.',
@@ -193,7 +187,6 @@ export const agentServeTool: ToolDefinition = {
           endpoint: `http://localhost:${server.port}`,
           workspace,
           allowed_tools: allowedTools,
-          peer_activity_visibility: 'always_enabled',
           config_path: configPath,
           port: server.port,
           requested_port: requestedPort,
