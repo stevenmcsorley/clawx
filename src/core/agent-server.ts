@@ -225,6 +225,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       }, timeoutMs);
     });
     
+    let timedOut = false;
+    let timeoutId: NodeJS.Timeout | undefined;
+
     try {
       // Get the appropriate tool
       let toolDefinition;
@@ -337,14 +340,22 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       }
       
       let result;
+      const cancellableTimeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          timedOut = true;
+          reject(new Error(`Task timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
 
       const isDirectMasterTool = ['agent_chat', 'agent_spawn_local', 'agent_list', 'agent_cleanup', 'agent_rehydrate_workers', 'agent_master_status', 'agent_persona_show', 'agent_persona_set', 'agent_memory_show', 'agent_memory_update'].includes(tool);
       if (isDirectMasterTool) {
         const toolCallId = `peer-master-tool-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const toolPromise = Promise.resolve(toolDefinition.execute(toolCallId, params, undefined, undefined, context));
         result = await Promise.race([
-          Promise.resolve(toolDefinition.execute(toolCallId, params, undefined, undefined, context)),
-          timeoutPromise,
+          toolPromise,
+          cancellableTimeoutPromise,
         ]);
+        if (timeoutId) clearTimeout(timeoutId);
       } else {
         // Execute the tool with streaming (no EventStream callbacks)
         const stream = executeToolWithStream(tool, params, config.workspace, config.allowedTools, context, (event) => {
@@ -355,8 +366,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         // Wait for result with timeout
         result = await Promise.race([
           stream.result,
-          timeoutPromise,
+          cancellableTimeoutPromise,
         ]);
+        if (timeoutId) clearTimeout(timeoutId);
       }
       
       // Update task with result
@@ -368,6 +380,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       log.info(`Task ${taskId} completed successfully`);
       
     } catch (error) {
+      if (timeoutId && !timedOut) {
+        clearTimeout(timeoutId);
+      }
       task.status = 'failed';
       task.completed = Date.now();
       task.error = error instanceof Error ? error.message : String(error);

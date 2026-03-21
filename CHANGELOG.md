@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.5] - 2025-01-15
+
+### Fixed Direct Master Tool Timeout Cleanup in Task Execution
+- Updated `src/core/agent-server.ts` so direct master-tool execution uses a cancellable timeout and clears the timer when the tool resolves or fails
+- Targets the lifecycle bug where `agent_rehydrate_workers` could clearly advance internally yet the outer task remained stuck in `running`
+- Should improve truthful task completion/failure reporting for direct master tools executed through peer/master task routing
+
+### Technical Changes
+- Updated `src/core/agent-server.ts`
+
 ## [0.5.4] - 2025-01-15
 
 ### Added Rehydration Execution Tracing
