@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.90] - 2025-01-15
+
+### Added Worker-Side Delegated Task Instrumentation
+- Added explicit worker logs around delegated task handling to trace where peer-routed `bash` tasks stall
+- Logs now cover task start, params/context, tool event forwarding, stream creation, `stream.result` waiting/resolution, completion send, and failure-path handling
+- Intended to isolate whether the remaining delegated task bug is in worker execution, gRPC frame emission, or completion reconciliation
+
+### Technical Changes
+- Updated `src/core/worker-agent.ts`
+
 ## [0.4.89] - 2025-01-15
 
 ### Fixed Worker Streaming Bash Timeout Propagation for Delegated Tasks
