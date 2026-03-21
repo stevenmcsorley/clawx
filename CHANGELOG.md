@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.82] - 2025-01-15
+
+### Fixed Peer Worker Chat Active gRPC Runtime Resolution
+- Peer-executed `agent_chat` now receives the live active master config and gRPC server through request execution context instead of depending solely on the `agentMaster` singleton
+- This addresses the `Current session does not have an active gRPC master server instance` failure seen during peer worker chat on remote masters
+- Keeps the peer worker chat path aligned with the intended gRPC-first runtime model
+
+### Technical Changes
+- Updated `src/core/agent-server.ts` to inject active runtime objects into peer task execution context
+- Updated `src/tools/agentChat.ts` to use injected runtime context before falling back to the singleton
+
 ## [0.4.81] - 2025-01-15
 
 ### Fixed Peer Worker Chat for gRPC-Connected Workers Without HTTP Endpoints

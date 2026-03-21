@@ -174,10 +174,13 @@ export const agentChatTool: ToolDefinition = {
       // Generate a turn ID for this conversation
       const turnId = `chat_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
+      const activeMasterConfig = context?.__activeMasterConfig;
+      const activeGrpcServer = context?.__activeGrpcServer;
       const masterServer = agentMaster.getServer();
-      const masterConfig = agentMaster.getConfig();
-      const grpcServer = masterServer?.grpcServer as any;
-      if (!masterServer?.grpcPort || !masterConfig || !grpcServer?.sendChat) {
+      const masterConfig = activeMasterConfig || agentMaster.getConfig();
+      const grpcServer = activeGrpcServer || (masterServer?.grpcServer as any);
+      const grpcPort = activeMasterConfig?.port ? activeMasterConfig.port + 2000 : masterServer?.grpcPort;
+      if (!grpcPort || !masterConfig || !grpcServer?.sendChat) {
         throw new Error('Current session does not have an active gRPC master server instance');
       }
 

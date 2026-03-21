@@ -376,6 +376,8 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       const effectiveContext = getDefaultExecutionContext({
         ...(context || {}),
         masterEndpoint: context?.masterEndpoint || `http://localhost:${config.port}`,
+        __activeMasterConfig: config,
+        __activeGrpcServer: grpcServer,
       });
       
       if (!tool) {
