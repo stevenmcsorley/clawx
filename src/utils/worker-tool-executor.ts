@@ -220,6 +220,7 @@ export function executeToolWithStream(
             const bashResult = await executeBashWithStreaming({
               command: params.command,
               cwd: workspace,
+              timeout: params.timeout,
               onStdout: (data) => {
                 if (onEvent && data.trim()) {
                   onEvent({ 

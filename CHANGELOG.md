@@ -2,6 +2,15 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.89] - 2025-01-15
+
+### Fixed Worker Streaming Bash Timeout Propagation for Delegated Tasks
+- Passed `params.timeout` through to the worker streaming bash wrapper so delegated peer-routed `bash` tasks honor requested timeout behavior in the actual execution path
+- Targets the remaining delegated-worker `bash` tasks that could remain stuck in `running` when the streaming execution path did not share the caller timeout semantics
+
+### Technical Changes
+- Updated `src/utils/worker-tool-executor.ts`
+
 ## [0.4.88] - 2025-01-15
 
 ### Narrowed Worker Tool-Finished Payloads for Delegated gRPC Task Stability
