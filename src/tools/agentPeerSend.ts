@@ -1,5 +1,6 @@
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
+import { extractReadablePeerValue, waitForPeerTaskResult } from './agentPeerTaskHelpers.js';
 
 function summarizePeerTaskDetail(tool: string, params: any): string {
   if (tool === 'bash' && typeof params?.command === 'string') {
@@ -17,40 +18,6 @@ function summarizePeerTaskDetail(tool: string, params: any): string {
   }
   if (tool === 'ls' && typeof params?.path === 'string') {
     return params.path;
-  }
-  return '';
-}
-
-function extractReadablePeerResult(value: any): string {
-  if (!value) return '';
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        const nested = extractReadablePeerResult(parsed);
-        if (nested) return nested;
-      } catch {}
-    }
-    return value;
-  }
-  if (Array.isArray(value?.content)) {
-    return value.content
-      .filter((item: any) => item?.type === 'text' && typeof item.text === 'string')
-      .map((item: any) => item.text)
-      .join('\n');
-  }
-  if (typeof value?.output === 'string') {
-    const nested = extractReadablePeerResult(value.output);
-    return nested || value.output;
-  }
-  if (value?.details) {
-    const nested = extractReadablePeerResult(value.details);
-    if (nested) return nested;
-  }
-  if (value?.result) {
-    const nested = extractReadablePeerResult(value.result);
-    if (nested) return nested;
   }
   return '';
 }
@@ -148,11 +115,9 @@ export const agentPeerSendTool: ToolDefinition = {
       };
     }
 
+    let announcedRunning = false;
     const waitUntil = Date.now() + 30000;
     let finalStatus = 'pending';
-    let finalResult: any = null;
-
-    let announcedRunning = false;
     while (Date.now() < waitUntil) {
       const statusResponse = await fetch(`${peer.endpoint}/task/${taskId}/status`);
       if (statusResponse.ok) {
@@ -163,20 +128,20 @@ export const agentPeerSendTool: ToolDefinition = {
           announcedRunning = true;
         }
         if (finalStatus === 'completed' || finalStatus === 'failed' || finalStatus === 'cancelled') {
-          const resultResponse = await fetch(`${peer.endpoint}/task/${taskId}/result`);
-          if (resultResponse.ok) {
-            const resultJson: any = await resultResponse.json();
-            finalResult = resultJson.result;
-          }
           break;
         }
       }
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
+    const { status: settledStatus, result: finalResult } = await waitForPeerTaskResult(peer.endpoint, taskId, 2000);
+    if (settledStatus !== 'pending') {
+      finalStatus = settledStatus;
+    }
+
     const durationMs = Date.now() - startedAt;
     const durationText = `${(durationMs / 1000).toFixed(durationMs >= 10000 ? 0 : 1)}s`;
-    const readable = extractReadablePeerResult(finalResult).trim();
+    const readable = extractReadablePeerValue(finalResult).trim();
 
     if (finalStatus === 'completed') {
       emitPartial(`✅ ${peer.name}${workerName ? ` → ${workerName}` : ''} completed ${tool} (${durationText})`);

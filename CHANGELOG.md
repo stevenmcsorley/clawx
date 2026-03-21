@@ -2,6 +2,21 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.74] - 2025-01-15
+
+### Fixed Peer Worker Chat and Persona Result Handling
+- Fixed `agent_peer_chat` with `worker_name` to wait for peer task completion and return the actual worker reply instead of only a routing acknowledgment
+- Fixed `agent_peer_persona_show` result extraction for peer task responses
+- Fixed `agent_peer_persona_set` result extraction for peer task responses
+- Added shared peer task helpers for worker resolution, polling, and readable result extraction
+
+### Technical Changes
+- Added `src/tools/agentPeerTaskHelpers.ts`
+- Updated `src/tools/agentPeerChat.ts`
+- Updated `src/tools/agentPeerSend.ts` to use shared peer result extraction helpers
+- Updated `src/tools/agentPeerPersonaShow.ts`
+- Updated `src/tools/agentPeerPersonaSet.ts`
+
 ## [0.4.73] - 2025-01-15
 
 ### Added Peer Worker Chat and Persona Tools

@@ -1,5 +1,6 @@
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
+import { extractReadablePeerValue, waitForPeerTaskResult } from './agentPeerTaskHelpers.js';
 
 export const agentPeerPersonaShowTool: ToolDefinition = {
   name: 'agent_peer_persona_show',
@@ -52,28 +53,12 @@ export const agentPeerPersonaShowTool: ToolDefinition = {
       return { content: [{ type: 'text', text: `❌ Peer persona show accepted without task ID` }], isError: true };
     }
 
-    const waitUntil = Date.now() + 30000;
-    while (Date.now() < waitUntil) {
-      const statusResponse = await fetch(`${peer.endpoint}/task/${taskId}/status`);
-      if (statusResponse.ok) {
-        const statusJson: any = await statusResponse.json();
-        if (statusJson.status === 'completed' || statusJson.status === 'failed' || statusJson.status === 'cancelled') {
-          const resultResponse = await fetch(`${peer.endpoint}/task/${taskId}/result`);
-          if (resultResponse.ok) {
-            const resultJson: any = await resultResponse.json();
-            const text = resultJson?.result?.content?.map((item: any) => item?.text).filter(Boolean).join('\n') || JSON.stringify(resultJson?.result, null, 2);
-            return {
-              content: [{ type: 'text', text: `🌐 ${peer.name} → ${workerName}\n${text}` }],
-              details: { peer_name: peer.name, worker_name: workerName, task_id: taskId, status: statusJson.status, result: resultJson?.result },
-              isError: statusJson.status === 'failed',
-            };
-          }
-          break;
-        }
-      }
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    return { content: [{ type: 'text', text: `❌ Timed out waiting for peer persona show result from ${peer.name}` }], isError: true };
+    const { status, result, error } = await waitForPeerTaskResult(peer.endpoint, taskId, 30000);
+    const text = extractReadablePeerValue(result).trim();
+    return {
+      content: [{ type: 'text', text: status === 'completed' ? `🌐 ${peer.name} → ${workerName}\n${text || 'No persona output received'}` : `❌ Peer persona show ${status}${error ? `\n${error}` : ''}` }],
+      details: { peer_name: peer.name, worker_name: workerName, task_id: taskId, status, result, error },
+      isError: status === 'failed' || status === 'pending' || status === 'cancelled',
+    };
   },
 };

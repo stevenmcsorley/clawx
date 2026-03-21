@@ -1,23 +1,6 @@
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
-
-function extractReadablePeerChatReply(value: any): string {
-  if (!value) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value?.reply === 'string') return value.reply;
-  if (typeof value?.message === 'string') return value.message;
-  if (value?.response) {
-    const nested = extractReadablePeerChatReply(value.response);
-    if (nested) return nested;
-  }
-  if (Array.isArray(value?.content)) {
-    return value.content
-      .filter((item: any) => item?.type === 'text' && typeof item.text === 'string')
-      .map((item: any) => item.text)
-      .join('\n');
-  }
-  return '';
-}
+import { extractReadablePeerValue, resolvePeerWorkerId, waitForPeerTaskResult } from './agentPeerTaskHelpers.js';
 
 export const agentPeerChatTool: ToolDefinition = {
   name: 'agent_peer_chat',
@@ -44,33 +27,59 @@ export const agentPeerChatTool: ToolDefinition = {
       return { content: [{ type: 'text', text: `❌ Peer master not found: ${peerName}` }], isError: true };
     }
 
-    let target = 'server';
     let targetAgentId: string | undefined;
     if (workerName) {
       try {
-        const agentsResponse = await fetch(`${peer.endpoint}/agents`);
-        if (!agentsResponse.ok) {
-          return { content: [{ type: 'text', text: `❌ Failed to list workers on peer ${peer.name}` }], isError: true };
-        }
-        const remoteAgents = await agentsResponse.json() as any[];
-        const worker = remoteAgents.find((agent: any) => agent?.name === workerName);
-        if (!worker?.id) {
-          return { content: [{ type: 'text', text: `❌ Worker not found on ${peer.name}: ${workerName}` }], isError: true };
-        }
-        targetAgentId = worker.id;
-        target = worker.id as string;
+        targetAgentId = await resolvePeerWorkerId(peer.endpoint, peer.name, workerName);
       } catch (error) {
         return {
-          content: [{ type: 'text', text: `❌ Failed to resolve remote worker ${workerName} on ${peer.name}: ${error instanceof Error ? error.message : String(error)}` }],
+          content: [{ type: 'text', text: error instanceof Error ? `❌ ${error.message}` : `❌ Failed to resolve remote worker ${workerName} on ${peer.name}` }],
           isError: true,
         };
       }
+
+      const taskResponse = await fetch(`${peer.endpoint}/task`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-clawx-peer-name': 'peer-master',
+          'x-clawx-peer-source': 'peer-master',
+        },
+        body: JSON.stringify({
+          tool: 'agent_chat',
+          params: {
+            agent_id: targetAgentId,
+            message,
+            mode,
+          },
+          targetAgentId,
+          context: { __transport: 'peer_http', remoteWorkerName: workerName },
+        }),
+      });
+
+      if (!taskResponse.ok) {
+        return { content: [{ type: 'text', text: `❌ Peer worker chat failed: ${taskResponse.status}` }], isError: true };
+      }
+
+      const accepted: any = await taskResponse.json();
+      const taskId = accepted.taskId || accepted.id;
+      if (!taskId) {
+        return { content: [{ type: 'text', text: `❌ Peer worker chat accepted without task ID` }], isError: true };
+      }
+
+      const { status, result, error } = await waitForPeerTaskResult(peer.endpoint, taskId, 30000);
+      const reply = extractReadablePeerValue(result).trim();
+      return {
+        content: [{ type: 'text', text: status === 'completed' ? `🌐 ${peer.name} → ${workerName}: ${reply || 'No reply received'}` : `🌐 ${peer.name} → ${workerName} chat status: ${status}${error ? `\n${error}` : ''}` }],
+        details: { peer_name: peer.name, worker_name: workerName, target_agent_id: targetAgentId, endpoint: peer.endpoint, task_id: taskId, status, result, error },
+        isError: status === 'failed',
+      };
     }
 
     const response = await fetch(`${peer.endpoint}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ speaker: 'peer-master', target, message, mode }),
+      body: JSON.stringify({ speaker: 'peer-master', target: 'server', message, mode }),
     });
 
     if (!response.ok) {
@@ -78,10 +87,10 @@ export const agentPeerChatTool: ToolDefinition = {
     }
 
     const json: any = await response.json();
-    const reply = extractReadablePeerChatReply(json) || JSON.stringify(json, null, 2);
+    const reply = extractReadablePeerValue(json) || JSON.stringify(json, null, 2);
     return {
-      content: [{ type: 'text', text: `🌐 ${peer.name}${workerName ? ` → ${workerName}` : ''}: ${reply}` }],
-      details: { peer_name: peer.name, worker_name: workerName, target_agent_id: targetAgentId, endpoint: peer.endpoint, response: json },
+      content: [{ type: 'text', text: `🌐 ${peer.name}: ${reply}` }],
+      details: { peer_name: peer.name, worker_name: workerName, endpoint: peer.endpoint, response: json },
     };
   },
 };
