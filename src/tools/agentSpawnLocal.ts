@@ -529,8 +529,18 @@ export const agentSpawnLocalTool: ToolDefinition = {
         try {
           isHealthy = await checkAgentHealth(`http://localhost:${actualPort}`, 2000);
           if (isHealthy) {
-            log.info(`Health check passed for agent ${finalName} on port ${actualPort}`);
-            break;
+            const healthResponse = await fetch(`http://localhost:${actualPort}/health`);
+            if (healthResponse.ok) {
+              const healthJson = await healthResponse.json() as any;
+              if (healthJson?.agentId === agentId) {
+                log.info(`Health check passed for agent ${finalName} on port ${actualPort}`);
+                break;
+              }
+              log.warn(`Port ${actualPort} is healthy but belongs to different agent ${healthJson?.agentId || 'unknown'} while waiting for ${agentId}`);
+              isHealthy = false;
+            } else {
+              isHealthy = false;
+            }
           }
         } catch (error) {
           // Agent not ready yet, log first few attempts
@@ -539,6 +549,12 @@ export const agentSpawnLocalTool: ToolDefinition = {
             log.debug(`Health check attempt ${attempt} failed: ${error instanceof Error ? error.message : String(error)}`);
           }
         }
+
+        if (agentProcess.exitCode !== null) {
+          log.warn(`Agent process for ${finalName} exited early with code ${agentProcess.exitCode}`);
+          break;
+        }
+
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       

@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.95] - 2025-01-15
+
+### Fixed Spawn Success Truth for Port-Collision Cases
+- Tightened worker startup verification so a spawn only succeeds when the healthy endpoint belongs to the newly spawned agent ID
+- Prevents false-positive spawn success when a stale process is already bound to the selected worker port
+- Added early detection for spawned worker processes that exit before becoming healthy
+
+### Technical Changes
+- Updated `src/tools/agentSpawnLocal.ts`
+
 ## [0.4.94] - 2025-01-15
 
 ### Fixed Circular gRPC Task Payload Serialization in Master→Worker Delivery
