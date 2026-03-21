@@ -208,7 +208,15 @@ If the user needs to build something, suggest they switch back with /chat.`;
   // Build a direct initial message
   const initialMessage = `Forge: Builder for Clawx extensions.
 
-State your specific build goal, or ask "what can I build?"`;
+State your specific build goal, or ask "what can I build?"
+
+Current Forge toolset includes:
+- hf_search
+- hf_model_info
+- hf_readme
+- hf_dataset_search
+- forge_write_capability
+- forge_list_capabilities`;
 
   // Launch interactive mode
   const mode = new InteractiveMode(session, {

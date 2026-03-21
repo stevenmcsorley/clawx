@@ -131,21 +131,26 @@ export const agentMasterStatusTool: ToolDefinition = {
         output += `\nNo agents registered.\n`;
       }
       
-      const workerAgents = agents.filter(a => a.type === 'local' || a.type === 'remote');
+      const localWorkers = agents.filter(a => a.type === 'local');
+      const remotePeers = agents.filter(a => a.type === 'remote');
       output += `\n## Collaboration Guide\n`;
       const guideLines: string[] = [];
       if (!isServing) {
         guideLines.push('Start as master: `agent_serve --name master`');
       }
-      if (workerAgents.length === 0) {
-        guideLines.push('Spawn workers: `agent_spawn_local --name worker1`');
+      if (localWorkers.length === 0) {
+        guideLines.push('Spawn a local worker: `agent_spawn_local --name worker1`');
       } else {
-        guideLines.push('Inspect workers/personas here before delegating');
-        guideLines.push(`Ask a worker directly: \`agent_chat --agent_name ${workerAgents[0].name} --message "Review this approach"\``);
-        guideLines.push(`Delegate a real tool task: \`agent_send --agent_name ${workerAgents[0].name} --tool ls --params {}\``);
-        if (workerAgents.length > 1) {
-          guideLines.push(`Chain collaboration manually: ask ${workerAgents[0].name} for analysis, then ask ${workerAgents[1].name} to critique or summarize the result`);
-        }
+        guideLines.push('Inspect local workers/personas here before delegating');
+        guideLines.push(`Ask a local worker directly: \`agent_chat --agent_name ${localWorkers[0].name} --message "Review this approach"\``);
+        guideLines.push(`Delegate a local tool task: \`agent_send --agent_name ${localWorkers[0].name} --tool ls --params {}\``);
+      }
+      if (remotePeers.length === 0) {
+        guideLines.push('Register a LAN peer master: `agent_peer_add --name ubuntu-master --endpoint http://host:43210`');
+      } else {
+        guideLines.push(`Chat with a peer master: \`agent_peer_chat --peer_name ${remotePeers[0].name} --message "Hello from this master"\``);
+        guideLines.push(`List workers behind a peer: \`agent_peer_list_workers --peer_name ${remotePeers[0].name}\``);
+        guideLines.push(`Delegate to a peer worker: \`agent_peer_send --peer_name ${remotePeers[0].name} --worker_name <worker> --tool ls --params {}\``);
       }
       guideLines.push('List agents: `agent_list`');
       guideLines.push('Clean up: `agent_cleanup`');

@@ -110,8 +110,8 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     tools.push(toolToDefinition(createSshRunTool(config.sshTargets)));
   }
 
-  // Agent tools (only add if agent system is enabled)
-  // TODO: Add config flag for agent system
+  // Agent and peer-federation tools
+  // Includes local worker lifecycle plus explicit LAN peer-master federation
   try {
     const { agentServeTool } = await import('../tools/agentServe.js');
     const { agentListTool } = await import('../tools/agentList.js');
