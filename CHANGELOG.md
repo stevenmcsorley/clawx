@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.14] - 2025-01-15
+
+### Reduced Auto-Rehydrate Spawn-Lock Interference
+- Added internal `spawn_lock_timeout_ms` support to worker spawning and rehydration
+- Master startup auto-rehydration now uses a short spawn-lock timeout so it backs off quickly instead of blocking interactive worker spawns
+- Targets real scenario-testing friction where auto-rehydration of historical workers could monopolize the spawn lock during startup
+
+### Technical Changes
+- Updated `src/tools/agentSpawnLocal.ts`
+- Updated `src/tools/agentRehydrateWorkers.ts`
+- Updated `src/cli/agent.ts`
+
 ## [0.5.13] - 2025-01-15
 
 ### Improved Worker Chat Summaries After Tool Use

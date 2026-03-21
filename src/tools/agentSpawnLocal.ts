@@ -127,6 +127,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       workspace: actualParams.workspace || '',
       master_workspace: actualParams.master_workspace || actualParams.masterWorkspace || '',
       preserve_identity: actualParams.preserve_identity === true,
+      spawn_lock_timeout_ms: typeof actualParams.spawn_lock_timeout_ms === 'number' ? actualParams.spawn_lock_timeout_ms : undefined,
     };
     
     log.debug('agent_spawn_local normalized params:', normalizedParams);
@@ -159,7 +160,8 @@ export const agentSpawnLocalTool: ToolDefinition = {
     let releaseSpawnLock: (() => void) | null = null;
 
     try {
-      releaseSpawnLock = await acquireSpawnLock();
+      const spawnLockTimeoutMs = normalizedParams.spawn_lock_timeout_ms ?? (normalizedParams.preserve_identity ? 1000 : 30000);
+      releaseSpawnLock = await acquireSpawnLock(spawnLockTimeoutMs);
 
       // Clean up stale agents first
       const cleaned = cleanupStaleAgents();

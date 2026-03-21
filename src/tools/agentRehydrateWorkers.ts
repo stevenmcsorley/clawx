@@ -30,6 +30,10 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
         description: 'Only rehydrate workers owned by the current master',
         default: true,
       },
+      spawn_lock_timeout_ms: {
+        type: 'number',
+        description: 'Optional timeout for waiting on the spawn lock during restore attempts',
+      },
     },
     required: [],
   },
@@ -51,6 +55,7 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
       const requestedNames = Array.isArray(params.names) ? new Set(params.names) : null;
       const onlyCurrentMaster = params.only_current_master !== false;
       const includeOffline = params.include_offline !== false;
+      const spawnLockTimeoutMs = typeof params.spawn_lock_timeout_ms === 'number' ? params.spawn_lock_timeout_ms : undefined;
 
       const allAgents = registry.getAgents();
       const agentsDir = join(homedir(), '.clawx', 'agents');
@@ -185,6 +190,7 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
           preserve_identity: true,
           port: workerConfig.port,
           master_endpoint: workerConfig.masterEndpoint || masterEndpoint,
+          ...(spawnLockTimeoutMs !== undefined ? { spawn_lock_timeout_ms: spawnLockTimeoutMs } : {}),
         };
         if (Array.isArray(workerConfig.allowedTools) && workerConfig.allowedTools.length > 0) {
           rehydrateParams.allowed_tools = workerConfig.allowedTools;

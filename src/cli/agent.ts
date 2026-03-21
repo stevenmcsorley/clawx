@@ -140,7 +140,7 @@ async function serveAgent(options: any): Promise<void> {
         const { agentRehydrateWorkersTool } = await import('../tools/agentRehydrateWorkers.js');
         const rehydrateResult = await agentRehydrateWorkersTool.execute(
           `auto-rehydrate-${Date.now()}`,
-          {},
+          { spawn_lock_timeout_ms: 1000 },
           undefined,
           undefined,
           {
