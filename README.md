@@ -475,6 +475,7 @@ Use it to:
 - research models and datasets on HuggingFace
 - inspect existing extensions
 - scaffold new Clawx capabilities
+- explore tool ideas, MCP ideas, and guard/safety helpers before enabling them in normal workflow
 
 Examples:
 
@@ -482,6 +483,9 @@ Examples:
 clawx forge
 clawx forge "Build a capability that summarizes CSV files"
 ```
+
+For a fuller guide to what Forge is good for, what kinds of extensions fit Clawx well, MCP ideas, HuggingFace-backed capability discovery, and example Forge prompts, see:
+- [`docs/forge-guide.md`](docs/forge-guide.md)
 
 ## Honest limitations
 
@@ -497,6 +501,7 @@ Current limitations still include:
 
 - [`docs/current-capabilities.md`](docs/current-capabilities.md) — current proven runtime/capability status
 - [`docs/prompting-guide.md`](docs/prompting-guide.md) — example prompts for peer network management, worker usage, and operational requests
+- [`docs/forge-guide.md`](docs/forge-guide.md) — what Forge is good for, what kinds of capabilities fit Clawx well, and ideas for MCPs, guard tools, and HuggingFace-backed extensions
 
 ## License
 
