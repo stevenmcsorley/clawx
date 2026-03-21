@@ -2,6 +2,21 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.72] - 2025-01-15
+
+### Added Remote Worker Visibility Tool
+- Added `agent_peer_list_workers` to list connected workers behind a registered remote peer master
+- This gives a more truthful peer-worker visibility path than asking the remote peer to run registry-based `agent_list`
+- Worker visibility now includes:
+  - worker name
+  - worker id
+  - status
+  - endpoint
+
+### Technical Changes
+- Added `src/tools/agentPeerListWorkers.ts`
+- Registered `agent_peer_list_workers` in the main TUI tool surface via `src/cli/tui.ts`
+
 ## [0.4.71] - 2025-01-15
 
 ### Fixed Peer-Federated Worker Spawn Context
