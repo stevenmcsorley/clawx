@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.2] - 2025-01-15
+
+### Improved Restart-Safe Rehydration Matching and Diagnostics
+- Updated `agent_rehydrate_workers` to prefer restart-stable ownership matching by `ownerMasterEndpoint`, then `ownerMasterName`, then `ownerMasterId`
+- Added targeted debug output when no persisted workers match, including the current master identity/endpoint and each persisted worker's owner metadata
+- Helps diagnose and resolve peer-master restart cases where rehydration still fails after metadata persistence is fixed
+
+### Technical Changes
+- Updated `src/tools/agentRehydrateWorkers.ts`
+
 ## [0.5.1] - 2025-01-15
 
 ### Fixed Worker Config Rewrite Losing Rehydration Metadata

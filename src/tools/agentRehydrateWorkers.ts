@@ -52,23 +52,37 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
       const onlyCurrentMaster = params.only_current_master !== false;
       const includeOffline = params.include_offline !== false;
 
-      const agents = registry.getAgents().filter(agent => {
+      const allAgents = registry.getAgents();
+      const agents = allAgents.filter(agent => {
         if (agent.type !== 'local') return false;
         if (!includeOffline && agent.status === 'offline') return false;
         if (requestedNames && requestedNames.size > 0 && !requestedNames.has(agent.name)) return false;
         if (!onlyCurrentMaster) return true;
 
         const ownerMatches =
-          (agent.ownerMasterId && agent.ownerMasterId === masterConfig.id) ||
-          (agent.ownerMasterName && agent.ownerMasterName === masterConfig.name) ||
-          (agent.ownerMasterEndpoint && agent.ownerMasterEndpoint === masterEndpoint);
+          (!!agent.ownerMasterEndpoint && agent.ownerMasterEndpoint === masterEndpoint) ||
+          (!!agent.ownerMasterName && agent.ownerMasterName === masterConfig.name) ||
+          (!!agent.ownerMasterId && agent.ownerMasterId === masterConfig.id);
 
         return ownerMatches;
       });
 
       if (agents.length === 0) {
+        const debugLines = [
+          'No persisted local workers matched the rehydration filter.',
+          `Current master id: ${masterConfig.id || 'unknown'}`,
+          `Current master name: ${masterConfig.name || 'unknown'}`,
+          `Current master endpoint: ${masterEndpoint || 'unknown'}`,
+        ];
+        const candidateLocals = allAgents.filter(agent => agent.type === 'local');
+        if (candidateLocals.length > 0) {
+          debugLines.push('', 'Persisted local workers seen:');
+          for (const agent of candidateLocals) {
+            debugLines.push(`- ${agent.name} | ownerMasterId=${agent.ownerMasterId || 'none'} | ownerMasterName=${agent.ownerMasterName || 'none'} | ownerMasterEndpoint=${agent.ownerMasterEndpoint || 'none'}`);
+          }
+        }
         return {
-          content: [{ type: 'text', text: 'No persisted local workers matched the rehydration filter.' }],
+          content: [{ type: 'text', text: debugLines.join('\n') }],
           details: { matched: 0, restored: 0, alive: 0, failed: 0 },
         };
       }
