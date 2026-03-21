@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.79] - 2025-01-15
+
+### Fixed Peer Worker Chat Direct Execution and Peer Persona Workspace Targeting
+- Fixed peer-executed `agent_chat` to run on the peer master direct-tool path instead of the worker-tool streaming executor
+- This addresses the remaining `Tool not supported: agent_chat` failure for `agent_peer_chat` with `worker_name`
+- Improved connected-agent fallback workspace targeting for `agent_persona_set` and `agent_persona_show` so peer worker persona operations stop writing into the peer master workspace
+
+### Technical Changes
+- Updated direct master tool allowlist in `src/core/agent-server.ts`
+- Updated connected-agent fallback workspace handling in `src/tools/agentPersonaSet.ts`
+- Updated connected-agent fallback workspace handling in `src/tools/agentPersonaShow.ts`
+
 ## [0.4.78] - 2025-01-15
 
 ### Fixed Peer Worker Chat Routing and Peer Persona Connected-Agent Resolution

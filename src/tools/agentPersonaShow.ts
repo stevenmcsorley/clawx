@@ -86,7 +86,7 @@ export const agentPersonaShowTool: ToolDefinition = {
                 status: 'idle',
                 capabilities: connected.capabilities || [],
                 endpoint: connected.endpoint,
-                workspace: context?.workerWorkspace || context?.cwd || '',
+                workspace: (context?.masterWorkspace && resolvedWorkerName ? `${context.masterWorkspace.replace(/\\/g, '/')}/../${normalizedParams.agent_id}` : '') || context?.workerWorkspace || context?.cwd || '',
                 created: Date.now(),
                 lastHeartbeat: Date.now(),
               } as any;

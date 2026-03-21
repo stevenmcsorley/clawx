@@ -306,7 +306,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
       let result;
 
-      const isDirectMasterTool = ['agent_spawn_local', 'agent_list', 'agent_cleanup', 'agent_master_status', 'agent_persona_show', 'agent_persona_set'].includes(tool);
+      const isDirectMasterTool = ['agent_chat', 'agent_spawn_local', 'agent_list', 'agent_cleanup', 'agent_master_status', 'agent_persona_show', 'agent_persona_set'].includes(tool);
       if (isDirectMasterTool) {
         const toolCallId = `peer-master-tool-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         result = await Promise.race([
