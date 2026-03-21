@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.12] - 2025-01-15
+
+### Normalized Peer File-Tool Parameters
+- Updated peer task routing so common file-tool parameter aliases are normalized before dispatch
+- `write` now maps `file_path` → `path`
+- `edit` now maps `file_path` → `path`, `old_string` → `oldText`, and `new_string` → `newText`
+- `read` now accepts `file_path` as an alias for `path`
+- Fixes real scenario-testing failures where peer-routed file tools crashed on missing canonical parameter names
+
+### Technical Changes
+- Updated `src/tools/agentPeerSend.ts`
+
 ## [0.5.11] - 2025-01-15
 
 ### Safer Cleanup for Rehydratable Workers

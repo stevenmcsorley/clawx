@@ -2,15 +2,41 @@ import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
 import { extractReadablePeerValue, waitForPeerTaskResult } from './agentPeerTaskHelpers.js';
 
+function normalizePeerToolParams(tool: string, params: any): any {
+  if (!params || typeof params !== 'object') return params || {};
+
+  if (tool === 'write') {
+    return {
+      ...params,
+      ...(params.file_path && !params.path ? { path: params.file_path } : {}),
+    };
+  }
+
+  if (tool === 'edit') {
+    return {
+      ...params,
+      ...(params.file_path && !params.path ? { path: params.file_path } : {}),
+      ...(params.old_string && !params.oldText ? { oldText: params.old_string } : {}),
+      ...(params.new_string && !params.newText ? { newText: params.new_string } : {}),
+    };
+  }
+
+  if (tool === 'read') {
+    return {
+      ...params,
+      ...(params.file_path && !params.path ? { path: params.file_path } : {}),
+    };
+  }
+
+  return params;
+}
+
 function summarizePeerTaskDetail(tool: string, params: any): string {
   if (tool === 'bash' && typeof params?.command === 'string') {
     const oneLine = params.command.replace(/\s+/g, ' ').trim();
     return oneLine.length > 120 ? `${oneLine.slice(0, 117)}...` : oneLine;
   }
-  if (tool === 'read' && typeof params?.path === 'string') {
-    return params.path;
-  }
-  if (tool === 'write' && typeof params?.path === 'string') {
+  if ((tool === 'read' || tool === 'write' || tool === 'edit') && typeof params?.path === 'string') {
     return params.path;
   }
   if (tool === 'search_files' && typeof params?.pattern === 'string') {
@@ -40,7 +66,7 @@ export const agentPeerSendTool: ToolDefinition = {
     const peerName = params.peer_name;
     const workerName = params.worker_name;
     const tool = params.tool;
-    const toolParams = params.params || {};
+    const toolParams = normalizePeerToolParams(tool, params.params || {});
     const registry = new AgentRegistryManager();
     const peer = registry.getAgentByName(peerName);
     if (!peer || peer.type !== 'remote' || !peer.endpoint) {
