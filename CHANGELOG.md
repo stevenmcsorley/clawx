@@ -2,6 +2,22 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.96] - 2025-01-15
+
+### Documentation and Discovery Refresh
+- Rewrote the README around the current Clawx product: local coding agent, local worker/master orchestration, explicit LAN peer federation, and peer-hosted worker delegation
+- Added clearer quick starts for local workers and peer federation
+- Updated tool-group and use-case framing to match the currently proven runtime
+- Refreshed stale command/help discovery wording for peer-federation flows
+- Reduced temporary debug instrumentation noise while keeping the runtime fixes, worker logs, and spawn-truth improvements
+
+### Technical Changes
+- Updated `README.md`
+- Updated `src/tools/agentMasterStatus.ts`
+- Updated `src/cli/tui.ts`
+- Updated `src/cli/forge-tui.ts`
+- Added `docs/current-capabilities.md`
+
 ## [0.4.95] - 2025-01-15
 
 ### Fixed Spawn Success Truth for Port-Collision Cases
