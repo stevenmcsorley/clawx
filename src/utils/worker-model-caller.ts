@@ -9,6 +9,7 @@ import { streamSimple, type Context, type Message, type Model, type AssistantMes
 import { resolveModel } from "../core/provider.js";
 import { loadConfig } from "../config/index.js";
 import { log } from "./logger.js";
+import { getRecentConversationTurns } from "./persona-utils.js";
 import type { Persona, Memory, ConversationTurn } from "../types/persona.js";
 
 function detectOutputConstraints(message: string): { exactBulletCount?: number; exactNumberedCount?: number; jsonOnly?: boolean; observedFactsOnly?: boolean } {
@@ -145,6 +146,22 @@ export function buildConversationContext(
     }
   }
   
+  // Recent conversation/tool context
+  const recentTurns = getRecentConversationTurns(workspace, 8)
+    .filter(recentTurn => recentTurn.id !== turn.id)
+    .slice(0, 6);
+
+  if (recentTurns.length > 0) {
+    context += `## Recent Workspace History\n`;
+    for (const recentTurn of recentTurns.reverse()) {
+      const speaker = recentTurn.speaker === turn.speaker ? 'user/peer' : 'worker';
+      const message = String(recentTurn.message || '').replace(/\s+/g, ' ').trim();
+      const shortened = message.length > 220 ? `${message.slice(0, 217)}...` : message;
+      context += `- [${speaker}] ${shortened}\n`;
+    }
+    context += `\n`;
+  }
+
   // Conversation context
   context += `## Current Conversation\n`;
   context += `Speaker: ${turn.speaker}\n`;
@@ -158,7 +175,7 @@ export function buildConversationContext(
   context += `## Instructions\n`;
   context += `Respond as the agent persona described above.\n`;
   context += `Be authentic to the persona's tone, role, and decision style.\n`;
-  context += `Ground every claim in one of these sources only: the current user message, the Additional context above, the Memory Summary/Recent Context above, or real tool output generated in this turn.\n`;
+  context += `Ground every claim in one of these sources only: the current user message, the Additional context above, the Recent Workspace History above, the Memory Summary/Recent Context above, or real tool output generated in this turn.\n`;
   context += `If the user asks you to use only observed, verified, or provided facts, do exactly that and say you do not have evidence for anything else.\n`;
   context += `Do not introduce unrelated topics, imaginary tests, imaginary incidents, invented root causes, or facts not present in the allowed sources above.\n`;
   context += `If you need to execute a real action, use the available tools.\n`;

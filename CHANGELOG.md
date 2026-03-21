@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.17] - 2025-01-15
+
+### Grounded Worker Chat with Recent Workspace History
+- Worker chat prompts now include a short tail of recent `conversation-log.jsonl` history from the worker workspace
+- Helps workers answer later summary questions using recent observed actions and outputs, not just the current turn
+- Targets real scenario-testing failures where a worker forgot recent edits and command results when asked to summarize them afterward
+
+### Technical Changes
+- Updated `src/utils/worker-model-caller.ts`
+
 ## [0.5.16] - 2025-01-15
 
 ### Fixed Default `agent_list` Filtering After Health Reconciliation
