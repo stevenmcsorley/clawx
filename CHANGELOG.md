@@ -2,6 +2,23 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.73] - 2025-01-15
+
+### Added Peer Worker Chat and Persona Tools
+- `agent_peer_chat` now supports optional `worker_name` to route chat to a named worker behind a registered remote peer master
+- Added `agent_peer_persona_show` to inspect persona/memory for a named worker behind a peer master
+- Added `agent_peer_persona_set` to write/update persona for a named worker behind a peer master
+
+### Federation UX Expansion
+- Remote peer workers can now be treated more like first-class collaborators, not only task targets
+- Keeps routing explicit through `peer_name` + `worker_name`
+
+### Technical Changes
+- Updated `src/tools/agentPeerChat.ts` to resolve remote workers via peer `/agents`
+- Added `src/tools/agentPeerPersonaShow.ts`
+- Added `src/tools/agentPeerPersonaSet.ts`
+- Registered new peer persona tools in `src/cli/tui.ts`
+
 ## [0.4.72] - 2025-01-15
 
 ### Added Remote Worker Visibility Tool

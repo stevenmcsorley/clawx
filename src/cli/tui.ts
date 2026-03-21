@@ -127,6 +127,8 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     const { agentPeerChatTool } = await import('../tools/agentPeerChat.js');
     const { agentPeerSendTool } = await import('../tools/agentPeerSend.js');
     const { agentPeerListWorkersTool } = await import('../tools/agentPeerListWorkers.js');
+    const { agentPeerPersonaShowTool } = await import('../tools/agentPeerPersonaShow.js');
+    const { agentPeerPersonaSetTool } = await import('../tools/agentPeerPersonaSet.js');
     const { agentPeerServeTool } = await import('../tools/agentPeerServe.js');
     // Persona tools
     const { agentPersonaShowTool } = await import('../tools/agentPersonaShow.js');
@@ -149,6 +151,8 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     tools.push(toolToDefinition(agentPeerChatTool));
     tools.push(toolToDefinition(agentPeerSendTool));
     tools.push(toolToDefinition(agentPeerListWorkersTool));
+    tools.push(toolToDefinition(agentPeerPersonaShowTool));
+    tools.push(toolToDefinition(agentPeerPersonaSetTool));
     tools.push(toolToDefinition(agentPeerServeTool));
     // Persona tools
     tools.push(toolToDefinition(agentPersonaShowTool));
