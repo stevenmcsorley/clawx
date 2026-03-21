@@ -35,6 +35,7 @@ export function createAgentCommand(): Command {
     .option('--grpc-master <url>', 'Master gRPC endpoint for live communication (grpc://host:port)')
     .option('--workspace <path>', 'Workspace directory')
     .option('--master-workspace <path>', 'Master workspace directory to mirror for worker task context')
+    .option('--allowed-tools <tools>', 'Comma-separated allowed tools for this worker')
     .option('-v, --verbose', 'Verbose logging')
     .action(async (options) => {
       try {

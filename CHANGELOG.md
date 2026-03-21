@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.8] - 2025-01-15
+
+### Fixed Worker Serve CLI Allowed-Tools Option
+- Added `--allowed-tools` support to `clawx agent serve`
+- Fixes restored workers exiting immediately during rehydration with `error: unknown option '--allowed-tools'`
+- Unblocks the rehydration path now that it reuses the hardened `agent_spawn_local` spawn flow
+
+### Technical Changes
+- Updated `src/cli/agent.ts`
+
 ## [0.5.7] - 2025-01-15
 
 ### Reused Hardened Spawn Path for Worker Rehydration
