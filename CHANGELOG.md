@@ -2,6 +2,27 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.19] - 2025-01-15
+
+### Fixed Misleading Upstream Update Banners in Clawx TUI
+- Suppressed `pi-coding-agent` startup update notices in the main TUI, Forge, and Scout
+- Prevents Clawx from showing upstream package install commands and changelog links that are not the correct update path for Clawx users
+- Restores truthful startup messaging after an upstream-style update banner regressed back into the Clawx experience
+
+### Documentation
+- Added a dedicated Forge guide covering extension ideas, MCP ideas, guard-style safety helpers, and HuggingFace-backed capability discovery
+- Expanded README links and Forge documentation discoverability
+- Added a larger prompting guide with broader example prompts and use cases
+
+### Technical Changes
+- Updated `src/cli/tui.ts`
+- Updated `src/cli/forge-tui.ts`
+- Updated `src/cli/scout.ts`
+- Updated `README.md`
+- Added `docs/forge-guide.md`
+- Added `docs/prompting-guide.md`
+- Updated `docs/current-capabilities.md`
+
 ## [0.5.18] - 2025-01-15
 
 ### Added Worker Continuity for Delegated Task Results
