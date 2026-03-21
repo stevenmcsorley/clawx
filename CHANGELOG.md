@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.4] - 2025-01-15
+
+### Added Rehydration Execution Tracing
+- Added targeted logging inside `agent_rehydrate_workers` for matched workers, alive checks, respawn attempts, health polls, and restore success/failure
+- Intended to isolate where the still-incomplete rehydration flow stalls after discovery and ownership matching have been fixed
+- Keeps the tracing narrow to the rehydration path rather than reintroducing broad transport noise
+
+### Technical Changes
+- Updated `src/tools/agentRehydrateWorkers.ts`
+
 ## [0.5.3] - 2025-01-15
 
 ### Switched Worker Rehydration Discovery to Filesystem-First

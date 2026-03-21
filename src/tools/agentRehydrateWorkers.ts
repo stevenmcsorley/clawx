@@ -135,10 +135,13 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
       const failed: string[] = [];
       const skipped: string[] = [];
 
+      log.info(`[rehydrate] matched ${agents.length} worker(s) for master ${masterConfig.name} @ ${masterEndpoint}`);
+
       for (const entry of agents) {
         const agent = entry.agent;
         const configPath = entry.configPath;
         const workerConfig = entry.workerConfig;
+        log.info(`[rehydrate] processing ${agent.name} (${agent.id}) from ${configPath}`);
         if (!existsSync(configPath)) {
           failed.push(`${agent.name}: missing agent-config.json`);
           continue;
@@ -148,20 +151,24 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
         let healthy = false;
         try {
           healthy = await checkAgentHealth(endpoint, 2000);
+          log.info(`[rehydrate] health check for ${agent.name} at ${endpoint}: ${healthy}`);
           if (healthy) {
             const healthResponse = await fetch(`${endpoint}/health`);
             if (healthResponse.ok) {
               const healthJson = await healthResponse.json() as any;
+              log.info(`[rehydrate] ${agent.name} health agentId=${healthJson?.agentId || 'unknown'}`);
               if (healthJson?.agentId === agent.id) {
                 agent.status = 'idle';
                 agent.lastHeartbeat = Date.now();
                 registry.upsertAgent(agent);
                 alive.push(agent.name);
+                log.info(`[rehydrate] ${agent.name} already alive`);
                 continue;
               }
             }
           }
-        } catch {
+        } catch (error) {
+          log.info(`[rehydrate] ${agent.name} alive check failed: ${error instanceof Error ? error.message : String(error)}`);
           // continue to respawn path
         }
 
@@ -191,6 +198,7 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
           args.push('--allowed-tools', workerConfig.allowedTools.join(','));
         }
 
+        log.info(`[rehydrate] respawning ${agent.name} on port ${workerConfig.port}`);
         const child = spawn(process.execPath, [process.argv[1], ...args], {
           cwd: workerConfig.workspace,
           stdio: ['ignore', 'ignore', 'ignore'],
@@ -206,17 +214,21 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
         while (Date.now() - start < 15000) {
           try {
             const ok = await checkAgentHealth(endpoint, 2000);
+            log.info(`[rehydrate] poll ${agent.name} health=${ok}`);
             if (ok) {
               const verify = await fetch(`${endpoint}/health`);
               if (verify.ok) {
                 const verifyJson = await verify.json() as any;
+                log.info(`[rehydrate] poll ${agent.name} agentId=${verifyJson?.agentId || 'unknown'}`);
                 if (verifyJson?.agentId === agent.id) {
                   restoredHealthy = true;
                   break;
                 }
               }
             }
-          } catch {}
+          } catch (error) {
+            log.info(`[rehydrate] poll ${agent.name} error: ${error instanceof Error ? error.message : String(error)}`);
+          }
           await new Promise(resolve => setTimeout(resolve, 500));
         }
 
@@ -225,11 +237,13 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
           agent.lastHeartbeat = Date.now();
           registry.upsertAgent(agent);
           restored.push(agent.name);
+          log.info(`[rehydrate] restored ${agent.name}`);
         } else {
           agent.status = 'offline';
           agent.lastHeartbeat = Date.now();
           registry.upsertAgent(agent);
           failed.push(`${agent.name}: failed to restore`);
+          log.warn(`[rehydrate] failed to restore ${agent.name}`);
         }
       }
 
