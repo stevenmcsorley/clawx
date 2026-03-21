@@ -5,13 +5,21 @@
 [![npm version](https://img.shields.io/npm/v/@halfagiraf/clawx)](https://www.npmjs.com/package/@halfagiraf/clawx) [![license](https://img.shields.io/npm/l/@halfagiraf/clawx)](https://github.com/stevenmcsorley/clawx/blob/main/LICENSE) [![downloads](https://img.shields.io/npm/dm/@halfagiraf/clawx)](https://www.npmjs.com/package/@halfagiraf/clawx)
 
 Terminal-first coding and execution agent with:
-- local tool-using workflows
-- a hardened local worker pool
+- local coding-agent workflows
+- headless npm/package usage for scripts, CI, and app backends
+- a hardened local worker pool with persona and memory
 - explicit LAN peer-master federation
 - peer-hosted worker delegation across Windows, Ubuntu, and Raspberry Pi
+- Forge for extension/capability discovery and scaffolding
+- Scout for model/dataset exploration workflows
 - gRPC as the canonical live master↔worker transport
 
-Clawx can be used as a local coding agent, a local worker/master orchestration system, or an explicit multi-machine control plane across peer masters and peer-hosted workers.
+Clawx can be used as:
+- a coding agent in the terminal
+- a headless coding/automation engine in Node apps
+- a local worker/master orchestration system
+- an explicit multi-machine control plane across peer masters and peer-hosted workers
+- an extension/capability builder through Forge
 
 > **Always update before use — this project is in active development and can change quickly:**
 > ```bash
@@ -28,9 +36,12 @@ Clawx started because tools like OpenClaw kept getting heavier. Prompts balloone
 
 Clawx can now be used as:
 - a local terminal-first coding agent
+- a headless npm package inside scripts, CI jobs, and app backends
 - a local worker/master orchestration system
 - an explicit LAN peer-federation system
 - a remote worker control plane from one master to another
+- a capability-discovery and extension-scaffolding surface through Forge
+- a research-oriented model/dataset exploration surface through Scout
 
 That means one machine can:
 - register another master on the LAN
@@ -40,6 +51,20 @@ That means one machine can:
 - send them real delegated tool tasks
 - get real results back
 - restart a peer master and have eligible persisted workers come back automatically
+
+## Why this is different
+
+Clawx is not only a single local coding chat.
+
+It already combines several real modes that are easy to miss if you only skim the README:
+- **Coding agent** — normal terminal coding and execution workflow
+- **Programmatic npm usage** — run Clawx headlessly inside scripts, CI, and app backends
+- **Workers** — explicit local worker/master orchestration
+- **Peer federation** — explicit LAN master-to-master worker delegation
+- **Forge** — research and scaffold new Clawx capabilities/extensions
+- **Scout** — explore model and dataset options for capability work and research
+
+Those are real current product directions, but they are not all equally productized yet. The most mature paths today are the coding-agent flow, worker/peer runtime, and headless programmatic task execution.
 
 ## What is proven right now
 
@@ -113,6 +138,23 @@ Instead of hidden mention routing or heuristic collaboration, Clawx uses explici
 - target named peer-hosted workers
 - send real delegated tasks
 - inspect truthful status/results
+
+### 7. Programmatic backend task engine
+Clawx can also be installed as an npm package and used from Node.js for:
+- headless codegen
+- scripted multi-turn runs
+- CI automation
+- backend task execution inside larger apps
+
+### 8. Forge capability building
+Forge can be used to:
+- explore HuggingFace models and datasets
+- inspect existing extensions
+- scaffold new Clawx capabilities
+- prototype MCP/tool ideas and guard-style safety helpers
+
+### 9. Scout research workflows
+Scout is the research-oriented mode for exploring model and dataset options and comparing possibilities before you commit to implementation work.
 
 ## Quick start
 
@@ -467,6 +509,19 @@ Clawx uses the pi-coding-agent interactive TUI as its main interface.
 
 If a model does not support structured tool calling, Clawx can fall back to chat mode or use text-tool parsing where supported.
 
+## Programmatic usage
+
+Clawx can also be used programmatically as an npm package for headless tasks, multi-turn scripted runs, CI/codegen, and backend integration.
+
+The repo already includes examples under [`examples/`](examples/) such as:
+- `run-task.mjs`
+- `multi-turn.mjs`
+- `custom-config.mjs`
+- `ci-codegen.mjs`
+
+For the current programmatic usage story, exported API surface, examples, and guidance on embedding Clawx in a larger app, see:
+- [`docs/programmatic-usage.md`](docs/programmatic-usage.md)
+
 ## Forge
 
 Forge is Clawx’s extension-building mode.
@@ -502,6 +557,7 @@ Current limitations still include:
 - [`docs/current-capabilities.md`](docs/current-capabilities.md) — current proven runtime/capability status
 - [`docs/prompting-guide.md`](docs/prompting-guide.md) — example prompts for peer network management, worker usage, and operational requests
 - [`docs/forge-guide.md`](docs/forge-guide.md) — what Forge is good for, what kinds of capabilities fit Clawx well, and ideas for MCPs, guard tools, and HuggingFace-backed extensions
+- [`docs/programmatic-usage.md`](docs/programmatic-usage.md) — how to use Clawx as an npm package in scripts, CI, and larger apps
 
 ## License
 
