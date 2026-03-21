@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.1] - 2025-01-15
+
+### Fixed Worker Config Rewrite Losing Rehydration Metadata
+- Updated `src/cli/agent.ts` so worker startup preserves fields already written into `agent-config.json`
+- Fixes the spawned worker process rewriting config and dropping `ownerMasterId`, `ownerMasterName`, `ownerMasterEndpoint`, and `autoStart`
+- Unblocks explicit worker rehydration by keeping ownership metadata intact across the worker startup sequence
+
+### Technical Changes
+- Updated `src/cli/agent.ts`
+
 ## [0.5.0] - 2025-01-15
 
 ### Fixed Owner Metadata Persistence for Peer-Routed Worker Spawns

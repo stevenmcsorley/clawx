@@ -98,14 +98,28 @@ async function serveAgent(options: any): Promise<void> {
   log.info(`Port: ${port === 0 ? 'auto' : port}`);
 
   // Write agent config - masterEndpoint will be updated after server starts
+  const existingConfigPath = join(workspace, 'agent-config.json');
+  let persistedConfig: any = {};
+  try {
+    if (existsSync(existingConfigPath)) {
+      persistedConfig = JSON.parse(readFileSync(existingConfigPath, 'utf8'));
+    }
+  } catch {
+    persistedConfig = {};
+  }
+
   const config = {
     id: agentId,
     name: agentName,
     port,
     workspace,
-    masterWorkspace: options.masterWorkspace || '',
-    masterEndpoint: options.master || '', // Will be set after server starts
-    allowedTools: options.allowedTools ? options.allowedTools.split(',') : [],
+    masterWorkspace: options.masterWorkspace || persistedConfig.masterWorkspace || '',
+    masterEndpoint: options.master || persistedConfig.masterEndpoint || '', // Will be set after server starts
+    allowedTools: options.allowedTools ? options.allowedTools.split(',') : (persistedConfig.allowedTools || []),
+    ownerMasterId: persistedConfig.ownerMasterId,
+    ownerMasterName: persistedConfig.ownerMasterName,
+    ownerMasterEndpoint: persistedConfig.ownerMasterEndpoint,
+    autoStart: persistedConfig.autoStart,
   };
 
   const configPath = join(workspace, 'agent-config.json');
