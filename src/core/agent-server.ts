@@ -57,11 +57,28 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
   const tasks = new Map<string, AgentTask>();
   const registry = new AgentRegistryManager();
   
+  function sanitizeForRegistry<T>(value: T): T {
+    try {
+      return JSON.parse(JSON.stringify(value, (_key, current) => {
+        if (typeof current === 'function') return undefined;
+        if (current && typeof current === 'object') {
+          const ctor = current.constructor?.name;
+          if (ctor === 'GrpcServer' || ctor === 'ServerResponse' || ctor === 'IncomingMessage' || ctor === 'Socket' || ctor === 'TreeNode') {
+            return undefined;
+          }
+        }
+        return current;
+      }));
+    } catch {
+      return value;
+    }
+  }
+
   // Helper to sync task to registry
   function syncTaskToRegistry(taskId: string) {
     const task = tasks.get(taskId);
     if (task) {
-      registry.addTask(task);
+      registry.addTask(sanitizeForRegistry(task));
       registry.save();
     }
   }
@@ -91,9 +108,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       if (registryTask) {
         registryTask.status = status;
         registryTask.completed = Date.now();
-        if (result !== undefined) registryTask.result = result;
+        if (result !== undefined) registryTask.result = sanitizeForRegistry(result);
         if (error !== undefined) registryTask.error = error;
-        registry.addTask(registryTask);
+        registry.addTask(sanitizeForRegistry(registryTask));
         registry.save();
       }
     }
@@ -340,7 +357,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       // Update task with result
       task.status = 'completed';
       task.completed = Date.now();
-      task.result = result;
+      task.result = sanitizeForRegistry(result);
       syncTaskToRegistry(taskId);
       
       log.info(`Task ${taskId} completed successfully`);
@@ -413,7 +430,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
           id: taskId,
           agentId: targetAgentId,
           type: 'execute',
-          payload: { tool, params, context: effectiveContext },
+          payload: sanitizeForRegistry({ tool, params, context: effectiveContext }),
           status: 'running',
           created: Date.now(),
           started: Date.now(),
@@ -489,7 +506,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
         id: taskId,
         agentId: config.id,
         type: 'execute',
-        payload: { tool, params, context: effectiveContext },
+        payload: sanitizeForRegistry({ tool, params, context: effectiveContext }),
         status: 'pending',
         created: Date.now(),
       };

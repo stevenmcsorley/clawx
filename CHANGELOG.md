@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.86] - 2025-01-15
+
+### Fixed Task Registry Persistence for Peer-Routed Worker Tasks
+- Added registry-safe task/result sanitization in `agent-server` before persisting task payloads and results
+- Prevents circular runtime objects from entering the file registry and causing `Converting circular structure to JSON` failures
+- Aims to stop peer-routed worker tasks from getting stuck in `running` due to broken registry/task bookkeeping during soak-style repeated operations
+
+### Technical Changes
+- Updated `src/core/agent-server.ts`
+
 ## [0.4.85] - 2025-01-15
 
 ### Fixed Peer Memory Tool Execution and Connected-Agent Resolution
