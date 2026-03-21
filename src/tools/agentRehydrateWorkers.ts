@@ -5,7 +5,6 @@ import { checkAgentHealth } from '../utils/agent-utils.js';
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { spawn } from 'child_process';
 import { log } from '../utils/logger.js';
 
 export const agentRehydrateWorkersTool: ToolDefinition = {
@@ -176,42 +175,42 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
           // continue to respawn path
         }
 
-        const args = [
-          'agent', 'serve',
-          '--id', workerConfig.id,
-          '--name', workerConfig.name,
-          '--port', String(workerConfig.port),
-          '--master', workerConfig.masterEndpoint || masterEndpoint,
-          '--workspace', workerConfig.workspace,
-          '--verbose',
-        ];
-
-        if (workerConfig.masterWorkspace) {
-          args.push('--master-workspace', workerConfig.masterWorkspace);
-        }
-
-        const healthResponse = await fetch(`${masterEndpoint}/health`);
-        if (healthResponse.ok) {
-          const healthJson = await healthResponse.json() as any;
-          if (healthJson?.grpcPort) {
-            args.push('--grpc-master', `grpc://localhost:${healthJson.grpcPort}`);
-          }
-        }
-
+        log.info(`[rehydrate] respawning ${agent.name} on port ${workerConfig.port} via agent_spawn_local helper path`);
+        const { agentSpawnLocalTool } = await import('./agentSpawnLocal.js');
+        const rehydrateParams: any = {
+          name: workerConfig.name,
+          port: workerConfig.port,
+          master_endpoint: workerConfig.masterEndpoint || masterEndpoint,
+        };
         if (Array.isArray(workerConfig.allowedTools) && workerConfig.allowedTools.length > 0) {
-          args.push('--allowed-tools', workerConfig.allowedTools.join(','));
+          rehydrateParams.allowed_tools = workerConfig.allowedTools;
         }
 
-        log.info(`[rehydrate] respawning ${agent.name} on port ${workerConfig.port}`);
-        const child = spawn(process.execPath, [process.argv[1], ...args], {
-          cwd: workerConfig.workspace,
-          stdio: ['ignore', 'ignore', 'ignore'],
-          detached: true,
-          shell: false,
-          windowsHide: true,
-        });
+        const rehydrateContext = {
+          ...(context || {}),
+          __activeMasterConfig: {
+            ...(masterConfig || {}),
+            id: workerConfig.ownerMasterId || masterConfig.id,
+            name: workerConfig.ownerMasterName || masterConfig.name,
+            workspace: workerConfig.masterWorkspace || masterConfig.workspace,
+            masterEndpoint: workerConfig.ownerMasterEndpoint || masterEndpoint,
+          },
+          masterEndpoint: workerConfig.ownerMasterEndpoint || workerConfig.masterEndpoint || masterEndpoint,
+        };
 
-        try { child.unref(); } catch {}
+        const spawnResult = await agentSpawnLocalTool.execute(
+          `rehydrate-${agent.id}`,
+          rehydrateParams,
+          undefined,
+          undefined,
+          rehydrateContext,
+        );
+
+        if ((spawnResult as any)?.isError) {
+          failed.push(`${agent.name}: ${((spawnResult as any)?.details?.error || 'failed to respawn')}`);
+          log.warn(`[rehydrate] spawn helper failed for ${agent.name}: ${((spawnResult as any)?.details?.error || 'failed to respawn')}`);
+          continue;
+        }
 
         let restoredHealthy = false;
         const start = Date.now();

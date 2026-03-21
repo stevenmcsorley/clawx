@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.7] - 2025-01-15
+
+### Reused Hardened Spawn Path for Worker Rehydration
+- Replaced the custom worker respawn implementation inside `agent_rehydrate_workers` with the same hardened `agent_spawn_local` execution path used for normal worker creation
+- Removes a duplicate spawn mechanism that had drifted from the proven installed-runtime/local-runtime behavior
+- Aligns rehydration with the already validated cross-platform spawn, health verification, and runtime context handling logic
+
+### Technical Changes
+- Updated `src/tools/agentRehydrateWorkers.ts`
+
 ## [0.5.6] - 2025-01-15
 
 ### Tightened Rehydration Candidate Filtering
