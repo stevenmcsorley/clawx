@@ -235,34 +235,67 @@ clawx agent_result --task_id <id>
 clawx agent_cleanup --force true
 ```
 
+## Clean peer network setup
+
+This is the simplest truthful path for bringing up a peer network from a fresh/clean session.
+
+### 1. Start peer masters from a shell on the remote machines
+
+On Ubuntu:
+
+```bash
+clawx agent serve --name ubuntu-master --port 43210
+```
+
+On Raspberry Pi:
+
+```bash
+clawx agent serve --name pi-master --port 43215
+```
+
+If you are recovering from historical worker clutter or just want the cleanest startup during demos/testing, use:
+
+```bash
+clawx agent serve --name ubuntu-master --port 43210 --no-auto-rehydrate
+clawx agent serve --name pi-master --port 43215 --no-auto-rehydrate
+```
+
+`agent_peer_serve` is available as an in-session Clawx tool, but it is not currently an installed standalone CLI subcommand. For shell startup on a machine, use `clawx agent serve`.
+
+### 2. From your main machine, register each peer
+
+```text
+agent_peer_add(name="ubuntu-master", endpoint="http://192.168.1.183:43210")
+agent_peer_add(name="pi-master", endpoint="http://192.168.1.198:43215")
+```
+
+### 3. Verify the peer network from the main machine
+
+```text
+agent_master_status(check_health=true)
+agent_peer_list_workers(peer_name="ubuntu-master")
+agent_peer_list_workers(peer_name="pi-master")
+```
+
+If the peers are up but no workers are connected yet, that is fine — the peer network is still working.
+
 ## Peer federation quick start
 
-### 1. Start a peer master
-On the remote machine:
+Once the peer masters are reachable, you can start using peer-hosted workers.
 
-```bash
-clawx agent_peer_serve --name ubuntu-master --port 43210
-```
-
-### 2. Register that peer from your main machine
-
-```bash
-clawx agent_peer_add --name ubuntu-master --endpoint http://192.168.1.183:43210
-```
-
-### 3. Inspect peer workers
-
-```bash
-clawx agent_peer_list_workers --peer_name ubuntu-master
-```
-
-### 4. Spawn a worker behind the peer master
+### 1. Spawn a worker behind the peer master
 
 ```bash
 clawx agent_peer_send --peer_name ubuntu-master --tool agent_spawn_local --params '{"name":"remote-worker"}'
 ```
 
-### 5. Send delegated tool tasks to that peer-hosted worker
+### 2. Inspect peer workers
+
+```bash
+clawx agent_peer_list_workers --peer_name ubuntu-master
+```
+
+### 3. Send delegated tool tasks to that peer-hosted worker
 
 ```bash
 clawx agent_peer_send --peer_name ubuntu-master --worker_name remote-worker --tool bash --params '{"command":"echo hello && pwd"}'
@@ -270,13 +303,13 @@ clawx agent_peer_send --peer_name ubuntu-master --worker_name remote-worker --to
 clawx agent_peer_send --peer_name ubuntu-master --worker_name remote-worker --tool read --params '{"path":"agent-config.json"}'
 ```
 
-### 6. Chat with the peer-hosted worker
+### 4. Chat with the peer-hosted worker
 
 ```bash
 clawx agent_peer_chat --peer_name ubuntu-master --worker_name remote-worker --message "Summarize your workspace"
 ```
 
-### 7. Manage persona and memory on the peer-hosted worker
+### 5. Manage persona and memory on the peer-hosted worker
 
 ```bash
 clawx agent_peer_persona_show --peer_name ubuntu-master --worker_name remote-worker
@@ -284,6 +317,74 @@ clawx agent_peer_persona_set --peer_name ubuntu-master --worker_name remote-work
 clawx agent_peer_memory_show --peer_name ubuntu-master --worker_name remote-worker
 clawx agent_peer_memory_update --peer_name ubuntu-master --worker_name remote-worker --summary "Handles Ubuntu build and inspection tasks"
 ```
+
+## Non-destructive peer-network demo ideas
+
+If you want to show off peer networking in a video without doing destructive operations, good demos include:
+
+### 1. Show clean network bring-up
+- start Ubuntu and Pi peer masters from shell
+- register both from Windows
+- run `agent_master_status`
+- show that both peers are reachable and idle
+
+### 2. Compare machine memory across peers
+Use peer-hosted workers to run:
+- `free -h`
+- `/proc/meminfo` summaries
+
+This is a nice demo because it shows one control plane inspecting multiple machines consistently.
+
+### 3. Compare disk / filesystem layout
+Examples:
+- `df -h`
+- `pwd`
+- `ls -la ~`
+- inspect selected safe directories like `~/apps`
+
+### 4. Compare process / service snapshots
+Examples:
+- `ps -ef | head`
+- `uptime`
+- `uname -a`
+- `node -v`
+- `npm -v`
+
+### 5. Compare repo or app inventory across machines
+Examples:
+- list app directories
+- inspect a repo root
+- compare config files or docs
+- read a README from Ubuntu, then one from Pi
+
+### 6. Show explicit targeting instead of hidden routing
+Demo that you can:
+- query Ubuntu intentionally
+- query Pi intentionally
+- keep the result source obvious
+- avoid fake “the swarm figured it out” behavior
+
+### 7. Show peer-hosted worker identity and continuity
+Non-destructive examples:
+- give a worker an ops persona
+- ask it to inspect a machine
+- ask a later follow-up about what it found
+
+### 8. Show cross-machine comparison from one place
+Examples:
+- compare memory usage
+- compare installed Node versions
+- compare running app folders
+- compare machine role and purpose
+
+### 9. Show why the peer network is useful
+Benefits you can demonstrate honestly:
+- one control plane across multiple machines
+- explicit machine targeting
+- real remote execution, not pretend summarization
+- peer-hosted workers with identity/persona/memory
+- safe non-destructive ops visibility before making changes
+- useful for home labs, Raspberry Pi setups, dev boxes, and remote build/debug machines
 
 ## Triple-OS peer federation example
 
@@ -379,7 +480,7 @@ This makes Clawx useful as a small explicit multi-machine control plane for:
 - `agent_peer_add`
 - `agent_peer_chat`
 - `agent_peer_send`
-- `agent_peer_serve`
+- `agent_peer_serve` *(tool available inside Clawx sessions; not a standalone installed CLI command)*
 - `agent_peer_list_workers`
 
 ### Persona / memory tools
