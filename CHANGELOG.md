@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.84] - 2025-01-15
+
+### Fixed Rich Peer Worker Inventory to Avoid Circular Task Registry Failures
+- Reworked `agent_peer_list_workers` enrichment to avoid nested peer `/task` calls for persona/memory inspection
+- Worker inventory now derives workspace from connected worker IDs and reads persona/memory summaries directly from the worker workspace path instead of creating extra peer task records
+- Prevents `Converting circular structure to JSON` failures caused by task results capturing live runtime objects during recursive peer inventory enrichment
+
+### Technical Changes
+- Simplified `src/tools/agentPeerListWorkers.ts`
+
 ## [0.4.83] - 2025-01-15
 
 ### Added Peer Memory Tools and Richer Peer Worker Inventory

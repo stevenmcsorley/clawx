@@ -1,6 +1,6 @@
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
-import { resolvePeerWorkerId } from './agentPeerTaskHelpers.js';
+import { loadPersona, loadMemory } from '../utils/persona-utils.js';
 
 function summarizeText(value: string | undefined, max = 120): string {
   if (!value) return 'n/a';
@@ -49,103 +49,21 @@ export const agentPeerListWorkersTool: ToolDefinition = {
         };
       }
 
-      const enrichedWorkers = await Promise.all(workers.map(async (worker: any) => {
-        try {
-          const targetAgentId = await resolvePeerWorkerId(peer.endpoint!, peer.name, worker.name);
-
-          const personaResp = await fetch(`${peer.endpoint}/task`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-clawx-peer-name': 'peer-master',
-              'x-clawx-peer-source': 'peer-master',
-            },
-            body: JSON.stringify({
-              tool: 'agent_persona_show',
-              params: { agent_id: targetAgentId, show_memory: false, show_conversation: false },
-              context: { __transport: 'peer_http', remoteWorkerName: worker.name },
-            }),
-          });
-
-          const memoryResp = await fetch(`${peer.endpoint}/task`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-clawx-peer-name': 'peer-master',
-              'x-clawx-peer-source': 'peer-master',
-            },
-            body: JSON.stringify({
-              tool: 'agent_memory_show',
-              params: { agent_id: targetAgentId, recent_turns: 0 },
-              context: { __transport: 'peer_http', remoteWorkerName: worker.name },
-            }),
-          });
-
-          let personaSummary = 'none';
-          let memorySummary = 'none';
-
-          if (personaResp.ok) {
-            const personaAccepted: any = await personaResp.json();
-            const personaTaskId = personaAccepted.taskId || personaAccepted.id;
-            if (personaTaskId) {
-              const personaResultResp = await fetch(`${peer.endpoint}/task/${personaTaskId}/result`);
-              if (personaResultResp.ok) {
-                const personaResult: any = await personaResultResp.json();
-                const text = personaResult?.result?.content?.map((item: any) => item?.text).filter(Boolean).join('\n') || '';
-                if (text.includes('No persona file found')) {
-                  personaSummary = 'none';
-                } else {
-                  const roleMatch = text.match(/\*\*Role\*\*: (.+)/);
-                  const nameMatch = text.match(/## (.+)/);
-                  const personaName = nameMatch?.[1]?.trim();
-                  const personaRole = roleMatch?.[1]?.trim();
-                  personaSummary = summarizeText([personaName, personaRole].filter(Boolean).join(' — '));
-                }
-              }
-            }
-          }
-
-          if (memoryResp.ok) {
-            const memoryAccepted: any = await memoryResp.json();
-            const memoryTaskId = memoryAccepted.taskId || memoryAccepted.id;
-            if (memoryTaskId) {
-              const memoryResultResp = await fetch(`${peer.endpoint}/task/${memoryTaskId}/result`);
-              if (memoryResultResp.ok) {
-                const memoryResult: any = await memoryResultResp.json();
-                const text = memoryResult?.result?.content?.map((item: any) => item?.text).filter(Boolean).join('\n') || '';
-                if (text.includes('No memory file found')) {
-                  memorySummary = 'none';
-                } else {
-                  const summaryMatch = text.match(/## Summary\n([\s\S]*?)\n\n\*\*Updated\*\*/);
-                  memorySummary = summarizeText(summaryMatch?.[1]);
-                }
-              }
-            }
-          }
-
-          return {
-            id: worker.id,
-            name: worker.name,
-            status: worker.status || 'connected',
-            endpoint: worker.endpoint,
-            workspace: worker.workspace || `~/.clawx/agents/${worker.id}`,
-            persona_summary: personaSummary,
-            memory_summary: memorySummary,
-            allowed_tools: worker.capabilities?.length ? worker.capabilities : ['all'],
-          };
-        } catch {
-          return {
-            id: worker.id,
-            name: worker.name,
-            status: worker.status || 'connected',
-            endpoint: worker.endpoint,
-            workspace: worker.workspace || `~/.clawx/agents/${worker.id}`,
-            persona_summary: 'unknown',
-            memory_summary: 'unknown',
-            allowed_tools: worker.capabilities?.length ? worker.capabilities : ['all'],
-          };
-        }
-      }));
+      const enrichedWorkers = workers.map((worker: any) => {
+        const workspace = worker.workspace || `~/.clawx/agents/${worker.id}`;
+        const persona = loadPersona(workspace);
+        const memory = loadMemory(workspace);
+        return {
+          id: worker.id,
+          name: worker.name,
+          status: worker.status || 'connected',
+          endpoint: worker.endpoint,
+          workspace,
+          persona_summary: persona ? summarizeText(`${persona.name} — ${persona.role}`) : 'none',
+          memory_summary: memory ? summarizeText(memory.summary) : 'none',
+          allowed_tools: worker.capabilities?.length ? worker.capabilities : ['all'],
+        };
+      });
 
       const lines = enrichedWorkers.map((worker: any) => {
         const status = worker.status || 'connected';
