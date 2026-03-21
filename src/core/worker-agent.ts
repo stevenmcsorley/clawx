@@ -306,7 +306,12 @@ export class WorkerAgent {
               this.grpcClient!.sendToolStderr(parentOperationId, 'server', event.data);
               break;
             case 'tool_finished':
-              this.grpcClient!.sendToolFinished(parentOperationId, 'server', event.result);
+              this.grpcClient!.sendToolFinished(parentOperationId, 'server', {
+                success: event.result?.success,
+                output: event.result?.output,
+                details: event.result?.details,
+                error: event.result?.error,
+              });
               break;
           }
         },

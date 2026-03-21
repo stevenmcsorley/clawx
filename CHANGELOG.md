@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.88] - 2025-01-15
+
+### Narrowed Worker Tool-Finished Payloads for Delegated gRPC Task Stability
+- Reduced worker `tool_finished` payloads to a sanitized result shape (`success`, `output`, `details`, `error`) instead of forwarding the full execution result object
+- Complements the `0.4.87` `task_completed` narrowing so both worker→master result-bearing task frames avoid problematic nested runtime structures
+- Aims to improve peer-routed delegated worker `bash` task completion reliability
+
+### Technical Changes
+- Updated `src/core/worker-agent.ts`
+
 ## [0.4.87] - 2025-01-15
 
 ### Narrowed Worker Task Completion Payloads for Delegated Task Stability
