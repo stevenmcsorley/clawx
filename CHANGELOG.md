@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.99] - 2025-01-15
+
+### Fixed Rehydration Tool Runtime Context Resolution
+- Updated `agent_rehydrate_workers` to use injected active master runtime context (`__activeMasterConfig`, `masterEndpoint`) before falling back to the in-process singleton
+- Fixes the peer/master restart case where rehydration was invoked through `agent_peer_send` but reported `No active master context`
+- Keeps the explicit worker rehydration flow compatible with peer-executed direct master tools after restart
+
+### Technical Changes
+- Updated `src/tools/agentRehydrateWorkers.ts`
+
 ## [0.4.98] - 2025-01-15
 
 ### Added Explicit Worker Rehydration for Persisted Local Workers

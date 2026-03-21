@@ -34,11 +34,11 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
     required: [],
   },
 
-  async execute(_toolCallId: string, params: any) {
+  async execute(_toolCallId: string, params: any, _signal?: AbortSignal, _onUpdate?: any, context?: any) {
     try {
       const registry = new AgentRegistryManager();
-      const masterConfig = agentMaster.getConfig();
-      const masterEndpoint = agentMaster.getEndpoint() || masterConfig?.masterEndpoint;
+      const masterConfig = context?.__activeMasterConfig || agentMaster.getConfig();
+      const masterEndpoint = context?.masterEndpoint || context?.master_endpoint || agentMaster.getEndpoint() || masterConfig?.masterEndpoint;
 
       if (!masterConfig || !masterEndpoint) {
         return {
