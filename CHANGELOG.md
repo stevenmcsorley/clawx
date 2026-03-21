@@ -2,6 +2,15 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.81] - 2025-01-15
+
+### Fixed Peer Worker Chat for gRPC-Connected Workers Without HTTP Endpoints
+- Updated `agent_chat` so peer-executed remote worker chats no longer require a worker HTTP endpoint or HTTP health check when the worker is already known live via the peer master's gRPC connection
+- This moves the peer worker chat path closer to the intended architecture: trust the peer master's live gRPC connectivity for remote workers instead of requiring parallel HTTP endpoint truth
+
+### Technical Changes
+- Updated `src/tools/agentChat.ts`
+
 ## [0.4.80] - 2025-01-15
 
 ### Fixed Peer Worker Chat Connected-Agent Resolution

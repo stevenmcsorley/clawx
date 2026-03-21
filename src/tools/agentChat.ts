@@ -113,7 +113,8 @@ export const agentChatTool: ToolDefinition = {
         };
       }
       
-      if (!agent.endpoint) {
+      const allowConnectedAgentWithoutEndpoint = !agent.endpoint && !!context?.remoteWorkerName;
+      if (!agent.endpoint && !allowConnectedAgentWithoutEndpoint) {
         return {
           content: [{
             type: 'text',
@@ -129,42 +130,45 @@ export const agentChatTool: ToolDefinition = {
         };
       }
       
-      // Check if agent is alive
-      try {
-        const healthResponse = await fetch(`${agent.endpoint}/health`, {
-          signal: signal || AbortSignal.timeout(5000),
-        });
-        
-        if (!healthResponse.ok) {
+      // Check if agent is alive when an endpoint exists. For peer-executed connected workers,
+      // a live gRPC connection on the peer master is enough even if no worker HTTP endpoint is exposed.
+      if (agent.endpoint) {
+        try {
+          const healthResponse = await fetch(`${agent.endpoint}/health`, {
+            signal: signal || AbortSignal.timeout(5000),
+          });
+          
+          if (!healthResponse.ok) {
+            return {
+              content: [{
+                type: 'text',
+                text: `❌ Agent "${agent.name}" is not responding (health check failed)`,
+              }],
+              details: { 
+                error: 'Agent health check failed',
+                agent_id: agent.id,
+                agent_name: agent.name,
+                endpoint: agent.endpoint,
+              },
+              isError: true,
+            };
+          }
+        } catch (healthError) {
           return {
             content: [{
               type: 'text',
-              text: `❌ Agent "${agent.name}" is not responding (health check failed)`,
+              text: `❌ Agent "${agent.name}" is not reachable at ${agent.endpoint}`,
             }],
             details: { 
-              error: 'Agent health check failed',
+              error: 'Agent unreachable',
               agent_id: agent.id,
               agent_name: agent.name,
               endpoint: agent.endpoint,
+              health_error: healthError instanceof Error ? healthError.message : String(healthError),
             },
             isError: true,
           };
         }
-      } catch (healthError) {
-        return {
-          content: [{
-            type: 'text',
-            text: `❌ Agent "${agent.name}" is not reachable at ${agent.endpoint}`,
-          }],
-          details: { 
-            error: 'Agent unreachable',
-            agent_id: agent.id,
-            agent_name: agent.name,
-            endpoint: agent.endpoint,
-            health_error: healthError instanceof Error ? healthError.message : String(healthError),
-          },
-          isError: true,
-        };
       }
       
       // Generate a turn ID for this conversation
