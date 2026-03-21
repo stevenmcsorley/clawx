@@ -358,7 +358,10 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
   app.post('/task', async (req: Request, res: Response) => {
     try {
       const { tool, params, context, taskId: requestedTaskId, targetAgentId } = req.body;
-      const effectiveContext = getDefaultExecutionContext(context);
+      const effectiveContext = getDefaultExecutionContext({
+        ...(context || {}),
+        masterEndpoint: context?.masterEndpoint || `http://localhost:${config.port}`,
+      });
       
       if (!tool) {
         return res.status(400).json({ error: 'tool name required' });

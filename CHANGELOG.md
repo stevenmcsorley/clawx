@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.71] - 2025-01-15
+
+### Fixed Peer-Federated Worker Spawn Context
+- `agent_spawn_local` now accepts master endpoint from execution context as well as explicit parameters or local in-process master state
+- Peer `/task` execution now injects the peer master's local `masterEndpoint` into task context automatically
+- This fixes remote peer-master orchestration cases where `agent_spawn_local` could run on the peer master but still fail with `No master endpoint available`
+
+### Technical Changes
+- Updated `src/tools/agentSpawnLocal.ts` to use `context.masterEndpoint`
+- Updated `src/core/agent-server.ts` to inject `masterEndpoint: http://localhost:<peer-port>` into peer task execution context
+
 ## [0.4.70] - 2025-01-15
 
 ### Fixed Peer-Master Orchestration Tool Execution

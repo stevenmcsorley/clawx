@@ -158,7 +158,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       const workspace = registry.ensureAgentWorkspace(agentId);
       
       // Determine master endpoint - require explicit master or current instance
-      let masterEndpoint = normalizedParams.master_endpoint;
+      let masterEndpoint = normalizedParams.master_endpoint || context?.masterEndpoint || context?.master_endpoint;
       if (!masterEndpoint && agentMaster.isServing()) {
         // Use current instance as master
         const config = agentMaster.getConfig();
