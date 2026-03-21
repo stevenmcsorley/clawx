@@ -185,6 +185,7 @@ export class WorkerAgent {
 
       let finalReply = reply;
       const executedActions: string[] = [];
+      const observedResults: string[] = [];
 
       if (toolCalls && toolCalls.length > 0) {
         for (const toolCall of toolCalls) {
@@ -215,13 +216,34 @@ export class WorkerAgent {
           );
           const result = await stream.result;
           if (result.success) {
-            finalReply += `\n\n**Tool ${toolCall.name} executed successfully:**\n${result.output}`;
             executedActions.push(`${toolCall.name}: success`);
+            if (result.output?.trim()) {
+              observedResults.push(`${toolCall.name}: ${result.output.trim()}`);
+            }
           } else {
-            finalReply += `\n\n**Tool ${toolCall.name} failed:** ${result.error}`;
             executedActions.push(`${toolCall.name}: failed`);
+            observedResults.push(`${toolCall.name} failed: ${result.error || 'unknown error'}`);
           }
         }
+
+        const toolSummary = observedResults.join('\n');
+        const followUpTurn = {
+          ...turn,
+          id: `${turnId}_summary`,
+          message:
+            `${turn.message}\n\nObserved tool results from this turn:\n${toolSummary || '(no tool output)'}\n\nNow answer the user directly. Do not narrate tool execution. Summarize only the relevant observed results and changes in plain language.`,
+        };
+
+        const followUp = await generateModelChatResponse(
+          persona,
+          memory,
+          followUpTurn,
+          this.options.workspace,
+          [],
+          undefined,
+          0,
+        );
+        finalReply = followUp.reply?.trim() || finalReply;
       }
 
       this.memory = updateMemoryFromConversation(memory, persona, turn as any, finalReply);

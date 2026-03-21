@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.13] - 2025-01-15
+
+### Improved Worker Chat Summaries After Tool Use
+- Tightened worker chat instructions so final replies summarize observed results instead of narrating tool lifecycle events
+- Worker chat now performs a post-tool summary pass using actual observed tool output to generate a cleaner direct answer
+- Targets real scenario-testing friction where workers dumped raw tool success narration instead of answering the user succinctly
+
+### Technical Changes
+- Updated `src/utils/worker-model-caller.ts`
+- Updated `src/core/worker-agent.ts`
+
 ## [0.5.12] - 2025-01-15
 
 ### Normalized Peer File-Tool Parameters

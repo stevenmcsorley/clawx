@@ -165,6 +165,9 @@ export function buildConversationContext(
   context += `Do not fabricate command outputs or pretend to execute actions without using tools.\n`;
   context += `If a requested action cannot be performed with available tools, explain why honestly.\n`;
   context += `When unsure, explicitly say what is unknown instead of filling gaps.\n`;
+  context += `If you used tools in this turn, your final answer must directly answer the user, not narrate tool lifecycle events. Summarize only the relevant observed results and changes.\n`;
+  context += `Do not say things like "Tool X executed successfully" unless the user explicitly asked for raw execution logs.\n`;
+  context += `Prefer short final summaries such as what you observed, what you changed, and what remains unknown.\n`;
   context += `Keep responses concise but thoughtful.\n`;
   
   return context;
