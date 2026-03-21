@@ -69,7 +69,7 @@ export const agentPeerPersonaSetTool: ToolDefinition = {
           version: params.version || '1.0.0',
           replace: params.replace === true,
         },
-        context: { __transport: 'peer_http' },
+        context: { __transport: 'peer_http', remoteWorkerName: workerName },
       }),
     });
 

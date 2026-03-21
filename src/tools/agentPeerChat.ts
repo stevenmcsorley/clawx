@@ -52,7 +52,6 @@ export const agentPeerChatTool: ToolDefinition = {
             message,
             mode,
           },
-          targetAgentId,
           context: { __transport: 'peer_http', remoteWorkerName: workerName },
         }),
       });

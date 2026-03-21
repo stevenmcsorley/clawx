@@ -49,7 +49,7 @@ export const agentPeerPersonaShowTool: ToolDefinition = {
           show_memory: params.show_memory !== false,
           show_conversation: params.show_conversation === true,
         },
-        context: { __transport: 'peer_http' },
+        context: { __transport: 'peer_http', remoteWorkerName: workerName },
       }),
     });
 

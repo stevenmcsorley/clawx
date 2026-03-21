@@ -2,6 +2,23 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.78] - 2025-01-15
+
+### Fixed Peer Worker Chat Routing and Peer Persona Connected-Agent Resolution
+- Fixed `agent_peer_chat` so remote worker chat requests no longer incorrectly route `agent_chat` into the worker tool executor
+- Peer worker chat now asks the peer master to execute `agent_chat` directly against the target worker by `agent_id`
+- Fixed peer persona set/show for connected remote workers that are present in peer `/agents` but missing from the peer file registry
+- Added connected-agent fallback lookup for `agent_persona_set` and `agent_persona_show` during peer-executed remote worker management
+- Added honest 404 behavior when a stale `targetAgentId` is provided but the worker is not connected
+
+### Technical Changes
+- Updated `src/tools/agentPeerChat.ts`
+- Updated `src/tools/agentPeerPersonaSet.ts`
+- Updated `src/tools/agentPeerPersonaShow.ts`
+- Updated `src/tools/agentPersonaSet.ts`
+- Updated `src/tools/agentPersonaShow.ts`
+- Updated `src/core/agent-server.ts`
+
 ## [0.4.77] - 2025-01-15
 
 ### Fixed Peer Persona Worker Resolution and Peer Reply Extraction

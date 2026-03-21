@@ -420,6 +420,9 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       }
       
       // Fallback: local execution (for self-tasks or when no target specified)
+      if (targetAgentId && grpcServer && !grpcServer.isAgentConnected(targetAgentId)) {
+        return res.status(404).json({ error: `Worker ${targetAgentId} not connected via gRPC` });
+      }
       const isPeerTask = effectiveContext?.__transport === 'peer_http';
       const peerTaskDetail = (() => {
         if (tool === 'bash' && typeof params?.command === 'string') {

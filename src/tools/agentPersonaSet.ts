@@ -124,6 +124,33 @@ export const agentPersonaSetTool: ToolDefinition = {
       };
     }
     
+    if (!agent && normalizedParams.agent_id) {
+      const resolvedWorkerName = context?.remoteWorkerName;
+      const masterEndpoint = context?.masterEndpoint || `http://localhost:${context?.port || ''}`;
+      if (resolvedWorkerName && masterEndpoint) {
+        try {
+          const response = await fetch(`${masterEndpoint}/agents`);
+          if (response.ok) {
+            const connectedAgents = await response.json() as any[];
+            const connected = connectedAgents.find((candidate: any) => candidate?.id === normalizedParams.agent_id || candidate?.name === resolvedWorkerName);
+            if (connected?.id) {
+              agent = {
+                id: connected.id,
+                name: connected.name || resolvedWorkerName,
+                type: 'local',
+                status: 'idle',
+                capabilities: connected.capabilities || [],
+                endpoint: connected.endpoint,
+                workspace: context?.workerWorkspace || context?.cwd || '',
+                created: Date.now(),
+                lastHeartbeat: Date.now(),
+              } as any;
+            }
+          }
+        } catch {}
+      }
+    }
+
     if (!agent) {
       const identifier = normalizedParams.agent_id || normalizedParams.agent_name;
       return {
