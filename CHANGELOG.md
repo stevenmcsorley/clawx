@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.97] - 2025-01-15
+
+### README Federation Diagram and Real-World Triple-OS Example
+- Added a new README section showing the Windows + Ubuntu + Raspberry Pi peer-federation topology
+- Included a Mermaid diagram of the control-plane / peer-master / worker layout
+- Documented the kinds of real operations already performed with this setup: npm updates, Clawx updates, peer restarts, health checks, worker spawn, persona/memory/chat, delegated tool execution, and runtime debugging
+- Better communicates the practical value of Clawx as an explicit multi-machine control plane for home labs and contributors
+
+### Technical Changes
+- Updated `README.md`
+
 ## [0.4.96] - 2025-01-15
 
 ### Documentation and Discovery Refresh
