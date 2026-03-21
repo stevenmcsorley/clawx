@@ -298,15 +298,25 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
             toolDefinition = agentPersonaSetTool;
             break;
           }
+          case 'agent_memory_show': {
+            const { agentMemoryShowTool } = await import('../tools/agentMemoryShow.js');
+            toolDefinition = agentMemoryShowTool;
+            break;
+          }
+          case 'agent_memory_update': {
+            const { agentMemoryUpdateTool } = await import('../tools/agentMemoryUpdate.js');
+            toolDefinition = agentMemoryUpdateTool;
+            break;
+          }
           default:
-            const error = new Error(`Tool not supported by agent: ${tool}. Supported tools: coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run, agent_chat_direct, agent_grpc_chat, agent_chat, agent_spawn_local, agent_list, agent_cleanup, agent_master_status, agent_persona_show, agent_persona_set`);
+            const error = new Error(`Tool not supported by agent: ${tool}. Supported tools: coding tools (read, write, edit, bash), grep, find, ls, search_files, git_status, git_diff, ssh_run, agent_chat_direct, agent_grpc_chat, agent_chat, agent_spawn_local, agent_list, agent_cleanup, agent_master_status, agent_persona_show, agent_persona_set, agent_memory_show, agent_memory_update`);
             throw error;
         }
       }
       
       let result;
 
-      const isDirectMasterTool = ['agent_chat', 'agent_spawn_local', 'agent_list', 'agent_cleanup', 'agent_master_status', 'agent_persona_show', 'agent_persona_set'].includes(tool);
+      const isDirectMasterTool = ['agent_chat', 'agent_spawn_local', 'agent_list', 'agent_cleanup', 'agent_master_status', 'agent_persona_show', 'agent_persona_set', 'agent_memory_show', 'agent_memory_update'].includes(tool);
       if (isDirectMasterTool) {
         const toolCallId = `peer-master-tool-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         result = await Promise.race([

@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.85] - 2025-01-15
+
+### Fixed Peer Memory Tool Execution and Connected-Agent Resolution
+- Added `agent_memory_show` and `agent_memory_update` to the peer master direct-tool execution path
+- Added connected-agent fallback resolution for `agent_memory_show` and `agent_memory_update` so peer-hosted workers can be targeted even when missing from the peer file registry
+- Brings peer memory tools in line with the now-working peer persona/chat worker resolution model
+
+### Technical Changes
+- Updated peer/master tool support in `src/core/agent-server.ts`
+- Updated `src/tools/agentMemoryShow.ts`
+- Updated `src/tools/agentMemoryUpdate.ts`
+
 ## [0.4.84] - 2025-01-15
 
 ### Fixed Rich Peer Worker Inventory to Avoid Circular Task Registry Failures
