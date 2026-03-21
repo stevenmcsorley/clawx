@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.93] - 2025-01-15
+
+### Persist Spawned Worker stdout/stderr to Workspace Logs
+- Spawned headless workers now persist their stdout/stderr into `worker.log` inside the worker workspace
+- Makes delegated-task instrumentation inspectable even when worker processes are detached from the launching master process
+- Enables direct inspection of worker-side `task_started`, gRPC receipt, stream lifecycle, and failure/completion traces
+
+### Technical Changes
+- Updated `src/tools/agentSpawnLocal.ts`
+
 ## [0.4.92] - 2025-01-15
 
 ### Enabled Visible Verbose Logging for Spawned Headless Workers

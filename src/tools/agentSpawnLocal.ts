@@ -417,6 +417,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       }
       
       log.info(`Spawning agent process...`);
+      const workerLogPath = join(workspace, 'worker.log');
       
       // Actually spawn the agent process
       let agentProcess;
@@ -469,13 +470,21 @@ export const agentSpawnLocalTool: ToolDefinition = {
       
       // Capture output
       agentProcess.stdout?.on('data', (data) => {
-        processInfo.stdout += data.toString();
-        log.debug(`Agent ${finalName} stdout: ${data.toString().trim()}`);
+        const text = data.toString();
+        processInfo.stdout += text;
+        try {
+          writeFileSync(workerLogPath, processInfo.stdout + (processInfo.stderr ? `\n[stderr]\n${processInfo.stderr}` : ''), 'utf8');
+        } catch {}
+        log.debug(`Agent ${finalName} stdout: ${text.trim()}`);
       });
       
       agentProcess.stderr?.on('data', (data) => {
-        processInfo.stderr += data.toString();
-        log.debug(`Agent ${finalName} stderr: ${data.toString().trim()}`);
+        const text = data.toString();
+        processInfo.stderr += text;
+        try {
+          writeFileSync(workerLogPath, processInfo.stdout + (processInfo.stderr ? `\n[stderr]\n${processInfo.stderr}` : ''), 'utf8');
+        } catch {}
+        log.debug(`Agent ${finalName} stderr: ${text.trim()}`);
       });
       
       // Handle process exit
