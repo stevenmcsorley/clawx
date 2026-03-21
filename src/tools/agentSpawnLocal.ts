@@ -239,8 +239,8 @@ export const agentSpawnLocalTool: ToolDefinition = {
       }
       
       // Create agent config
-      const masterWorkspace = agentMaster.getConfig()?.workspace || process.cwd();
-      const ownerMasterConfig = agentMaster.getConfig();
+      const ownerMasterConfig = context?.__activeMasterConfig || agentMaster.getConfig();
+      const masterWorkspace = ownerMasterConfig?.workspace || process.cwd();
       const config = {
         id: agentId,
         name: finalName,

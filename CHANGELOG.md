@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.0] - 2025-01-15
+
+### Fixed Owner Metadata Persistence for Peer-Routed Worker Spawns
+- Updated `agent_spawn_local` to prefer injected active master runtime context when persisting worker ownership metadata
+- Fixes peer-routed worker spawns that wrote `agent-config.json` without `ownerMasterId`, `ownerMasterName`, and `ownerMasterEndpoint`
+- Unblocks the explicit worker rehydration flow by making fresh peer-hosted worker configs match the current master ownership filter
+
+### Technical Changes
+- Updated `src/tools/agentSpawnLocal.ts`
+
 ## [0.4.99] - 2025-01-15
 
 ### Fixed Rehydration Tool Runtime Context Resolution
