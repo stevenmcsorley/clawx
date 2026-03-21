@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.80] - 2025-01-15
+
+### Fixed Peer Worker Chat Connected-Agent Resolution
+- Added connected-agent fallback lookup to `agent_chat` for peer-executed remote worker chats
+- If the target worker is connected via peer `/agents` but missing from the peer file registry, `agent_chat` now resolves it from the live connected-agent list
+- This addresses the remaining `❌ Agent not found: <worker-id>` failure for `agent_peer_chat` with `worker_name`
+
+### Technical Changes
+- Updated `src/tools/agentChat.ts`
+
 ## [0.4.79] - 2025-01-15
 
 ### Fixed Peer Worker Chat Direct Execution and Peer Persona Workspace Targeting

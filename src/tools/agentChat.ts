@@ -71,10 +71,37 @@ export const agentChatTool: ToolDefinition = {
     
     try {
       const registry = new AgentRegistryManager();
-      const agent = agentId 
+      let agent = agentId 
         ? registry.getAgent(agentId)
         : registry.getAgentByName(agentName!);
       
+      if (!agent && agentId) {
+        const resolvedWorkerName = context?.remoteWorkerName;
+        const masterEndpoint = context?.masterEndpoint || `http://localhost:${context?.port || ''}`;
+        if (resolvedWorkerName && masterEndpoint) {
+          try {
+            const response = await fetch(`${masterEndpoint}/agents`);
+            if (response.ok) {
+              const connectedAgents = await response.json() as any[];
+              const connected = connectedAgents.find((candidate: any) => candidate?.id === agentId || candidate?.name === resolvedWorkerName);
+              if (connected?.id) {
+                agent = {
+                  id: connected.id,
+                  name: connected.name || resolvedWorkerName,
+                  type: 'local',
+                  status: 'idle',
+                  capabilities: connected.capabilities || [],
+                  endpoint: connected.endpoint,
+                  workspace: (context?.masterWorkspace && resolvedWorkerName ? `${context.masterWorkspace.replace(/\\/g, '/')}/../${agentId}` : '') || context?.workerWorkspace || context?.cwd || '',
+                  created: Date.now(),
+                  lastHeartbeat: Date.now(),
+                } as any;
+              }
+            }
+          } catch {}
+        }
+      }
+
       if (!agent) {
         return {
           content: [{
