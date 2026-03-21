@@ -240,6 +240,68 @@ clawx agent_peer_memory_show --peer_name ubuntu-master --worker_name remote-work
 clawx agent_peer_memory_update --peer_name ubuntu-master --worker_name remote-worker --summary "Handles Ubuntu build and inspection tasks"
 ```
 
+## Triple-OS peer federation example
+
+Below is the kind of setup Clawx now supports in real use:
+- Windows as the main control plane
+- Ubuntu as a peer master and remote build/debug box
+- Raspberry Pi as a peer master and lightweight edge/ops box
+
+```mermaid
+flowchart LR
+    W[Windows Master\nControl Plane] -->|agent_peer_add / agent_peer_send / agent_peer_chat| U[Ubuntu Peer Master]
+    W -->|agent_peer_add / agent_peer_send / agent_peer_chat| P[Pi Peer Master]
+
+    W -->|local workers + local tools| WL[Windows Local Workers]
+    U -->|gRPC live transport| UW[Ubuntu Workers]
+    P -->|gRPC live transport| PW[Pi Workers]
+
+    UW -->|bash / read / write / edit / search| UF[Ubuntu Worker Workspace]
+    PW -->|bash / read / write / edit / search| PF[Pi Worker Workspace]
+```
+
+### What this setup has already been used to do
+
+From one Windows machine, Clawx has been used to:
+- update npm packages on Ubuntu and Raspberry Pi
+- update global Clawx installs remotely on Ubuntu and Raspberry Pi
+- restart remote peer masters and verify health
+- register peer masters explicitly on the LAN
+- spawn workers behind peer masters
+- inspect peer worker inventory
+- chat with peer-hosted workers
+- set/show persona on peer-hosted workers
+- update/show memory on peer-hosted workers
+- run delegated worker tool tasks remotely
+- inspect worker logs and debug runtime issues truthfully
+
+### Real delegated operations already validated
+
+Fresh real runs have validated remote peer-worker execution for:
+- `bash`
+- `read`
+- `write`
+- `edit`
+- `ls`
+- `find`
+- `grep`
+- `search_files`
+
+And real remote file workflows have been validated on Ubuntu and Pi for:
+- create file
+- edit file
+- read file
+- delete file
+
+### Why this matters
+
+This makes Clawx useful as a small explicit multi-machine control plane for:
+- home labs
+- dev boxes
+- Raspberry Pi edge systems
+- remote debugging environments
+- contributors building new federation and worker-management features
+
 ## Tool groups
 
 ### Coding and file tools
