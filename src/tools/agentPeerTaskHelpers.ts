@@ -1,6 +1,9 @@
 import { AgentRegistryManager } from '../core/agent-registry.js';
 
 export function extractReadablePeerValue(value: any): string {
+  if (value?.status === 'completed' && value?.taskId && !value?.result && !value?.content) {
+    return '';
+  }
   if (!value) return '';
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -67,11 +70,13 @@ export async function waitForPeerTaskResult(peerEndpoint: string, taskId: string
   let finalStatus = 'pending';
   let finalResult: any = null;
   let finalError: any = null;
+  let statusSnapshot: any = null;
 
   while (Date.now() < waitUntil) {
     const statusResponse = await fetch(`${peerEndpoint}/task/${taskId}/status`);
     if (statusResponse.ok) {
       const statusJson: any = await statusResponse.json();
+      statusSnapshot = statusJson;
       finalStatus = statusJson.status || finalStatus;
       if (finalStatus === 'completed' || finalStatus === 'failed' || finalStatus === 'cancelled') {
         const resultResponse = await fetch(`${peerEndpoint}/task/${taskId}/result`);
@@ -86,5 +91,12 @@ export async function waitForPeerTaskResult(peerEndpoint: string, taskId: string
     await new Promise(resolve => setTimeout(resolve, 500));
   }
 
-  return { status: finalStatus, result: finalResult, error: finalError };
+  if ((finalResult === null || finalResult === undefined) && statusSnapshot?.result !== undefined) {
+    finalResult = statusSnapshot.result;
+  }
+  if ((finalError === null || finalError === undefined) && statusSnapshot?.error !== undefined) {
+    finalError = statusSnapshot.error;
+  }
+
+  return { status: finalStatus, result: finalResult, error: finalError, statusSnapshot };
 }

@@ -53,8 +53,8 @@ export const agentPeerPersonaShowTool: ToolDefinition = {
       return { content: [{ type: 'text', text: `❌ Peer persona show accepted without task ID` }], isError: true };
     }
 
-    const { status, result, error } = await waitForPeerTaskResult(peer.endpoint, taskId, 30000);
-    const text = extractReadablePeerValue(result).trim();
+    const { status, result, error, statusSnapshot } = await waitForPeerTaskResult(peer.endpoint, taskId, 30000);
+    const text = extractReadablePeerValue(result).trim() || extractReadablePeerValue(statusSnapshot).trim();
     return {
       content: [{ type: 'text', text: status === 'completed' ? `🌐 ${peer.name} → ${workerName}\n${text || 'No persona output received'}` : `❌ Peer persona show ${status}${error ? `\n${error}` : ''}` }],
       details: { peer_name: peer.name, worker_name: workerName, task_id: taskId, status, result, error },

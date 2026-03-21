@@ -2,6 +2,20 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.75] - 2025-01-15
+
+### Fixed Peer Persona Execution Path and Result Fallbacks
+- Expanded peer master direct-tool support to include `agent_persona_show` and `agent_persona_set`
+- Fixed peer worker chat/persona tools to fall back to final task status snapshots when `/task/:id/result` is empty or thin
+- Improved peer result extraction so completed remote chat tasks are more likely to surface the actual worker reply text
+
+### Technical Changes
+- Updated peer tool allowlist and direct execution path in `src/core/agent-server.ts`
+- Updated `src/tools/agentPeerTaskHelpers.ts` to retain status snapshots and use result fallbacks
+- Updated `src/tools/agentPeerChat.ts`
+- Updated `src/tools/agentPeerPersonaShow.ts`
+- Updated `src/tools/agentPeerPersonaSet.ts`
+
 ## [0.4.74] - 2025-01-15
 
 ### Fixed Peer Worker Chat and Persona Result Handling
