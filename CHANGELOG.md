@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.16] - 2025-01-15
+
+### Fixed Default `agent_list` Filtering After Health Reconciliation
+- `agent_list` now performs health reconciliation before filtering and sorting the display set
+- Prevents stale/offline workers from leaking into the default listing simply because their status was updated too late in the render path
+- Completes the inventory-clutter reduction pass for normal master-side listings
+
+### Technical Changes
+- Updated `src/tools/agentList.ts`
+
 ## [0.5.15] - 2025-01-15
 
 ### Reduced Worker Inventory Clutter in Default Listings

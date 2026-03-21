@@ -65,7 +65,19 @@ export const agentListTool: ToolDefinition = {
         };
       }
       
-      const sortedAgents = allAgents
+      for (const agent of allAgents) {
+        if (params.check_health !== false && agent.endpoint) {
+          const healthy = await checkAgentHealth(agent.endpoint, 2000);
+          if (!healthy && agent.status !== 'offline') {
+            agent.status = 'offline';
+            agent.lastHeartbeat = Date.now();
+            registry.upsertAgent(agent);
+          }
+        }
+      }
+
+      const reconciledAgents = registry.getAgents();
+      const sortedAgents = reconciledAgents
         .filter(agent => includeOffline || agent.status !== 'offline')
         .sort((a, b) => {
           const statusRank = (a.status === 'offline' ? 1 : 0) - (b.status === 'offline' ? 1 : 0);
@@ -76,19 +88,10 @@ export const agentListTool: ToolDefinition = {
         });
       const agents = sortedAgents.slice(0, maxAgents);
 
-      let output = `## Registered Agents (${agents.length}${agents.length !== allAgents.length ? ` of ${allAgents.length}` : ''})\n\n`;
+      let output = `## Registered Agents (${agents.length}${agents.length !== reconciledAgents.length ? ` of ${reconciledAgents.length}` : ''})\n\n`;
       
       for (const agent of agents) {
-        let effectiveStatus = agent.status;
-        if (params.check_health !== false && agent.endpoint) {
-          const healthy = await checkAgentHealth(agent.endpoint, 2000);
-          if (!healthy && agent.status !== 'offline') {
-            effectiveStatus = 'offline';
-            agent.status = 'offline';
-            agent.lastHeartbeat = Date.now();
-            registry.upsertAgent(agent);
-          }
-        }
+        const effectiveStatus = agent.status;
         output += `### ${agent.name} (${agent.type})\n`;
         output += `- **ID**: ${agent.id}\n`;
         output += `- **Status**: ${effectiveStatus}\n`;
@@ -155,7 +158,7 @@ export const agentListTool: ToolDefinition = {
       
       output += `## Registry Summary\n`;
       output += `- **Shown agents**: ${agents.length}\n`;
-      output += `- **Total agents**: ${allAgents.length}\n`;
+      output += `- **Total agents**: ${reconciledAgents.length}\n`;
       output += `- **Total tasks**: ${tasks.length}\n`;
       output += `- **Pending/running**: ${pending}\n`;
       output += `- **Completed**: ${completed}\n`;
