@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.76] - 2025-01-15
+
+### Fixed Peer Worker Chat Execution Path
+- Added `agent_chat` support to the peer master task execution path
+- Fixes peer worker chat requests that were returning misleading `Task ... completed` wrappers around inner `Tool not supported: agent_chat` failures
+- This is the key fix needed for `agent_peer_chat` with `worker_name` to surface the real worker reply
+
+### Technical Changes
+- Updated peer/master task tool support in `src/core/agent-server.ts`
+- Expanded supported tool messaging for peer task execution
+
 ## [0.4.75] - 2025-01-15
 
 ### Fixed Peer Persona Execution Path and Result Fallbacks
