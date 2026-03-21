@@ -33,15 +33,20 @@ Working:
 - spawn workers behind peer masters
 - resolve peer workers by `worker_name`
 - target peer workers for delegated execution
+- explicit worker rehydration after master restart
+- automatic worker rehydration on master startup for eligible auto-start workers
 - truthful spawn failure when startup does not actually succeed
+- cleanup preserves offline auto-start workers so rehydration remains possible
 
 Tools:
 - `agent_peer_send(..., tool="agent_spawn_local")`
+- `agent_peer_send(..., tool="agent_rehydrate_workers")`
 - `agent_peer_list_workers`
+- `agent_cleanup`
 
 Notes:
-- workers are still ephemeral after master restart
 - spawn success now requires the responding `/health` endpoint to match the newly spawned worker ID
+- cleanup now distinguishes removable dead workers from preserved rehydratable workers
 
 ### Peer worker chat / identity / memory
 Working on fresh runtimes:
@@ -141,14 +146,17 @@ This makes remote patching/scaffolding/config editing realistic and repeatable.
 
 ## Current Constraints / Caveats
 
-### Workers are still ephemeral
-Remote workers do not yet automatically survive or rehydrate across peer-master restart.
+### Worker lifecycle is improved but not finished
+Remote workers can now be explicitly rehydrated after restart, and eligible auto-start workers can be restored automatically when a master starts. Old historical worker entries can still accumulate until intentionally cleaned.
 
 ### Port collisions can still happen
 Spawn truth is now fixed, but stale occupied worker ports can still require:
 - retry
 - cleanup
 - explicit port selection
+
+### Worker continuity is improved but summarization is still imperfect
+Workers now retain more truthful continuity across earlier delegated task activity, but later natural-language summaries can still blur some exact edit details in harder multi-step cases.
 
 ### Extra diagnostic instrumentation is still present
 This is currently useful for validation and soak work, but may be reduced later for quieter normal operation.

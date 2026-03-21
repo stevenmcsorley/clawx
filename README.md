@@ -39,6 +39,7 @@ That means one machine can:
 - manage their persona and memory
 - send them real delegated tool tasks
 - get real results back
+- restart a peer master and have eligible persisted workers come back automatically
 
 ## What is proven right now
 
@@ -49,6 +50,8 @@ Fresh real runs have validated:
 - peer worker chat
 - peer worker persona set/show
 - peer worker memory update/show
+- explicit worker rehydration after master restart
+- automatic worker rehydration on master startup for eligible auto-start workers
 - peer-routed delegated worker tool execution for:
   - `bash`
   - `read`
@@ -483,16 +486,17 @@ clawx forge "Build a capability that summarizes CSV files"
 ## Honest limitations
 
 Current limitations still include:
-- workers are still ephemeral after master restart
-- no worker persistence/rehydration yet
 - no authentication/authorization
 - explicit peer registration is required
 - stale occupied worker ports can still happen, though spawn truth is now honest
-- periodic automatic cleanup is still not a finished lifecycle feature
+- worker lifecycle is improved, but old historical worker clutter can still accumulate until cleaned intentionally
+- periodic background cleanup/policy management is still not a finished lifecycle feature
+- worker chat continuity across prior delegated tasks is improved, but exact later summarization can still blur some detail
 
 ## Documentation
 
 - [`docs/current-capabilities.md`](docs/current-capabilities.md) — current proven runtime/capability status
+- [`docs/prompting-guide.md`](docs/prompting-guide.md) — example prompts for peer network management, worker usage, and operational requests
 
 ## License
 
