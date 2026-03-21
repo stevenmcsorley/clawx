@@ -2,8 +2,9 @@ import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
 import { agentMaster } from '../core/agent-master.js';
 import { checkAgentHealth } from '../utils/agent-utils.js';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import { spawn } from 'child_process';
 import { log } from '../utils/logger.js';
 
@@ -53,13 +54,55 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
       const includeOffline = params.include_offline !== false;
 
       const allAgents = registry.getAgents();
-      const agents = allAgents.filter(agent => {
+      const agentsDir = join(homedir(), '.clawx', 'agents');
+      const discoveredWorkers: Array<{ agent: any; workerConfig: any; configPath: string }> = [];
+
+      if (existsSync(agentsDir)) {
+        for (const entry of readdirSync(agentsDir)) {
+          const workspace = join(agentsDir, entry);
+          try {
+            if (!statSync(workspace).isDirectory()) continue;
+          } catch {
+            continue;
+          }
+
+          const configPath = join(workspace, 'agent-config.json');
+          if (!existsSync(configPath)) continue;
+
+          try {
+            const workerConfig = JSON.parse(readFileSync(configPath, 'utf8'));
+            const registryAgent = allAgents.find(a => a.id === workerConfig.id);
+            const syntheticAgent = registryAgent || {
+              id: workerConfig.id,
+              name: workerConfig.name,
+              type: 'local',
+              status: 'offline',
+              capabilities: Array.isArray(workerConfig.allowedTools) && workerConfig.allowedTools.length > 0 ? workerConfig.allowedTools : ['all'],
+              endpoint: workerConfig.port ? `http://localhost:${workerConfig.port}` : undefined,
+              workspace: workerConfig.workspace || workspace,
+              created: Date.now(),
+              ownerMasterId: workerConfig.ownerMasterId,
+              ownerMasterName: workerConfig.ownerMasterName,
+              ownerMasterEndpoint: workerConfig.ownerMasterEndpoint,
+              autoStart: workerConfig.autoStart,
+            };
+            discoveredWorkers.push({ agent: syntheticAgent, workerConfig, configPath });
+          } catch {
+            // ignore invalid configs here; handled later if matched
+          }
+        }
+      }
+
+      const agents = discoveredWorkers.filter(({ agent, workerConfig }) => {
         if (agent.type !== 'local') return false;
         if (!includeOffline && agent.status === 'offline') return false;
         if (requestedNames && requestedNames.size > 0 && !requestedNames.has(agent.name)) return false;
         if (!onlyCurrentMaster) return true;
 
         const ownerMatches =
+          (!!workerConfig.ownerMasterEndpoint && workerConfig.ownerMasterEndpoint === masterEndpoint) ||
+          (!!workerConfig.ownerMasterName && workerConfig.ownerMasterName === masterConfig.name) ||
+          (!!workerConfig.ownerMasterId && workerConfig.ownerMasterId === masterConfig.id) ||
           (!!agent.ownerMasterEndpoint && agent.ownerMasterEndpoint === masterEndpoint) ||
           (!!agent.ownerMasterName && agent.ownerMasterName === masterConfig.name) ||
           (!!agent.ownerMasterId && agent.ownerMasterId === masterConfig.id);
@@ -74,11 +117,11 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
           `Current master name: ${masterConfig.name || 'unknown'}`,
           `Current master endpoint: ${masterEndpoint || 'unknown'}`,
         ];
-        const candidateLocals = allAgents.filter(agent => agent.type === 'local');
+        const candidateLocals = discoveredWorkers.map(({ agent, workerConfig }) => ({ agent, workerConfig }));
         if (candidateLocals.length > 0) {
           debugLines.push('', 'Persisted local workers seen:');
-          for (const agent of candidateLocals) {
-            debugLines.push(`- ${agent.name} | ownerMasterId=${agent.ownerMasterId || 'none'} | ownerMasterName=${agent.ownerMasterName || 'none'} | ownerMasterEndpoint=${agent.ownerMasterEndpoint || 'none'}`);
+          for (const { agent, workerConfig } of candidateLocals) {
+            debugLines.push(`- ${agent.name} | cfg.ownerMasterId=${workerConfig.ownerMasterId || 'none'} | cfg.ownerMasterName=${workerConfig.ownerMasterName || 'none'} | cfg.ownerMasterEndpoint=${workerConfig.ownerMasterEndpoint || 'none'} | reg.ownerMasterId=${agent.ownerMasterId || 'none'} | reg.ownerMasterName=${agent.ownerMasterName || 'none'} | reg.ownerMasterEndpoint=${agent.ownerMasterEndpoint || 'none'}`);
           }
         }
         return {
@@ -92,18 +135,12 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
       const failed: string[] = [];
       const skipped: string[] = [];
 
-      for (const agent of agents) {
-        const configPath = join(agent.workspace, 'agent-config.json');
+      for (const entry of agents) {
+        const agent = entry.agent;
+        const configPath = entry.configPath;
+        const workerConfig = entry.workerConfig;
         if (!existsSync(configPath)) {
           failed.push(`${agent.name}: missing agent-config.json`);
-          continue;
-        }
-
-        let workerConfig: any;
-        try {
-          workerConfig = JSON.parse(readFileSync(configPath, 'utf8'));
-        } catch (error) {
-          failed.push(`${agent.name}: invalid agent-config.json`);
           continue;
         }
 

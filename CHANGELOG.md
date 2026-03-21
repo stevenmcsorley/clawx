@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.3] - 2025-01-15
+
+### Switched Worker Rehydration Discovery to Filesystem-First
+- Updated `agent_rehydrate_workers` to discover persisted workers from `~/.clawx/agents/*/agent-config.json` instead of depending primarily on registry state
+- Makes rehydration resilient when registry contents are stale or incomplete after peer-master restart
+- Matching now uses persisted worker config metadata first and only uses registry data as a supplement
+- Expanded debug output to show both config-side and registry-side ownership metadata when matching still fails
+
+### Technical Changes
+- Updated `src/tools/agentRehydrateWorkers.ts`
+
 ## [0.5.2] - 2025-01-15
 
 ### Improved Restart-Safe Rehydration Matching and Diagnostics
