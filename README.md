@@ -819,6 +819,14 @@ starting → idle → working → idle → offline
 
 The local multi-agent loop is now robust enough to be boring — it just works, failures are handled predictably, and operators have the tools to manage the lifecycle.
 
+### Current proven capabilities
+
+For the latest proven state of peer federation, remote worker execution, and real validated use cases across Windows, Ubuntu, and Raspberry Pi, see:
+
+- [`docs/current-capabilities.md`](docs/current-capabilities.md)
+
+This document tracks what is actually working in fresh real runs, including peer-routed worker chat, persona/memory management, delegated tool execution, and file CRUD workflows.
+
 ### Basic REPL commands
 
 ```

@@ -115,7 +115,7 @@ export class GrpcClient extends EventEmitter {
   }
   
   private handleFrame(frame: GrpcAgentFrame) {
-    log.info(`[gRPC Client] ${this.options.agentId} received ${frame.type} from ${frame.fromAgentId} parent=${frame.parentOperationId || '-'} to=${frame.toAgentId}`);
+    log.debug(`[gRPC Client] ${this.options.agentId} received ${frame.type} from ${frame.fromAgentId}`);
     
     // External handler
     this.options.onFrame?.(frame);

@@ -108,7 +108,6 @@ export class WorkerAgent {
         break;
         
       case 'task_started':
-        log.info(`Worker ${this.options.agentId} received task_started parent=${frame.parentOperationId || '-'} from ${frame.fromAgentId}`);
         this.handleTaskStarted(frame);
         break;
 
@@ -271,8 +270,6 @@ export class WorkerAgent {
     }
     
     log.info(`Worker ${this.options.agentId} starting task ${parentOperationId}: ${tool}`);
-    log.info(`Worker ${this.options.agentId} task ${parentOperationId} params: ${JSON.stringify(params)}`);
-    log.info(`Worker ${this.options.agentId} task ${parentOperationId} context keys: ${Object.keys(context || {}).join(', ')}`);
     
     if (!this.grpcClient) {
       log.error(`Worker ${this.options.agentId} not connected, cannot execute task`);
@@ -290,11 +287,9 @@ export class WorkerAgent {
       const { executeToolWithStream } = await import('../utils/worker-tool-executor.js');
       
       // Send tool started event
-      log.info(`Worker ${this.options.agentId} sending tool_started for task ${parentOperationId}: ${tool}`);
       this.grpcClient.sendToolStarted(parentOperationId, 'server', tool, params, 'task');
       
       // Execute tool with streaming
-      log.info(`Worker ${this.options.agentId} creating execution stream for task ${parentOperationId}: ${tool}`);
       const stream = executeToolWithStream(
         tool,
         actualParams,
@@ -302,7 +297,6 @@ export class WorkerAgent {
         this.options.allowedTools,
         context,
         (event) => {
-          log.info(`Worker ${this.options.agentId} task ${parentOperationId} event: ${event.type}`);
           // Forward tool events via gRPC
           switch (event.type) {
             case 'tool_stdout':
@@ -312,7 +306,6 @@ export class WorkerAgent {
               this.grpcClient!.sendToolStderr(parentOperationId, 'server', event.data);
               break;
             case 'tool_finished':
-              log.info(`Worker ${this.options.agentId} sending tool_finished for task ${parentOperationId}`);
               this.grpcClient!.sendToolFinished(parentOperationId, 'server', {
                 success: event.result?.success,
                 output: event.result?.output,
@@ -331,9 +324,7 @@ export class WorkerAgent {
       this.grpcClient.sendTaskProgress(parentOperationId, 'server', 25, `Executing ${tool}...`);
       
       // Wait for tool completion
-      log.info(`Worker ${this.options.agentId} awaiting stream.result for task ${parentOperationId}`);
       const result = await stream.result;
-      log.info(`Worker ${this.options.agentId} stream.result resolved for task ${parentOperationId}: success=${result.success}`);
 
       if (taskAbortController.signal.aborted) {
         this.grpcClient.sendTaskCancelled(parentOperationId, 'server', 'Cancelled by master');
@@ -343,7 +334,6 @@ export class WorkerAgent {
       this.grpcClient.sendTaskProgress(parentOperationId, 'server', 100, `Task ${parentOperationId} completed`);
       
       // Send task completion
-      log.info(`Worker ${this.options.agentId} sending task_completed for task ${parentOperationId}`);
       this.grpcClient.sendTaskCompleted(parentOperationId, 'server', {
         success: result.success,
         message: `Task ${parentOperationId} completed`,
@@ -361,7 +351,6 @@ export class WorkerAgent {
       log.error(`Worker ${this.options.agentId} failed task ${parentOperationId}:`, error);
       
       if (this.grpcClient) {
-        log.info(`Worker ${this.options.agentId} handling failure path for task ${parentOperationId}`);
         if (taskAbortController.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
           this.grpcClient.sendTaskCancelled(parentOperationId, 'server', 'Cancelled by master');
         } else {
