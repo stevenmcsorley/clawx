@@ -307,8 +307,13 @@ export async function startTui(
   await resourceLoader.reload();
 
   // Quiet startup — hide the extensions/keybindings banner
+  // Also suppress upstream pi-coding-agent version/package update notices,
+  // which are misleading in Clawx because they point at the upstream package
+  // instead of Clawx releases.
   const settingsManager = SettingsManager.create(config.workDir);
   settingsManager.setQuietStartup(true);
+  process.env.PI_SKIP_VERSION_CHECK = '1';
+  process.env.PI_OFFLINE = '1';
 
   // Create session via the SDK
   const { session, extensionsResult, modelFallbackMessage } =

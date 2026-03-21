@@ -170,6 +170,8 @@ export async function startScout(
 
   const settingsManager = SettingsManager.create(config.workDir);
   settingsManager.setQuietStartup(true);
+  process.env.PI_SKIP_VERSION_CHECK = '1';
+  process.env.PI_OFFLINE = '1';
 
   // Create session
   const { session, extensionsResult, modelFallbackMessage } =
