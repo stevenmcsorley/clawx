@@ -36,6 +36,7 @@ export function createAgentCommand(): Command {
     .option('--workspace <path>', 'Workspace directory')
     .option('--master-workspace <path>', 'Master workspace directory to mirror for worker task context')
     .option('--allowed-tools <tools>', 'Comma-separated allowed tools for this worker')
+    .option('--no-auto-rehydrate', 'Disable automatic worker rehydration on startup')
     .option('-v, --verbose', 'Verbose logging')
     .action(async (options) => {
       try {
@@ -131,6 +132,32 @@ async function serveAgent(options: any): Promise<void> {
   const server = await startAgentServer(config);
   
   log.info(`Agent server started on port ${server.port}`);
+
+  const isMasterLike = !options.master && !options.grpcMaster;
+  if (isMasterLike && options.autoRehydrate !== false) {
+    setTimeout(async () => {
+      try {
+        const { agentRehydrateWorkersTool } = await import('../tools/agentRehydrateWorkers.js');
+        const rehydrateResult = await agentRehydrateWorkersTool.execute(
+          `auto-rehydrate-${Date.now()}`,
+          {},
+          undefined,
+          undefined,
+          {
+            __activeMasterConfig: config,
+            masterEndpoint: `http://localhost:${server.port}`,
+          },
+        ) as any;
+
+        const details = rehydrateResult?.details || {};
+        log.info(
+          `[auto-rehydrate] matched=${details.matched ?? 0} alive=${Array.isArray(details.alive) ? details.alive.length : 0} restored=${Array.isArray(details.restored) ? details.restored.length : 0} failed=${Array.isArray(details.failed) ? details.failed.length : 0}`,
+        );
+      } catch (error) {
+        log.warn(`[auto-rehydrate] failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }, 1000);
+  }
 
   const logPath = join(workspace, 'peer-activity.log');
   try {

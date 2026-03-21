@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.10] - 2025-01-15
+
+### Added Conservative Auto-Rehydration on Master Startup
+- `clawx agent serve` now triggers a background auto-rehydration pass after startup when running as a master
+- Auto-rehydration uses the proven `agent_rehydrate_workers` path and logs a short truthful summary
+- Added `--no-auto-rehydrate` to disable the behavior when needed
+- Designed to restore `autoStart: true` workers without blocking master readiness
+
+### Technical Changes
+- Updated `src/cli/agent.ts`
+
 ## [0.5.9] - 2025-01-15
 
 ### Preserved Worker Identity During Rehydration
