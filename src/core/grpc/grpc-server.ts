@@ -248,15 +248,17 @@ export class GrpcServer extends EventEmitter {
   private sendToAgent(agentId: string, frame: GrpcAgentFrame): boolean {
     const agent = this.agents.get(agentId);
     if (!agent) {
-      log.warn(`[gRPC] Agent ${agentId} not found`);
+      log.warn(`[gRPC] Agent ${agentId} not found for frame ${frame.type}`);
       return false;
     }
     
     try {
-      agent.call.write(frame);
+      log.info(`[gRPC] Sending ${frame.type} to ${agent.name} (${agentId}) parent=${frame.parentOperationId || '-'} to=${frame.toAgentId}`);
+      const wrote = agent.call.write(frame);
+      log.info(`[gRPC] Sent ${frame.type} to ${agent.name} (${agentId}) writeResult=${String(wrote)}`);
       return true;
     } catch (error) {
-      log.error(`[gRPC] Failed to send to ${agentId}:`, error);
+      log.error(`[gRPC] Failed to send ${frame.type} to ${agentId}:`, error);
       return false;
     }
   }

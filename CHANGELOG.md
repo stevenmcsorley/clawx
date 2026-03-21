@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.91] - 2025-01-15
+
+### Added Master→Worker gRPC Delivery Instrumentation
+- Added explicit logging for master gRPC frame delivery to workers, worker gRPC frame receipt, and worker `task_started` handling entry
+- Logs now show whether delegated task frames are written by the master, received by the worker client, and routed into worker execution
+- Intended to isolate the remaining peer-routed `bash` stall between frame delivery and worker task execution
+
+### Technical Changes
+- Updated `src/core/grpc/grpc-server.ts`
+- Updated `src/core/grpc/grpc-client.ts`
+- Updated `src/core/worker-agent.ts`
+
 ## [0.4.90] - 2025-01-15
 
 ### Added Worker-Side Delegated Task Instrumentation

@@ -108,6 +108,7 @@ export class WorkerAgent {
         break;
         
       case 'task_started':
+        log.info(`Worker ${this.options.agentId} received task_started parent=${frame.parentOperationId || '-'} from ${frame.fromAgentId}`);
         this.handleTaskStarted(frame);
         break;
 
