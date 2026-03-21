@@ -26,6 +26,16 @@ export const agentListTool: ToolDefinition = {
         description: 'Maximum tasks to show per agent',
         default: 5,
       },
+      include_offline: {
+        type: 'boolean',
+        description: 'Include offline historical workers in the listing',
+        default: false,
+      },
+      max_agents: {
+        type: 'number',
+        description: 'Maximum agents to show',
+        default: 20,
+      },
       check_health: {
         type: 'boolean',
         description: 'Check agent health status',
@@ -38,12 +48,14 @@ export const agentListTool: ToolDefinition = {
   async execute(toolCallId: string, params: any, signal?: AbortSignal, onUpdate?: any, context?: any) {
     const showTasks = params.show_tasks || false;
     const maxTasks = params.max_tasks || 5;
+    const includeOffline = params.include_offline === true;
+    const maxAgents = typeof params.max_agents === 'number' && params.max_agents > 0 ? params.max_agents : 20;
     
     try {
       const registry = new AgentRegistryManager();
-      const agents = registry.getAgents();
+      const allAgents = registry.getAgents();
       
-      if (agents.length === 0) {
+      if (allAgents.length === 0) {
         return {
           content: [{
             type: 'text',
@@ -53,7 +65,18 @@ export const agentListTool: ToolDefinition = {
         };
       }
       
-      let output = `## Registered Agents (${agents.length})\n\n`;
+      const sortedAgents = allAgents
+        .filter(agent => includeOffline || agent.status !== 'offline')
+        .sort((a, b) => {
+          const statusRank = (a.status === 'offline' ? 1 : 0) - (b.status === 'offline' ? 1 : 0);
+          if (statusRank !== 0) return statusRank;
+          const heartbeatA = a.lastHeartbeat || a.created || 0;
+          const heartbeatB = b.lastHeartbeat || b.created || 0;
+          return heartbeatB - heartbeatA;
+        });
+      const agents = sortedAgents.slice(0, maxAgents);
+
+      let output = `## Registered Agents (${agents.length}${agents.length !== allAgents.length ? ` of ${allAgents.length}` : ''})\n\n`;
       
       for (const agent of agents) {
         let effectiveStatus = agent.status;
@@ -131,7 +154,8 @@ export const agentListTool: ToolDefinition = {
       const failed = tasks.filter(t => t.status === 'failed' || t.status === 'cancelled').length;
       
       output += `## Registry Summary\n`;
-      output += `- **Total agents**: ${agents.length}\n`;
+      output += `- **Shown agents**: ${agents.length}\n`;
+      output += `- **Total agents**: ${allAgents.length}\n`;
       output += `- **Total tasks**: ${tasks.length}\n`;
       output += `- **Pending/running**: ${pending}\n`;
       output += `- **Completed**: ${completed}\n`;

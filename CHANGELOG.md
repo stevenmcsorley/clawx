@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.15] - 2025-01-15
+
+### Reduced Worker Inventory Clutter in Default Listings
+- `agent_list` now defaults to showing live/recent agents first, hides offline historical workers unless requested, and supports `max_agents`
+- `agent_peer_list_workers` now defaults to connected workers only, supports `include_offline` / `max_workers`, and labels worker source as connected vs historical
+- Makes day-to-day worker inventory more usable now that long-lived rehydration and auto-rehydration are working
+
+### Technical Changes
+- Updated `src/tools/agentList.ts`
+- Updated `src/tools/agentPeerListWorkers.ts`
+
 ## [0.5.14] - 2025-01-15
 
 ### Reduced Auto-Rehydrate Spawn-Lock Interference
