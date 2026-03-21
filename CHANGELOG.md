@@ -2,6 +2,15 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.87] - 2025-01-15
+
+### Narrowed Worker Task Completion Payloads for Delegated Task Stability
+- Reduced worker `task_completed` payloads to a sanitized result shape (`success`, `output`, `details`, `error`) instead of forwarding the full execution object structure
+- Aims to improve delegated peer-routed task completion reliability and reduce the chance of problematic nested runtime objects interfering with completion delivery or persistence
+
+### Technical Changes
+- Updated `src/core/worker-agent.ts`
+
 ## [0.4.86] - 2025-01-15
 
 ### Fixed Task Registry Persistence for Peer-Routed Worker Tasks

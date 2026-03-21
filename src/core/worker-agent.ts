@@ -332,7 +332,12 @@ export class WorkerAgent {
       this.grpcClient.sendTaskCompleted(parentOperationId, 'server', {
         success: result.success,
         message: `Task ${parentOperationId} completed`,
-        result: result
+        result: {
+          success: result.success,
+          output: result.output,
+          details: result.details,
+          error: result.error,
+        }
       });
       
       log.info(`Worker ${this.options.agentId} completed task ${parentOperationId}: ${tool}`);
