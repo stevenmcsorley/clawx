@@ -49,6 +49,12 @@ export interface AgentIdentity {
     };
   };
   
+  /** Owning master metadata for worker persistence/rehydration */
+  ownerMasterId?: string;
+  ownerMasterName?: string;
+  ownerMasterEndpoint?: string;
+  autoStart?: boolean;
+
   /** Persona information (loaded from user space) */
   persona?: {
     /** Whether persona is loaded */
@@ -141,6 +147,12 @@ export interface AgentConfig {
   
   /** Workspace directory */
   workspace: string;
+
+  /** Owning master metadata for worker persistence/rehydration */
+  ownerMasterId?: string;
+  ownerMasterName?: string;
+  ownerMasterEndpoint?: string;
+  autoStart?: boolean;
 }
 
 /** Registry of known agents */

@@ -120,6 +120,7 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     const { agentStatusTool } = await import('../tools/agentStatus.js');
     const { agentResultTool } = await import('../tools/agentResult.js');
     const { agentCleanupTool } = await import('../tools/agentCleanup.js');
+    const { agentRehydrateWorkersTool } = await import('../tools/agentRehydrateWorkers.js');
     const { agentMasterStatusTool } = await import('../tools/agentMasterStatus.js');
     const { agentCleanupPortTool } = await import('../tools/agentCleanupPort.js');
     const { agentCleanupProcessesTool } = await import('../tools/agentCleanupProcesses.js');
@@ -146,6 +147,7 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     tools.push(toolToDefinition(agentStatusTool));
     tools.push(toolToDefinition(agentResultTool));
     tools.push(toolToDefinition(agentCleanupTool));
+    tools.push(toolToDefinition(agentRehydrateWorkersTool));
     tools.push(toolToDefinition(agentMasterStatusTool));
     tools.push(toolToDefinition(agentCleanupPortTool));
     tools.push(toolToDefinition(agentCleanupProcessesTool));

@@ -2,6 +2,21 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.98] - 2025-01-15
+
+### Added Explicit Worker Rehydration for Persisted Local Workers
+- Added `agent_rehydrate_workers` to restore persisted local workers owned by the current master
+- Rehydration checks whether each worker is already alive, verifies `/health.agentId`, and respawns dead workers from saved `agent-config.json`
+- New worker spawns now persist owner metadata (`ownerMasterId`, `ownerMasterName`, `ownerMasterEndpoint`, `autoStart`) to support safer future restore logic
+- Wired the new rehydration tool into the TUI and direct master-tool execution path so it can be used locally and via peer federation
+
+### Technical Changes
+- Updated `src/types/agent.ts`
+- Updated `src/tools/agentSpawnLocal.ts`
+- Added `src/tools/agentRehydrateWorkers.ts`
+- Updated `src/cli/tui.ts`
+- Updated `src/core/agent-server.ts`
+
 ## [0.4.97] - 2025-01-15
 
 ### README Federation Diagram and Real-World Triple-OS Example

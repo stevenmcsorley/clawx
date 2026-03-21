@@ -240,6 +240,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       
       // Create agent config
       const masterWorkspace = agentMaster.getConfig()?.workspace || process.cwd();
+      const ownerMasterConfig = agentMaster.getConfig();
       const config = {
         id: agentId,
         name: finalName,
@@ -248,6 +249,10 @@ export const agentSpawnLocalTool: ToolDefinition = {
         masterEndpoint,
         allowedTools: effectiveAllowedTools,
         masterWorkspace,
+        ownerMasterId: ownerMasterConfig?.id,
+        ownerMasterName: ownerMasterConfig?.name,
+        ownerMasterEndpoint: masterEndpoint,
+        autoStart: true,
       };
       
       const configPath = join(workspace, 'agent-config.json');
@@ -514,6 +519,10 @@ export const agentSpawnLocalTool: ToolDefinition = {
         created: Date.now(),
         lastHeartbeat: Date.now(),
         processId: agentProcess.pid,
+        ownerMasterId: ownerMasterConfig?.id,
+        ownerMasterName: ownerMasterConfig?.name,
+        ownerMasterEndpoint: masterEndpoint,
+        autoStart: true,
       };
       
       registry.upsertAgent(agent);

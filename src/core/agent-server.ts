@@ -300,6 +300,11 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
             toolDefinition = agentCleanupTool;
             break;
           }
+          case 'agent_rehydrate_workers': {
+            const { agentRehydrateWorkersTool } = await import('../tools/agentRehydrateWorkers.js');
+            toolDefinition = agentRehydrateWorkersTool;
+            break;
+          }
           case 'agent_master_status': {
             const { agentMasterStatusTool } = await import('../tools/agentMasterStatus.js');
             toolDefinition = agentMasterStatusTool;
@@ -333,7 +338,7 @@ export async function startAgentServer(config: AgentConfig): Promise<AgentServer
       
       let result;
 
-      const isDirectMasterTool = ['agent_chat', 'agent_spawn_local', 'agent_list', 'agent_cleanup', 'agent_master_status', 'agent_persona_show', 'agent_persona_set', 'agent_memory_show', 'agent_memory_update'].includes(tool);
+      const isDirectMasterTool = ['agent_chat', 'agent_spawn_local', 'agent_list', 'agent_cleanup', 'agent_rehydrate_workers', 'agent_master_status', 'agent_persona_show', 'agent_persona_set', 'agent_memory_show', 'agent_memory_update'].includes(tool);
       if (isDirectMasterTool) {
         const toolCallId = `peer-master-tool-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         result = await Promise.race([
