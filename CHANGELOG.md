@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.18] - 2025-01-15
+
+### Added Worker Continuity for Delegated Task Results
+- Delegated worker task completions and failures are now logged into the worker's local conversation history and recent memory context
+- Gives later worker chat turns truthful continuity across earlier delegated `write` / `edit` / `bash` / other tool actions
+- Replaces brittle summary-only prompt dependence with actual persisted recent action state
+
+### Technical Changes
+- Updated `src/core/worker-agent.ts`
+
 ## [0.5.17] - 2025-01-15
 
 ### Grounded Worker Chat with Recent Workspace History

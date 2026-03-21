@@ -282,6 +282,20 @@ export class WorkerAgent {
     }
   }
 
+  private summarizeTaskForMemory(tool: string, params: any, result: any): string {
+    const truncate = (value: string, max = 220) => {
+      const oneLine = value.replace(/\s+/g, ' ').trim();
+      return oneLine.length > max ? `${oneLine.slice(0, max - 3)}...` : oneLine;
+    };
+
+    const target = params?.path || params?.file_path || params?.command || '';
+    if (result?.success) {
+      const output = typeof result?.output === 'string' ? truncate(result.output) : '';
+      return `${tool} succeeded${target ? ` on ${target}` : ''}${output ? ` | output: ${output}` : ''}`;
+    }
+    return `${tool} failed${target ? ` on ${target}` : ''}: ${result?.error || 'unknown error'}`;
+  }
+
   private async handleTaskStarted(frame: any) {
     const { parentOperationId, fromAgentId, payload } = frame;
     const { tool, params } = payload || {};
@@ -307,6 +321,7 @@ export class WorkerAgent {
     try {
       // Execute the actual tool using the existing execution path
       const { executeToolWithStream } = await import('../utils/worker-tool-executor.js');
+      const { logConversationTurn, saveMemory, loadMemory } = await import('../utils/persona-utils.js');
       
       // Send tool started event
       this.grpcClient.sendToolStarted(parentOperationId, 'server', tool, params, 'task');
@@ -366,6 +381,39 @@ export class WorkerAgent {
           error: result.error,
         }
       });
+
+      const factualSummary = this.summarizeTaskForMemory(tool, actualParams, result);
+      logConversationTurn(this.options.workspace, {
+        id: `${parentOperationId}_task`,
+        speaker: this.options.agentId,
+        target: fromAgentId,
+        message: factualSummary,
+        context: {
+          type: 'delegated_task_result',
+          tool,
+          params: actualParams,
+          success: result.success,
+          output: result.output,
+          error: result.error,
+        },
+        mode: 'task',
+        timestamp: Date.now(),
+      });
+
+      try {
+        const memory = loadMemory(this.options.workspace) || this.memory;
+        if (memory) {
+          const nextRecent = [...(memory.recent_context || []), factualSummary].slice(-10);
+          const updatedMemory = {
+            ...memory,
+            recent_context: nextRecent,
+          };
+          saveMemory(this.options.workspace, updatedMemory);
+          this.memory = updatedMemory;
+        }
+      } catch {
+        // best effort memory enrichment
+      }
       
       log.info(`Worker ${this.options.agentId} completed task ${parentOperationId}: ${tool}`);
       
@@ -379,6 +427,39 @@ export class WorkerAgent {
           this.grpcClient.sendTaskFailed(parentOperationId, 'server', 
             error instanceof Error ? error.message : String(error));
         }
+      }
+
+      try {
+        const { logConversationTurn, saveMemory, loadMemory } = await import('../utils/persona-utils.js');
+        const factualSummary = `${tool} failed${actualParams?.path || actualParams?.file_path || actualParams?.command ? ` on ${actualParams.path || actualParams.file_path || actualParams.command}` : ''}: ${error instanceof Error ? error.message : String(error)}`;
+        logConversationTurn(this.options.workspace, {
+          id: `${parentOperationId}_task_failed`,
+          speaker: this.options.agentId,
+          target: fromAgentId,
+          message: factualSummary,
+          context: {
+            type: 'delegated_task_result',
+            tool,
+            params: actualParams,
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          mode: 'task',
+          timestamp: Date.now(),
+        });
+
+        const memory = loadMemory(this.options.workspace) || this.memory;
+        if (memory) {
+          const nextRecent = [...(memory.recent_context || []), factualSummary].slice(-10);
+          const updatedMemory = {
+            ...memory,
+            recent_context: nextRecent,
+          };
+          saveMemory(this.options.workspace, updatedMemory);
+          this.memory = updatedMemory;
+        }
+      } catch {
+        // best effort memory enrichment
       }
     } finally {
       this.activeTaskControllers.delete(parentOperationId);
