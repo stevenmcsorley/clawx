@@ -2,6 +2,32 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.21] - 2025-01-15
+
+### Documentation
+- Fixed peer network setup docs to use the actual installed shell command `clawx agent serve` for starting peer masters
+- Clarified that `agent_peer_serve` is an in-session Clawx tool, not a standalone installed CLI command
+- Added a clean peer network setup flow for fresh sessions
+- Added peer-network demo docs including presenter notes, cheat sheet, and ASCII-heavy visual script
+
+### Technical Changes
+- Updated `README.md`
+- Added `docs/peer-network-demo-script.md`
+- Added `docs/peer-network-demo-cheat-sheet.md`
+- Added `docs/peer-network-demo-fancy.md`
+
+## [0.5.20] - 2025-01-15
+
+### Documentation
+- Added a dedicated programmatic usage guide for using Clawx as an npm package in scripts, CI, and larger apps
+- Expanded the programmatic usage documentation with a much broader set of realistic integration and product ideas
+- Improved the README top section so the major current product modes are much more visible: coding agent, headless npm usage, workers, peer federation, Forge, and Scout
+- Improved product positioning while keeping boundaries explicit about what is proven vs what is not yet a polished public SDK surface
+
+### Technical Changes
+- Added `docs/programmatic-usage.md`
+- Updated `README.md`
+
 ## [0.5.19] - 2025-01-15
 
 ### Fixed Misleading Upstream Update Banners in Clawx TUI
