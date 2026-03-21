@@ -1,0 +1,32 @@
+{
+  "name": "clawx-programmatic-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Simple React + Express app using Clawx programmatically",
+  "scripts": {
+    "dev": "concurrently \"node src/server.mjs\" \"vite\"",
+    "server": "node src/server.mjs",
+    "client": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "task": "node src/run-task.mjs",
+    "multi-turn": "node src/multi-turn.mjs",
+    "repo-summary": "node src/repo-summary.mjs"
+  },
+  "dependencies": {
+    "@halfagiraf/clawx": "latest",
+    "ajv": "^8.18.0",
+    "diff": "^8.0.3",
+    "express": "^4.21.2",
+    "iconv-lite": "^0.7.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "dotenv": "^16.6.1",
+    "vite": "^5.4.10"
+  }
+}

@@ -26,6 +26,7 @@ export CLAWDEX_API_KEY=sk-your-key
 | [multi-turn.mjs](multi-turn.mjs) | Chain multiple prompts with shared context |
 | [custom-config.mjs](custom-config.mjs) | Pass config directly without .env files |
 | [ci-codegen.mjs](ci-codegen.mjs) | Headless mode for CI/automation pipelines |
+| [programmatic-react-express/](programmatic-react-express/) | Full React + Express example app using Clawx programmatically from the backend |
 
 ## Run
 
@@ -41,4 +42,10 @@ DEEPSEEK_API_KEY=sk-... node examples/custom-config.mjs
 
 # CI/headless — returns JSON summary
 CLAWDEX_API_KEY=sk-... node examples/ci-codegen.mjs "Generate a Dockerfile for a Node.js app"
+
+# Full React + Express example app
+cd examples/programmatic-react-express
+npm install
+cp .env.example .env
+npm run dev
 ```

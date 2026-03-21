@@ -1,0 +1,4 @@
+node_modules/
+.clawx/
+.env
+npm-debug.log*

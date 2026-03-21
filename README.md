@@ -619,9 +619,17 @@ The repo already includes examples under [`examples/`](examples/) such as:
 - `multi-turn.mjs`
 - `custom-config.mjs`
 - `ci-codegen.mjs`
+- `programmatic-react-express/` — a fuller React + Express example app that uses Clawx programmatically from the backend
+
+That example app shows how to:
+- install `@halfagiraf/clawx` into a real app
+- wrap `loadConfig()` / `runAgent()` in backend code
+- expose API routes that call Clawx programmatically
+- pair a React frontend with an Express backend using Clawx as the task engine
 
 For the current programmatic usage story, exported API surface, examples, and guidance on embedding Clawx in a larger app, see:
 - [`docs/programmatic-usage.md`](docs/programmatic-usage.md)
+- [`examples/programmatic-react-express/`](examples/programmatic-react-express/)
 
 ## Forge
 
@@ -652,6 +660,39 @@ Current limitations still include:
 - worker lifecycle is improved, but old historical worker clutter can still accumulate until cleaned intentionally
 - periodic background cleanup/policy management is still not a finished lifecycle feature
 - worker chat continuity across prior delegated tasks is improved, but exact later summarization can still blur some detail
+
+## Roadmap
+
+Near-term product gaps and likely next improvements:
+
+### 1. Clearer command-surface guidance
+- keep improving the distinction between shell CLI commands and in-session Clawx tools
+- reduce confusion between what users can type directly in a shell vs what is available once Clawx is running
+- continue aligning README, examples, and installed help output
+
+### 2. Better peer-network onboarding
+- make fresh-session peer setup even easier to understand
+- improve installed help and discoverability for peer networking flows
+- keep the clean peer network setup path prominent and truthful
+
+### 3. Rehydration and recovery hardening
+- keep improving startup stability in messy historical worker states
+- reduce port-collision and old-worker interference during auto-rehydrate
+- make recovery-mode startup less necessary in real use
+
+### 4. More reliable long-running peer-hosted process workflows
+- improve the reliability of starting and keeping background app/server processes alive through peer-hosted workers
+- reduce cases where peer workers are excellent for build/file tasks but less reliable for long-running service startup
+
+### 5. Better worker summary fidelity
+- keep improving worker natural-language summaries after tool use
+- make later worker explanations match observed tool results more exactly
+- continue preferring raw tool truth over hand-wavy narration
+
+### 6. More polished showcase workflows
+- turn strong real workflows into cleaner repeatable demos
+- keep improving examples that show peer-hosted collaboration across machines
+- make app-building, data tasks, and ops-style peer workflows easier to show off without extra manual cleanup
 
 ## Documentation
 
