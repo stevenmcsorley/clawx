@@ -89,24 +89,32 @@ export const agentCleanupTool: ToolDefinition = {
         output += `\n`;
       }
       
+      const rehydratableDeadAgents = deadAgents.filter(check => check.agent.autoStart === true);
+      const removableDeadAgents = deadAgents.filter(check => check.agent.autoStart !== true);
+
       // Clean up stale agents from registry
       const cleanedStale = cleanupStaleAgents(cleanupThresholdMinutes * 60 * 1000);
       output += `**Registry Cleanup:**\n`;
-      output += `- Cleaned ${cleanedStale} stale agents\n\n`;
+      output += `- Cleaned ${cleanedStale} stale non-auto-start agents\n`;
+      output += `- Preserved ${rehydratableDeadAgents.length} auto-start dead agents for rehydration\n\n`;
       
       // Clean up dead agents if confirmed
       let cleanedDead = 0;
-      if (deadAgents.length > 0 && (force || deadAgents.length <= 3)) {
-        // Auto-clean if force or small number
-        for (const check of deadAgents) {
+      let preservedDead = rehydratableDeadAgents.length;
+      if (removableDeadAgents.length > 0 && (force || removableDeadAgents.length <= 3)) {
+        // Auto-clean only non-auto-start dead agents unless forced through config changes elsewhere
+        for (const check of removableDeadAgents) {
           registry.removeAgent(check.agent.id);
           cleanedDead++;
         }
         registry.save();
-        output += `**Removed ${cleanedDead} dead agents from registry.**\n`;
-      } else if (deadAgents.length > 0) {
-        output += `**⚠️  Found ${deadAgents.length} dead agents.**\n`;
+        output += `**Removed ${cleanedDead} dead non-auto-start agents from registry.**\n`;
+      } else if (removableDeadAgents.length > 0) {
+        output += `**⚠️  Found ${removableDeadAgents.length} removable dead agents.**\n`;
         output += `Use \`--force true\` to remove them, or run cleanup again.\n`;
+      }
+      if (preservedDead > 0) {
+        output += `**Preserved ${preservedDead} dead auto-start agents for rehydration.**\n`;
       }
       
       // Clean up old tasks and stale running tasks tied to dead/offline agents
@@ -120,6 +128,7 @@ export const agentCleanupTool: ToolDefinition = {
       output += `- Total agents: ${agents.length}\n`;
       output += `- Live agents: ${liveAgents.length}\n`;
       output += `- Dead agents: ${deadAgents.length}\n`;
+      output += `- Preserved dead auto-start agents: ${preservedDead}\n`;
       output += `- Cleaned stale: ${cleanedStale}\n`;
       output += `- Cleaned dead: ${cleanedDead}\n`;
       output += `- Cleaned old tasks: ${cleanedTasks}\n`;
@@ -130,6 +139,7 @@ export const agentCleanupTool: ToolDefinition = {
           total_agents: agents.length,
           live_agents: liveAgents.length,
           dead_agents: deadAgents.length,
+          preserved_dead_autostart: preservedDead,
           cleaned_stale: cleanedStale,
           cleaned_dead: cleanedDead,
           cleaned_tasks: cleanedTasks,

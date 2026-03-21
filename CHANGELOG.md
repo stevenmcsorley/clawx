@@ -2,6 +2,19 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.11] - 2025-01-15
+
+### Safer Cleanup for Rehydratable Workers
+- Updated stale-agent cleanup so offline auto-start workers are preserved instead of being removed from the registry
+- `agent_cleanup` now distinguishes preserved dead auto-start workers from removable dead non-auto-start workers
+- `agent_list` now shows whether each worker has auto-start enabled
+- Prevents cleanup from fighting the newly working rehydration/auto-rehydration lifecycle
+
+### Technical Changes
+- Updated `src/utils/agent-utils.ts`
+- Updated `src/tools/agentCleanup.ts`
+- Updated `src/tools/agentList.ts`
+
 ## [0.5.10] - 2025-01-15
 
 ### Added Conservative Auto-Rehydration on Master Startup

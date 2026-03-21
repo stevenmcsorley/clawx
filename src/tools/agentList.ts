@@ -75,6 +75,7 @@ export const agentListTool: ToolDefinition = {
         }
         
         output += `- **Workspace**: ${agent.workspace}\n`;
+        output += `- **Auto-start**: ${agent.autoStart === false ? 'disabled' : 'enabled'}\n`;
         output += `- **Created**: ${new Date(agent.created).toLocaleString()}\n`;
         
         if (agent.lastHeartbeat) {

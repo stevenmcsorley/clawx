@@ -146,12 +146,13 @@ export function cleanupStaleAgents(cleanupThresholdMs = 5 * 60 * 1000): number {
   let cleaned = 0;
   
   for (const agent of agents) {
+    if (agent.type === 'self') continue;
+
     const lastHeartbeat = agent.lastHeartbeat || agent.created;
-    const shouldCleanup = 
-      // Offline for too long
-      (agent.status === 'offline' && now - lastHeartbeat > cleanupThresholdMs) ||
-      // No heartbeat for too long (except self agents)
-      (agent.type !== 'self' && now - lastHeartbeat > cleanupThresholdMs);
+    const shouldCleanup =
+      agent.status === 'offline' &&
+      now - lastHeartbeat > cleanupThresholdMs &&
+      agent.autoStart !== true;
     
     if (shouldCleanup) {
       registry.removeAgent(agent.id);
