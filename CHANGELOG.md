@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.6] - 2025-01-15
+
+### Tightened Rehydration Candidate Filtering
+- Updated `agent_rehydrate_workers` to skip workers with `autoStart === false`
+- Added explicit logging of requested worker names during targeted rehydration
+- Helps narrow rehydration runs to the intended workers instead of broad historical scans, improving testability and operator control
+
+### Technical Changes
+- Updated `src/tools/agentRehydrateWorkers.ts`
+
 ## [0.5.5] - 2025-01-15
 
 ### Fixed Direct Master Tool Timeout Cleanup in Task Execution

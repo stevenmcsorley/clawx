@@ -95,6 +95,7 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
 
       const agents = discoveredWorkers.filter(({ agent, workerConfig }) => {
         if (agent.type !== 'local') return false;
+        if (workerConfig.autoStart === false) return false;
         if (!includeOffline && agent.status === 'offline') return false;
         if (requestedNames && requestedNames.size > 0 && !requestedNames.has(agent.name)) return false;
         if (!onlyCurrentMaster) return true;
@@ -136,6 +137,9 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
       const skipped: string[] = [];
 
       log.info(`[rehydrate] matched ${agents.length} worker(s) for master ${masterConfig.name} @ ${masterEndpoint}`);
+      if (requestedNames && requestedNames.size > 0) {
+        log.info(`[rehydrate] requested names: ${Array.from(requestedNames).join(', ')}`);
+      }
 
       for (const entry of agents) {
         const agent = entry.agent;
