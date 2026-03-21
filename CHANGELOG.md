@@ -2,6 +2,16 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.94] - 2025-01-15
+
+### Fixed Circular gRPC Task Payload Serialization in Master→Worker Delivery
+- Sanitized delegated `task_started` payloads before sending them over gRPC so non-serializable runtime objects no longer break worker stream delivery
+- Prevents `13 INTERNAL: Error serializing response: Converting circular structure to JSON` caused by injected runtime/context objects such as `TreeNode`
+- Targets the root cause of peer-routed delegated worker `bash` tasks getting stuck in `running` while the worker disconnects
+
+### Technical Changes
+- Updated `src/core/grpc/grpc-server.ts`
+
 ## [0.4.93] - 2025-01-15
 
 ### Persist Spawned Worker stdout/stderr to Workspace Logs

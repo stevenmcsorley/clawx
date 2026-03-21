@@ -12,6 +12,23 @@ import type { Persona } from '../../types/persona.js';
 import type { AgentIdentity } from '../../types/agent.js';
 import { GrpcAgentFrame, GrpcFrames, type GrpcFrameType } from './protocol.js';
 
+function sanitizeGrpcPayload<T>(value: T): T {
+  try {
+    return JSON.parse(JSON.stringify(value, (_key, current) => {
+      if (typeof current === 'function') return undefined;
+      if (current && typeof current === 'object') {
+        const ctor = current.constructor?.name;
+        if (ctor === 'GrpcServer' || ctor === 'ServerResponse' || ctor === 'IncomingMessage' || ctor === 'Socket' || ctor === 'TreeNode') {
+          return undefined;
+        }
+      }
+      return current;
+    }));
+  } catch {
+    return value;
+  }
+}
+
 export interface ConnectedAgent {
   id: string;
   name: string;
@@ -350,10 +367,11 @@ export class GrpcServer extends EventEmitter {
   }
   
   sendTask(fromAgentId: string, toAgentId: string, taskId: string, tool: string, params: any, context?: any): boolean {
-    const frame = GrpcFrames.createTaskStarted(taskId, fromAgentId, toAgentId, tool, {
+    const safeParams = sanitizeGrpcPayload({
       ...params,
       __context: context,
     });
+    const frame = GrpcFrames.createTaskStarted(taskId, fromAgentId, toAgentId, tool, safeParams);
     return this.sendFrame(frame);
   }
 
