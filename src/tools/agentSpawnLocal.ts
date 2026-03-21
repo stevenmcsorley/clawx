@@ -288,6 +288,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
         '--port', actualPort.toString(),
         '--master', masterEndpoint,
         '--workspace', workspace,
+        '--verbose',
       ];
 
       if (masterWorkspace) {

@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.92] - 2025-01-15
+
+### Enabled Visible Verbose Logging for Spawned Headless Workers
+- Added `--verbose` support to `clawx agent serve`
+- Spawned workers now start with `--verbose` so delegated-task instrumentation logs are no longer suppressed by the default `warn` log level
+- Makes the previously added worker/master gRPC and task-path instrumentation visible in real peer-routed task runs
+
+### Technical Changes
+- Updated `src/cli/agent.ts`
+- Updated `src/tools/agentSpawnLocal.ts`
+
 ## [0.4.91] - 2025-01-15
 
 ### Added Master→Worker gRPC Delivery Instrumentation

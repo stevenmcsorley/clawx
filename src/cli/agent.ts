@@ -11,6 +11,7 @@
 
 import { Command } from 'commander';
 import { log } from '../utils/logger.js';
+import { setLogLevel } from '../utils/logger.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
 import { startAgentServer } from '../core/agent-server.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,6 +35,7 @@ export function createAgentCommand(): Command {
     .option('--grpc-master <url>', 'Master gRPC endpoint for live communication (grpc://host:port)')
     .option('--workspace <path>', 'Workspace directory')
     .option('--master-workspace <path>', 'Master workspace directory to mirror for worker task context')
+    .option('-v, --verbose', 'Verbose logging')
     .action(async (options) => {
       try {
         await serveAgent(options);
@@ -77,6 +79,10 @@ export function createAgentCommand(): Command {
 
 /** Start as headless agent */
 async function serveAgent(options: any): Promise<void> {
+  if (options.verbose) {
+    setLogLevel('info');
+  }
+
   const agentId = options.id || uuidv4();
   const agentName = options.name || `agent-${agentId.substring(0, 8)}`;
   const port = parseInt(options.port, 10) || 0;
