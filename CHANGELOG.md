@@ -2,6 +2,17 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.5.9] - 2025-01-15
+
+### Preserved Worker Identity During Rehydration
+- Added optional identity-preserving spawn support to `agent_spawn_local`
+- `agent_rehydrate_workers` now restores workers using their persisted `id`, `workspace`, and `masterWorkspace`
+- Fixes the bug where rehydrated workers came back under a new ID and were incorrectly marked as failed even though they had reconnected
+
+### Technical Changes
+- Updated `src/tools/agentSpawnLocal.ts`
+- Updated `src/tools/agentRehydrateWorkers.ts`
+
 ## [0.5.8] - 2025-01-15
 
 ### Fixed Worker Serve CLI Allowed-Tools Option

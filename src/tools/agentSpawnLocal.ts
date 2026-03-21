@@ -85,6 +85,23 @@ export const agentSpawnLocalTool: ToolDefinition = {
         description: 'Master endpoint for registration (default: auto-detect)',
         default: '',
       },
+      id: {
+        type: 'string',
+        description: 'Optional explicit agent ID (used by rehydration)',
+      },
+      workspace: {
+        type: 'string',
+        description: 'Optional explicit workspace path (used by rehydration)',
+      },
+      master_workspace: {
+        type: 'string',
+        description: 'Optional explicit master workspace path',
+      },
+      preserve_identity: {
+        type: 'boolean',
+        description: 'Preserve the provided id/workspace instead of generating new ones',
+        default: false,
+      },
     },
     required: ['name'],
   },
@@ -106,6 +123,10 @@ export const agentSpawnLocalTool: ToolDefinition = {
       allowed_tools: actualParams.allowed_tools || actualParams.allowedTools || [],
       port: actualParams.port || 0,
       master_endpoint: actualParams.master_endpoint || actualParams.masterEndpoint || '',
+      id: actualParams.id || actualParams.agent_id || '',
+      workspace: actualParams.workspace || '',
+      master_workspace: actualParams.master_workspace || actualParams.masterWorkspace || '',
+      preserve_identity: actualParams.preserve_identity === true,
     };
     
     log.debug('agent_spawn_local normalized params:', normalizedParams);
@@ -148,14 +169,22 @@ export const agentSpawnLocalTool: ToolDefinition = {
       
       const registry = new AgentRegistryManager();
       
+      const preserveIdentity = normalizedParams.preserve_identity;
+
       // Get unique name (only if needed)
-      const finalName = getUniqueAgentName(name);
-      if (finalName !== name) {
+      const finalName = preserveIdentity ? name : getUniqueAgentName(name);
+      if (!preserveIdentity && finalName !== name) {
         log.warn(`Agent name "${name}" already exists, using "${finalName}" instead`);
       }
       
-      const agentId = uuidv4();
-      const workspace = registry.ensureAgentWorkspace(agentId);
+      const agentId = preserveIdentity && normalizedParams.id ? normalizedParams.id : uuidv4();
+      const workspace = preserveIdentity && normalizedParams.workspace
+        ? normalizedParams.workspace
+        : registry.ensureAgentWorkspace(agentId);
+
+      if (preserveIdentity && !existsSync(workspace)) {
+        mkdirSync(workspace, { recursive: true });
+      }
       
       // Determine master endpoint - require explicit master or current instance
       let masterEndpoint = normalizedParams.master_endpoint || context?.masterEndpoint || context?.master_endpoint;
@@ -240,7 +269,7 @@ export const agentSpawnLocalTool: ToolDefinition = {
       
       // Create agent config
       const ownerMasterConfig = context?.__activeMasterConfig || agentMaster.getConfig();
-      const masterWorkspace = ownerMasterConfig?.workspace || process.cwd();
+      const masterWorkspace = normalizedParams.master_workspace || ownerMasterConfig?.workspace || process.cwd();
       const config = {
         id: agentId,
         name: finalName,

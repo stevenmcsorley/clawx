@@ -179,6 +179,10 @@ export const agentRehydrateWorkersTool: ToolDefinition = {
         const { agentSpawnLocalTool } = await import('./agentSpawnLocal.js');
         const rehydrateParams: any = {
           name: workerConfig.name,
+          id: workerConfig.id,
+          workspace: workerConfig.workspace,
+          master_workspace: workerConfig.masterWorkspace,
+          preserve_identity: true,
           port: workerConfig.port,
           master_endpoint: workerConfig.masterEndpoint || masterEndpoint,
         };
