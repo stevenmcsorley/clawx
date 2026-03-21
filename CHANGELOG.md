@@ -2,6 +2,18 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.77] - 2025-01-15
+
+### Fixed Peer Persona Worker Resolution and Peer Reply Extraction
+- Fixed `agent_peer_persona_set` to resolve remote `worker_name` to `agent_id` before calling remote `agent_persona_set`
+- Fixed `agent_peer_persona_show` to resolve remote `worker_name` to `agent_id` before calling remote `agent_persona_show`
+- Improved peer result extraction to ignore generic `Task <id> completed` wrappers so inner payloads can surface more truthfully
+
+### Technical Changes
+- Updated `src/tools/agentPeerPersonaSet.ts`
+- Updated `src/tools/agentPeerPersonaShow.ts`
+- Updated `src/tools/agentPeerTaskHelpers.ts`
+
 ## [0.4.76] - 2025-01-15
 
 ### Fixed Peer Worker Chat Execution Path

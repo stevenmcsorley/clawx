@@ -1,6 +1,6 @@
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
-import { extractReadablePeerValue, waitForPeerTaskResult } from './agentPeerTaskHelpers.js';
+import { extractReadablePeerValue, resolvePeerWorkerId, waitForPeerTaskResult } from './agentPeerTaskHelpers.js';
 
 export const agentPeerPersonaSetTool: ToolDefinition = {
   name: 'agent_peer_persona_set',
@@ -35,6 +35,16 @@ export const agentPeerPersonaSetTool: ToolDefinition = {
       return { content: [{ type: 'text', text: `❌ Peer master not found: ${peerName}` }], isError: true };
     }
 
+    let targetAgentId: string;
+    try {
+      targetAgentId = await resolvePeerWorkerId(peer.endpoint, peer.name, workerName);
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: error instanceof Error ? `❌ ${error.message}` : `❌ Failed to resolve remote worker ${workerName} on ${peer.name}` }],
+        isError: true,
+      };
+    }
+
     const response = await fetch(`${peer.endpoint}/task`, {
       method: 'POST',
       headers: {
@@ -45,7 +55,7 @@ export const agentPeerPersonaSetTool: ToolDefinition = {
       body: JSON.stringify({
         tool: 'agent_persona_set',
         params: {
-          agent_name: workerName,
+          agent_id: targetAgentId,
           name: params.name,
           role: params.role,
           tone: params.tone,
@@ -77,7 +87,7 @@ export const agentPeerPersonaSetTool: ToolDefinition = {
     const text = extractReadablePeerValue(result).trim() || extractReadablePeerValue(statusSnapshot).trim();
     return {
       content: [{ type: 'text', text: status === 'completed' ? `🌐 ${peer.name} → ${workerName}\n${text || 'Persona updated.'}` : `❌ Peer persona set ${status}${error ? `\n${error}` : ''}` }],
-      details: { peer_name: peer.name, worker_name: workerName, task_id: taskId, status, result, error },
+      details: { peer_name: peer.name, worker_name: workerName, target_agent_id: targetAgentId, task_id: taskId, status, result, error },
       isError: status === 'failed' || status === 'pending' || status === 'cancelled',
     };
   },

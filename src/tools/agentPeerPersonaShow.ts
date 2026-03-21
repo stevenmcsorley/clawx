@@ -1,6 +1,6 @@
 import { ToolDefinition } from '../types/extension.js';
 import { AgentRegistryManager } from '../core/agent-registry.js';
-import { extractReadablePeerValue, waitForPeerTaskResult } from './agentPeerTaskHelpers.js';
+import { extractReadablePeerValue, resolvePeerWorkerId, waitForPeerTaskResult } from './agentPeerTaskHelpers.js';
 
 export const agentPeerPersonaShowTool: ToolDefinition = {
   name: 'agent_peer_persona_show',
@@ -25,6 +25,16 @@ export const agentPeerPersonaShowTool: ToolDefinition = {
       return { content: [{ type: 'text', text: `❌ Peer master not found: ${peerName}` }], isError: true };
     }
 
+    let targetAgentId: string;
+    try {
+      targetAgentId = await resolvePeerWorkerId(peer.endpoint, peer.name, workerName);
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: error instanceof Error ? `❌ ${error.message}` : `❌ Failed to resolve remote worker ${workerName} on ${peer.name}` }],
+        isError: true,
+      };
+    }
+
     const response = await fetch(`${peer.endpoint}/task`, {
       method: 'POST',
       headers: {
@@ -35,7 +45,7 @@ export const agentPeerPersonaShowTool: ToolDefinition = {
       body: JSON.stringify({
         tool: 'agent_persona_show',
         params: {
-          agent_name: workerName,
+          agent_id: targetAgentId,
           show_memory: params.show_memory !== false,
           show_conversation: params.show_conversation === true,
         },
@@ -57,7 +67,7 @@ export const agentPeerPersonaShowTool: ToolDefinition = {
     const text = extractReadablePeerValue(result).trim() || extractReadablePeerValue(statusSnapshot).trim();
     return {
       content: [{ type: 'text', text: status === 'completed' ? `🌐 ${peer.name} → ${workerName}\n${text || 'No persona output received'}` : `❌ Peer persona show ${status}${error ? `\n${error}` : ''}` }],
-      details: { peer_name: peer.name, worker_name: workerName, task_id: taskId, status, result, error },
+      details: { peer_name: peer.name, worker_name: workerName, target_agent_id: targetAgentId, task_id: taskId, status, result, error },
       isError: status === 'failed' || status === 'pending' || status === 'cancelled',
     };
   },

@@ -23,7 +23,12 @@ export function extractReadablePeerValue(value: any): string {
       .join('\n');
   }
   if (typeof value?.reply === 'string') return value.reply;
-  if (typeof value?.message === 'string') return value.message;
+  if (typeof value?.message === 'string') {
+    const message = String(value.message).trim();
+    if (!/^Task\s+[a-f0-9-]+\s+completed$/i.test(message)) {
+      return message;
+    }
+  }
   if (typeof value?.output === 'string') {
     const nested = extractReadablePeerValue(value.output);
     return nested || value.output;
