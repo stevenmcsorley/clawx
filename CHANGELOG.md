@@ -2,6 +2,24 @@
 
 All notable changes to Clawx will be documented in this file.
 
+## [0.4.83] - 2025-01-15
+
+### Added Peer Memory Tools and Richer Peer Worker Inventory
+- Added `agent_peer_memory_show` for inspecting memory summary and recent context on a named worker behind a peer master
+- Added `agent_peer_memory_update` for updating memory on a named worker behind a peer master
+- Expanded `agent_peer_list_workers` to include richer worker inventory details:
+  - workspace
+  - persona summary
+  - memory summary
+  - allowed tools
+- Registered the new peer memory tools in the main TUI tool surface
+
+### Technical Changes
+- Added `src/tools/agentPeerMemoryShow.ts`
+- Added `src/tools/agentPeerMemoryUpdate.ts`
+- Enhanced `src/tools/agentPeerListWorkers.ts`
+- Updated `src/cli/tui.ts`
+
 ## [0.4.82] - 2025-01-15
 
 ### Fixed Peer Worker Chat Active gRPC Runtime Resolution
