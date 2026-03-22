@@ -4,22 +4,13 @@
 
 [![npm version](https://img.shields.io/npm/v/@halfagiraf/clawx)](https://www.npmjs.com/package/@halfagiraf/clawx) [![license](https://img.shields.io/npm/l/@halfagiraf/clawx)](https://github.com/stevenmcsorley/clawx/blob/main/LICENSE) [![downloads](https://img.shields.io/npm/dm/@halfagiraf/clawx)](https://www.npmjs.com/package/@halfagiraf/clawx)
 
-Terminal-first coding and execution agent with:
-- local coding-agent workflows
-- headless npm/package usage for scripts, CI, and app backends
-- a hardened local worker pool with persona and memory
-- explicit LAN peer-master federation
-- peer-hosted worker delegation across Windows, Ubuntu, and Raspberry Pi
-- Forge for extension/capability discovery and scaffolding
-- Scout for model/dataset exploration workflows
-- gRPC as the canonical live master↔worker transport
-
-Clawx can be used as:
-- a coding agent in the terminal
-- a headless coding/automation engine in Node apps
-- a local worker/master orchestration system
-- an explicit multi-machine control plane across peer masters and peer-hosted workers
-- an extension/capability builder through Forge
+Terminal-first coding and execution agent for:
+- local coding workflows in the terminal
+- headless npm/package usage in scripts, CI, and app backends
+- local workers with persona and memory
+- explicit LAN peer-master federation across Windows, Ubuntu, and Raspberry Pi
+- Forge capability scaffolding and Scout research workflows
+- gRPC-based live master↔worker transport
 
 > **Always update before use — this project is in active development and can change quickly:**
 > ```bash
@@ -34,37 +25,15 @@ Clawx started because tools like OpenClaw kept getting heavier. Prompts balloone
 
 ## What Clawx is today
 
-Clawx can now be used as:
-- a local terminal-first coding agent
-- a headless npm package inside scripts, CI jobs, and app backends
-- a local worker/master orchestration system
-- an explicit LAN peer-federation system
-- a remote worker control plane from one master to another
-- a capability-discovery and extension-scaffolding surface through Forge
-- a research-oriented model/dataset exploration surface through Scout
-
-That means one machine can:
-- register another master on the LAN
-- spawn workers behind that peer master
-- chat with those workers
-- manage their persona and memory
-- send them real delegated tool tasks
-- get real results back
-- restart a peer master and have eligible persisted workers come back automatically
-
-## Why this is different
-
-Clawx is not only a single local coding chat.
-
-It already combines several real modes that are easy to miss if you only skim the README:
-- **Coding agent** — normal terminal coding and execution workflow
-- **Programmatic npm usage** — run Clawx headlessly inside scripts, CI, and app backends
-- **Workers** — explicit local worker/master orchestration
+Clawx combines several real modes in one project:
+- **Coding agent** — terminal coding and execution workflow
+- **Programmatic npm usage** — headless task execution inside scripts, CI, and app backends
+- **Workers** — explicit local worker/master orchestration with persona and memory
 - **Peer federation** — explicit LAN master-to-master worker delegation
-- **Forge** — research and scaffold new Clawx capabilities/extensions
-- **Scout** — explore model and dataset options for capability work and research
+- **Forge** — capability discovery and extension scaffolding
+- **Scout** — model and dataset exploration
 
-Those are real current product directions, but they are not all equally productized yet. The most mature paths today are the coding-agent flow, worker/peer runtime, and headless programmatic task execution.
+Today, the most mature paths are the coding-agent flow, worker/peer runtime, and headless programmatic task execution.
 
 ## What is proven right now
 
@@ -612,27 +581,51 @@ If a model does not support structured tool calling, Clawx can fall back to chat
 
 ## Programmatic usage
 
-Clawx can also be used programmatically as an npm package for headless tasks, multi-turn scripted runs, CI/codegen, and backend integration.
+Clawx can be embedded as an npm package for headless tasks, scripted runs, CI/codegen, and app backends.
 
-The repo already includes examples under [`examples/`](examples/) such as:
-- `run-task.mjs`
-- `multi-turn.mjs`
-- `custom-config.mjs`
-- `ci-codegen.mjs`
-- `programmatic-react-express/` — a fuller React + Express example app that uses Clawx programmatically from the backend
-- `repo-maintainer-app/` — a React + Express repo-maintenance workbench for repository summary, maintenance planning, and risk review
-- `ops-copilot-app/` — a React + Express ops/environment inspection app showing Clawx used as an operational backend
-- `chess-arena-app/` — an interactive browser chess arena with autoplay White vs Black, showing richer app-building possibilities
+### Example apps and scripts
 
-That example app shows how to:
-- install `@halfagiraf/clawx` into a real app
-- wrap `loadConfig()` / `runAgent()` in backend code
-- expose API routes that call Clawx programmatically
-- pair a React frontend with an Express backend using Clawx as the task engine
+Scripts:
+- `run-task.mjs` — single headless task run
+- `multi-turn.mjs` — multi-step scripted conversation
+- `custom-config.mjs` — direct config without relying on local init state
+- `ci-codegen.mjs` — CI-friendly headless execution
 
-For the current programmatic usage story, exported API surface, examples, and guidance on embedding Clawx in a larger app, see:
+React demo apps:
+- `programmatic-react-express/`
+  - baseline React + Express starter
+  - simple UI calling a backend task route
+  - good first reference app
+- `repo-maintainer-app/`
+  - repo maintenance workbench
+  - reviews a codebase, risks, and next steps
+  - suited to dev and maintainer workflows
+- `ops-copilot-app/`
+  - lightweight ops dashboard
+  - inspects environments, runtimes, and visible resources
+  - suited to home-lab and machine inspection demos
+- `chess-arena-app/`
+  - interactive browser chess arena
+  - autoplay White vs Black with style and speed controls
+  - shows richer UI/stateful app possibilities
+- `detective-app/`
+  - investigation-themed demo app
+  - clue/case-driven interface and workflow flavor
+  - good for narrative or role-based demos
+- `courtroom-app/`
+  - courtroom-themed demo app
+  - structured argument / position style experience
+  - good for adversarial or point-counterpoint demos
+- `dungeon-master-app/`
+  - game-master themed demo app
+  - interactive session/story style interface
+  - good for playful structured interactions
+
+These examples are intentionally small and varied so the repo shows more than one type of app: utility tools, workflow apps, and interactive demos.
+
+For the API surface, embedding guidance, and more programmatic examples, see:
 - [`docs/programmatic-usage.md`](docs/programmatic-usage.md)
-- [`examples/programmatic-react-express/`](examples/programmatic-react-express/)
+- [`examples/`](examples/)
 
 ## Forge
 
