@@ -1,8 +1,9 @@
 /**
  * Banner Header Extension for Clawx TUI.
  *
- * Renders the CLAWX ASCII art banner as a pinned TUI header component
- * instead of printing it to console.error (which scrolls away).
+ * Renders the CLAWX ASCII art banner as a sticky overlay pinned to the
+ * top of the viewport. Uses pi-tui's overlay system which composites at
+ * viewport-relative positions, so the header stays visible as content scrolls.
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
@@ -33,11 +34,28 @@ export function createBannerHeaderExtension(options: BannerHeaderOptions) {
 
         const bannerText = `${logo}\n${meta}\n${separator}`;
 
-        return {
+        // Show banner as a non-capturing overlay pinned to top-left.
+        // Overlays are composited at viewport-relative positions, so
+        // the header stays visible regardless of scroll position.
+        const bannerComponent = {
           render(width: number): string[] {
             return bannerText.split("\n");
           },
           invalidate() {},
+        };
+
+        const handle = tui.showOverlay(bannerComponent, {
+          anchor: "top-left" as any,
+          nonCapturing: true,
+          width: "100%",
+        });
+
+        // Return empty component for the header slot; the visual header
+        // is the overlay. dispose() hides the overlay on /reload.
+        return {
+          render(): string[] { return []; },
+          invalidate() {},
+          dispose() { handle.hide(); },
         };
       });
     });
