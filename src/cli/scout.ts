@@ -24,9 +24,9 @@ import { createHfModelInfoTool } from "../tools/hfModelInfo.js";
 import { createHfReadmeTool } from "../tools/hfReadme.js";
 import { buildScoutPrompt, buildScoutChatPrompt } from "../utils/scout-prompt.js";
 import { createChatModeExtension } from "../extensions/chat-mode.js";
-import { createBannerHeaderExtension } from "../extensions/banner-header.js";
 import { createToolParsingStreamFn } from "../core/text-tool-parser.js";
 import { log } from "../utils/logger.js";
+import { printBanner } from "./banner.js";
 
 /**
  * Convert a tool object to a ToolDefinition for pi-coding-agent.
@@ -105,7 +105,8 @@ export async function startScout(
   const model = resolveModel(config);
   const customTools = buildScoutTools();
 
-  log.info("Mode: Scout (HuggingFace Model Researcher)");
+  printBanner(config.model, config.provider);
+  console.error("  Mode: Scout (HuggingFace Model Researcher)\n");
 
   // Pre-flight: check if model supports structured tool calling via Ollama API.
   // If not, stay in agent mode — the text tool parser handles models that output
@@ -145,20 +146,16 @@ export async function startScout(
   const agentSystemPrompt = buildScoutPrompt(hardware);
   const chatSystemPrompt = buildScoutChatPrompt(hardware);
 
-  // Extensions
+  // Chat mode extension
   const chatModeFactory: ExtensionFactory = createChatModeExtension({
     agentSystemPrompt,
     chatSystemPrompt,
     startInChatMode: false,
   });
-  const bannerHeaderFactory: ExtensionFactory = createBannerHeaderExtension({
-    model: config.model,
-    provider: config.provider,
-  });
 
   const resourceLoader = new DefaultResourceLoader({
     cwd: config.workDir,
-    extensionFactories: [chatModeFactory, bannerHeaderFactory],
+    extensionFactories: [chatModeFactory],
     extensionsOverride: (base) => {
       for (const ext of base.extensions) {
         if (ext.path.startsWith("<inline:")) {

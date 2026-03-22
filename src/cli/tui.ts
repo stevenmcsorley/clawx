@@ -44,10 +44,10 @@ import { createGitDiffTool } from "../tools/gitDiff.js";
 import { createSearchFilesTool } from "../tools/searchFiles.js";
 import { buildSystemPrompt, buildChatPrompt } from "../utils/system-prompt.js";
 import { createChatModeExtension } from "../extensions/chat-mode.js";
-import { createBannerHeaderExtension } from "../extensions/banner-header.js";
 import { createToolParsingStreamFn } from "../core/text-tool-parser.js";
 import { loadExtensions, getDefaultExtensionsDir } from "../core/extension-loader.js";
 import { log } from "../utils/logger.js";
+import { printBanner } from "./banner.js";
 
 /**
  * Build custom tool definitions for registration with AgentSession.
@@ -260,6 +260,8 @@ export async function startTui(
   };
   const model = resolveModel(config);
 
+  printBanner(config.model, config.provider);
+
   // Pre-flight: check if model supports structured tool calling via Ollama API.
   // If not, we stay in agent mode anyway — the text tool parser will handle
   // models that output tool calls as text (e.g. <tool_call>{...}</tool_call>).
@@ -307,22 +309,18 @@ export async function startTui(
     log.info(`Scout/Forge tools available in main TUI: ${scoutForgeToolNamesList.join(', ')}`);
   }
 
-  // Create extensions
+  // Create chat mode extension
   const chatModeFactory: ExtensionFactory = createChatModeExtension({
     agentSystemPrompt,
     chatSystemPrompt,
     startInChatMode: false,
     sshEnabled: options.sshEnabled,
   });
-  const bannerHeaderFactory: ExtensionFactory = createBannerHeaderExtension({
-    model: config.model,
-    provider: config.provider,
-  });
 
-  // Create resource loader with our extensions
+  // Create resource loader with our chat mode extension
   const resourceLoader = new DefaultResourceLoader({
     cwd: config.workDir,
-    extensionFactories: [chatModeFactory, bannerHeaderFactory],
+    extensionFactories: [chatModeFactory],
     extensionsOverride: (base) => {
       // Rename inline extensions to show "clawx" instead of "<inline:1>"
       for (const ext of base.extensions) {
