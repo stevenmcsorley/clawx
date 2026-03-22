@@ -44,10 +44,10 @@ import { createGitDiffTool } from "../tools/gitDiff.js";
 import { createSearchFilesTool } from "../tools/searchFiles.js";
 import { buildSystemPrompt, buildChatPrompt } from "../utils/system-prompt.js";
 import { createChatModeExtension } from "../extensions/chat-mode.js";
+import { createBannerHeaderExtension } from "../extensions/banner-header.js";
 import { createToolParsingStreamFn } from "../core/text-tool-parser.js";
 import { loadExtensions, getDefaultExtensionsDir } from "../core/extension-loader.js";
 import { log } from "../utils/logger.js";
-import { printBanner } from "./banner.js";
 
 /**
  * Build custom tool definitions for registration with AgentSession.
@@ -260,8 +260,6 @@ export async function startTui(
   };
   const model = resolveModel(config);
 
-  printBanner(config.model, config.provider);
-
   // Pre-flight: check if model supports structured tool calling via Ollama API.
   // If not, we stay in agent mode anyway — the text tool parser will handle
   // models that output tool calls as text (e.g. <tool_call>{...}</tool_call>).
@@ -309,18 +307,22 @@ export async function startTui(
     log.info(`Scout/Forge tools available in main TUI: ${scoutForgeToolNamesList.join(', ')}`);
   }
 
-  // Create chat mode extension
+  // Create extensions
   const chatModeFactory: ExtensionFactory = createChatModeExtension({
     agentSystemPrompt,
     chatSystemPrompt,
     startInChatMode: false,
     sshEnabled: options.sshEnabled,
   });
+  const bannerHeaderFactory: ExtensionFactory = createBannerHeaderExtension({
+    model: config.model,
+    provider: config.provider,
+  });
 
-  // Create resource loader with our chat mode extension
+  // Create resource loader with our extensions
   const resourceLoader = new DefaultResourceLoader({
     cwd: config.workDir,
-    extensionFactories: [chatModeFactory],
+    extensionFactories: [chatModeFactory, bannerHeaderFactory],
     extensionsOverride: (base) => {
       // Rename inline extensions to show "clawx" instead of "<inline:1>"
       for (const ext of base.extensions) {
@@ -366,22 +368,6 @@ export async function startTui(
   const allToolNames = session.getAllTools().map((t) => t.name);
   if (allToolNames.length > 0) {
     session.agent.streamFn = createToolParsingStreamFn(allToolNames) as typeof session.agent.streamFn;
-  }
-
-  // Add initial message mentioning Scout/Forge availability
-  const scoutForgeToolNamesInSession = allToolNames.filter(name => name.startsWith('hf_') || name.startsWith('forge_'));
-  if (scoutForgeToolNamesInSession.length > 0) {
-    const initialMessage = options.initialMessage || '';
-    // If no initial message, add a brief mention
-    if (!initialMessage) {
-      const mode = new InteractiveMode(session, {
-        modelFallbackMessage,
-        initialMessage: `Scout and Forge tools are available in this session. Use hf_search, hf_model_info, hf_readme, hf_dataset_search, forge_write_capability, or forge_list_capabilities as needed.`,
-        verbose: options.verbose,
-      });
-      await mode.run();
-      return;
-    }
   }
 
   // Create and run the interactive mode

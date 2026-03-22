@@ -23,9 +23,9 @@ import { createHfModelInfoTool } from "../tools/hfModelInfo.js";
 import { createHfReadmeTool } from "../tools/hfReadme.js";
 import { buildForgePrompt } from "../utils/forge-prompt.js";
 import { createChatModeExtension } from "../extensions/chat-mode.js";
+import { createBannerHeaderExtension } from "../extensions/banner-header.js";
 import { createToolParsingStreamFn } from "../core/text-tool-parser.js";
 import { log } from "../utils/logger.js";
-import { printBanner } from "./banner.js";
 
 // Import new Forge tools
 import { createHfDatasetSearchTool } from "../tools/hfDatasetSearch.js";
@@ -75,8 +75,7 @@ export async function startForgeTUI(
   };
   const model = resolveModel(config);
 
-  printBanner(config.model, config.provider);
-  console.error("  Mode: Forge (Capability Builder)\n");
+  log.info("Mode: Forge (Capability Builder)");
 
   log.info(`Starting Forge with ${model.id} @ ${model.provider}`);
   log.info(`Forge tools: ${customTools.map((t) => t.name).join(", ")}`);
@@ -111,16 +110,20 @@ You are in chat mode — you cannot search HuggingFace or create extensions righ
 Keep discussions focused on tool implementation and technical details.
 If the user needs to build something, suggest they switch back with /chat.`;
 
-  // Chat mode extension
+  // Extensions
   const chatModeFactory: ExtensionFactory = createChatModeExtension({
     agentSystemPrompt,
     chatSystemPrompt,
     startInChatMode: false,
   });
+  const bannerHeaderFactory: ExtensionFactory = createBannerHeaderExtension({
+    model: config.model,
+    provider: config.provider,
+  });
 
   const resourceLoader = new DefaultResourceLoader({
     cwd: config.workDir,
-    extensionFactories: [chatModeFactory],
+    extensionFactories: [chatModeFactory, bannerHeaderFactory],
     extensionsOverride: (base) => {
       // Override extensions to ONLY include chat mode
       // This prevents loading of default file system tools
