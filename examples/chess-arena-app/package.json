@@ -1,0 +1,30 @@
+{
+  "name": "chess-arena-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "React + Express example app with autoplay chess arena",
+  "scripts": {
+    "dev": "concurrently \"node src/server.mjs\" \"vite --port 5178\"",
+    "server": "node src/server.mjs",
+    "client": "vite --port 5178",
+    "build": "vite build",
+    "preview": "vite preview --port 4178"
+  },
+  "dependencies": {
+    "@halfagiraf/clawx": "latest",
+    "chess.js": "^1.1.0",
+    "express": "^4.21.2",
+    "lucide-react": "^0.577.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.0.1",
+    "dotenv": "^16.6.1",
+    "vite": "^5.4.10"
+  }
+}

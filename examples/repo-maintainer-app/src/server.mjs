@@ -77,10 +77,9 @@ app.get('/api/repo-inspect/stream', async (req, res) => {
         try {
           switch (event.type) {
             case 'message_update': {
-              // Stream text deltas
-              const delta = event.textDelta || event.delta || '';
-              if (delta) {
-                sendSSE('text_delta', { delta });
+              const sub = event.assistantMessageEvent;
+              if (sub && sub.type === 'text_delta' && sub.delta) {
+                sendSSE('text_delta', { delta: sub.delta });
               }
               break;
             }

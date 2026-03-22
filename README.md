@@ -622,6 +622,7 @@ The repo already includes examples under [`examples/`](examples/) such as:
 - `programmatic-react-express/` — a fuller React + Express example app that uses Clawx programmatically from the backend
 - `repo-maintainer-app/` — a React + Express repo-maintenance workbench for repository summary, maintenance planning, and risk review
 - `ops-copilot-app/` — a React + Express ops/environment inspection app showing Clawx used as an operational backend
+- `chess-arena-app/` — an interactive browser chess arena with autoplay White vs Black, showing richer app-building possibilities
 
 That example app shows how to:
 - install `@halfagiraf/clawx` into a real app
