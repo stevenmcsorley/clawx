@@ -171,6 +171,26 @@ async function buildCustomTools(config: ClawxConfig): Promise<ToolDefinition[]> 
     // Continue without agent tools - don't break Clawx
   }
 
+  // Scout and Forge tools — available in main TUI
+  try {
+    const { createHfSearchTool } = await import('../tools/hfSearch.js');
+    const { createHfModelInfoTool } = await import('../tools/hfModelInfo.js');
+    const { createHfReadmeTool } = await import('../tools/hfReadme.js');
+    const { createHfDatasetSearchTool } = await import('../tools/hfDatasetSearch.js');
+    const { createForgeWriteCapabilityTool } = await import('../tools/forgeWriteCapability.js');
+    const { createForgeListCapabilitiesTool } = await import('../tools/forgeListCapabilities.js');
+    
+    tools.push(toolToDefinition(createHfSearchTool()));
+    tools.push(toolToDefinition(createHfModelInfoTool()));
+    tools.push(toolToDefinition(createHfReadmeTool()));
+    tools.push(toolToDefinition(createHfDatasetSearchTool()));
+    tools.push(toolToDefinition(createForgeWriteCapabilityTool()));
+    tools.push(toolToDefinition(createForgeListCapabilitiesTool()));
+  } catch (error) {
+    log.debug('Scout/Forge tools not available:', error instanceof Error ? error.message : String(error));
+    // Continue without them
+  }
+
   // Load extensions
   const extensionsDir = config.extensionsDir || getDefaultExtensionsDir();
   try {
@@ -281,6 +301,14 @@ export async function startTui(
   const agentSystemPrompt = buildSystemPrompt(config);
   const chatSystemPrompt = buildChatPrompt(config);
 
+  // Include Scout/Forge tool descriptions in system prompt
+  const scoutForgeToolNamesList = customTools
+    .filter(t => t.name.startsWith('hf_') || t.name.startsWith('forge_'))
+    .map(t => t.name);
+  if (scoutForgeToolNamesList.length > 0) {
+    log.info(`Scout/Forge tools available in main TUI: ${scoutForgeToolNamesList.join(', ')}`);
+  }
+
   // Create chat mode extension
   const chatModeFactory: ExtensionFactory = createChatModeExtension({
     agentSystemPrompt,
@@ -338,6 +366,22 @@ export async function startTui(
   const allToolNames = session.getAllTools().map((t) => t.name);
   if (allToolNames.length > 0) {
     session.agent.streamFn = createToolParsingStreamFn(allToolNames) as typeof session.agent.streamFn;
+  }
+
+  // Add initial message mentioning Scout/Forge availability
+  const scoutForgeToolNamesInSession = allToolNames.filter(name => name.startsWith('hf_') || name.startsWith('forge_'));
+  if (scoutForgeToolNamesInSession.length > 0) {
+    const initialMessage = options.initialMessage || '';
+    // If no initial message, add a brief mention
+    if (!initialMessage) {
+      const mode = new InteractiveMode(session, {
+        modelFallbackMessage,
+        initialMessage: `Scout and Forge tools are available in this session. Use hf_search, hf_model_info, hf_readme, hf_dataset_search, forge_write_capability, or forge_list_capabilities as needed.`,
+        verbose: options.verbose,
+      });
+      await mode.run();
+      return;
+    }
   }
 
   // Create and run the interactive mode
