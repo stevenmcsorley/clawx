@@ -1,9 +1,11 @@
 /**
  * Banner Header Extension for Clawx TUI.
  *
- * Renders the CLAWX ASCII art banner as a sticky overlay pinned to the
- * top of the viewport. Uses pi-tui's overlay system which composites at
- * viewport-relative positions, so the header stays visible as content scrolls.
+ * Renders the CLAWX ASCII art banner in the TUI header (visible at startup,
+ * scrolls away as content fills in — same behavior as Claude Code).
+ *
+ * Also sets a persistent status line in the footer showing model/provider
+ * info so it's always visible.
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
@@ -17,7 +19,8 @@ export interface BannerHeaderOptions {
 export function createBannerHeaderExtension(options: BannerHeaderOptions) {
   return function bannerHeaderExtension(pi: ExtensionAPI): void {
     pi.on("session_start", async (_event, ctx) => {
-      ctx.ui.setHeader((tui, theme) => {
+      // Set the ASCII art banner as the TUI header (visible at startup)
+      ctx.ui.setHeader((_tui, theme) => {
         const logo =
           `  ${theme.bold(theme.fg("accent", "╔═╗╦  ╔═╗╦ ╦═╗╔═"))}\n` +
           `  ${theme.bold(theme.fg("accent", "║  ║  ╠═╣║║║ ╚╝"))}\n` +
@@ -34,28 +37,11 @@ export function createBannerHeaderExtension(options: BannerHeaderOptions) {
 
         const bannerText = `${logo}\n${meta}\n${separator}`;
 
-        // Show banner as a non-capturing overlay pinned to top-left.
-        // Overlays are composited at viewport-relative positions, so
-        // the header stays visible regardless of scroll position.
-        const bannerComponent = {
+        return {
           render(width: number): string[] {
             return bannerText.split("\n");
           },
           invalidate() {},
-        };
-
-        const handle = tui.showOverlay(bannerComponent, {
-          anchor: "top-left" as any,
-          nonCapturing: true,
-          width: "100%",
-        });
-
-        // Return empty component for the header slot; the visual header
-        // is the overlay. dispose() hides the overlay on /reload.
-        return {
-          render(): string[] { return []; },
-          invalidate() {},
-          dispose() { handle.hide(); },
         };
       });
     });
