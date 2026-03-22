@@ -27,6 +27,7 @@ export CLAWDEX_API_KEY=sk-your-key
 | [custom-config.mjs](custom-config.mjs) | Pass config directly without .env files |
 | [ci-codegen.mjs](ci-codegen.mjs) | Headless mode for CI/automation pipelines |
 | [programmatic-react-express/](programmatic-react-express/) | Full React + Express example app using Clawx programmatically from the backend |
+| [repo-maintainer-app/](repo-maintainer-app/) | React + Express repo-maintenance workbench for repository summary, maintenance planning, and risk review |
 
 ## Run
 

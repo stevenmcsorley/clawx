@@ -1,0 +1,29 @@
+{
+  "name": "repo-maintainer-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "React + Express example app using Clawx programmatically for repo maintenance workflows",
+  "scripts": {
+    "dev": "concurrently \"node src/server.mjs\" \"vite --port 5174\"",
+    "server": "node src/server.mjs",
+    "client": "vite --port 5174",
+    "build": "vite build",
+    "preview": "vite preview --port 4174"
+  },
+  "dependencies": {
+    "@halfagiraf/clawx": "latest",
+    "express": "^4.21.2",
+    "lucide-react": "^0.577.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.0.1",
+    "dotenv": "^16.6.1",
+    "vite": "^5.4.10"
+  }
+}

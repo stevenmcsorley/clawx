@@ -620,6 +620,7 @@ The repo already includes examples under [`examples/`](examples/) such as:
 - `custom-config.mjs`
 - `ci-codegen.mjs`
 - `programmatic-react-express/` — a fuller React + Express example app that uses Clawx programmatically from the backend
+- `repo-maintainer-app/` — a React + Express repo-maintenance workbench for repository summary, maintenance planning, and risk review
 
 That example app shows how to:
 - install `@halfagiraf/clawx` into a real app
